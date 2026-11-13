@@ -3,6 +3,8 @@
 #include <cctype>
 #include <cstring>
 #include <string>
+#include <vector>
+#include "ui/ResultDialog.h"
 #include "mail/MimeTextExtractor.h"
 #include "BeckyAPI.h"
 #include "ui/LauncherDialog.h"
@@ -14,6 +16,8 @@ namespace
     CBeckyAPI g_beckyApi;
     UINT g_launcherCommandList = 0;
     UINT g_launcherCommandView = 0;
+    std::wstring g_pendingReplyText;
+    ULONGLONG g_pendingReplyTick = 0;
 
     std::string TrimAscii(const std::string& value)
     {
@@ -223,6 +227,8 @@ namespace
         if (GetSingleSelectedMail(owner, mail))
         {
             ShowLauncherDialog(owner, g_instance, mail);
+            if (mail.insertReplyRequested)
+                OpenReplyComposer(mail.mailId, mail.replyDraft);
         }
     }
 
@@ -232,6 +238,8 @@ namespace
         if (GetCurrentDisplayedMail(owner, mail))
         {
             ShowLauncherDialog(owner, g_instance, mail);
+            if (mail.insertReplyRequested)
+                OpenReplyComposer(mail.mailId, mail.replyDraft);
         }
     }
 
@@ -341,4 +349,64 @@ extern "C"
 
         return 0;
     }
+}
+
+bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText)
+{
+    if (mailId.empty() || replyText.empty()) return false;
+
+    const int idBytes = WideCharToMultiByte(CP_ACP, 0, mailId.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (idBytes <= 1) return false;
+    std::string id(static_cast<size_t>(idBytes), '\\0');
+    if (!WideCharToMultiByte(CP_ACP, 0, mailId.c_str(), -1, id.data(), idBytes, nullptr, nullptr))
+        return false;
+
+    HWND mainWindow = nullptr;
+    HWND tree = nullptr, list = nullptr, view = nullptr;
+    if (!g_beckyApi.GetWindowHandles(&mainWindow, &tree, &list, &view) || !mainWindow)
+        return false;
+
+    // Keep the target message selected before invoking Becky!'s own Ctrl+R reply command.
+    g_beckyApi.SetCurrentMail(id.c_str());
+    g_pendingReplyText = replyText;
+    g_pendingReplyTick = GetTickCount64();
+
+    SetForegroundWindow(mainWindow);
+    SetActiveWindow(mainWindow);
+    SetFocus(mainWindow);
+
+    INPUT input[4]{};
+    input[0].type = INPUT_KEYBOARD; input[0].ki.wVk = VK_CONTROL;
+    input[1].type = INPUT_KEYBOARD; input[1].ki.wVk = 'R';
+    input[2].type = INPUT_KEYBOARD; input[2].ki.wVk = 'R'; input[2].ki.dwFlags = KEYEVENTF_KEYUP;
+    input[3].type = INPUT_KEYBOARD; input[3].ki.wVk = VK_CONTROL; input[3].ki.dwFlags = KEYEVENTF_KEYUP;
+    const UINT sent = SendInput(4, input, sizeof(INPUT));
+    if (sent != 4) {
+        g_pendingReplyText.clear();
+        g_pendingReplyTick = 0;
+        return false;
+    }
+    return true;
+}
+
+extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
+{
+    if (composeWindow == nullptr || mode != COMPOSE_MODE_REPLY1 ||
+        g_pendingReplyText.empty() || GetTickCount64() - g_pendingReplyTick > 15000)
+        return 0;
+
+    const int bytes = WideCharToMultiByte(CP_ACP, 0, g_pendingReplyText.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (bytes <= 1) {
+        g_pendingReplyText.clear();
+        g_pendingReplyTick = 0;
+        return 0;
+    }
+    std::string text(static_cast<size_t>(bytes), '\\0');
+    if (WideCharToMultiByte(CP_ACP, 0, g_pendingReplyText.c_str(), -1, text.data(), bytes, nullptr, nullptr)) {
+        // nMode=-1 inserts the draft at the beginning and preserves Becky!'s quoted original message.
+        g_beckyApi.CompSetText(composeWindow, -1, text.c_str());
+    }
+    g_pendingReplyText.clear();
+    g_pendingReplyTick = 0;
+    return 0;
 }
