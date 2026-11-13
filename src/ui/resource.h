@@ -23,3 +23,4 @@
 #define IDC_AI_COPY_ALL       1202
 #define IDC_AI_COPY_STATUS    1203
 #define IDC_AI_RESULT_CLOSE   1204
+#define IDC_AI_INSERT_REPLY   1205
