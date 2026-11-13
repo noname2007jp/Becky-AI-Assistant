@@ -1,7 +1,9 @@
 #include <windows.h>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <string>
+#include "mail/MimeTextExtractor.h"
 #include "BeckyAPI.h"
 #include "ui/LauncherDialog.h"
 
@@ -139,6 +141,36 @@ namespace
         MessageBoxW(owner, message, L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
     }
 
+    void LoadMailBody(const std::string& mailId, MailContext& mail)
+    {
+        constexpr size_t kMaxSourceBytes = 5 * 1024 * 1024;
+        char* source = g_beckyApi.GetSource(mailId.c_str());
+        if (source == nullptr)
+        {
+            mail.bodyStatus = L"メール本文を取得できませんでした。";
+            return;
+        }
+
+        const size_t sourceLength = strnlen_s(source, kMaxSourceBytes + 1);
+        if (sourceLength > kMaxSourceBytes)
+        {
+            g_beckyApi.Free(source);
+            mail.bodyStatus = L"メールサイズが上限（5 MiB）を超えています。";
+            return;
+        }
+
+        std::string sourceCopy(source, sourceLength);
+        g_beckyApi.Free(source);
+
+        std::wstring error;
+        if (!ExtractMailText(sourceCopy.data(), sourceCopy.size(), mail.body, error))
+        {
+            mail.bodyStatus = error.empty() ? L"本文を抽出できませんでした。" : error;
+            return;
+        }
+        mail.bodyStatus = L"本文を取得しました（添付ファイルは対象外）。";
+    }
+
     bool GetSingleSelectedMail(HWND owner, MailContext& mail)
     {
         char firstId[4096] = {};
@@ -163,6 +195,7 @@ namespace
 
         mail.mailId = ToWide(firstId);
         ParseMailHeader(g_beckyApi.GetHeader(firstId), mail);
+        LoadMailBody(firstId, mail);
         return true;
     }
 
@@ -179,6 +212,7 @@ namespace
         const std::string mailId(currentId);
         mail.mailId = ToWide(mailId);
         ParseMailHeader(g_beckyApi.GetHeader(mailId.c_str()), mail);
+        LoadMailBody(mailId, mail);
         return true;
     }
 
