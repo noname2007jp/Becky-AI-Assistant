@@ -1,0 +1,20 @@
+name: Windows x86 build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-win32:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure x86 build
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
+
+      - name: Build Release
+        run: cmake --build build --config Release --parallel
