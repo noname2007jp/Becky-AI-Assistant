@@ -14,6 +14,7 @@ add_library(BeckyAIAssistant SHARED
   src/mail/MimeTextExtractor.cpp
   src/settings/ApiKeyStore.cpp
   src/gemini/GeminiConnection.cpp
+  src/gemini/GeminiGenerate.cpp
   src/ui/SettingsDialog.cpp
   src/ui/LauncherDialog.cpp
   resources/Launcher.rc
@@ -47,6 +48,6 @@ target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winh
 
 # Becky! recognizes the DLL under this filename in the user's environment.
 set_target_properties(BeckyAIAssistant PROPERTIES
-  OUTPUT_NAME "Becky-AI-Assistant-04"
+  OUTPUT_NAME "Becky-AI-Assistant-05"
   PREFIX ""
 )
