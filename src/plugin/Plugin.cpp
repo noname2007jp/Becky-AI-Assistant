@@ -359,7 +359,7 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
 
     const int idBytes = WideCharToMultiByte(CP_ACP, 0, mailId.c_str(), -1, nullptr, 0, nullptr, nullptr);
     if (idBytes <= 1) return false;
-    std::string id(static_cast<size_t>(idBytes), '\\0');
+    std::string id(static_cast<size_t>(idBytes), '\0');
     if (!WideCharToMultiByte(CP_ACP, 0, mailId.c_str(), -1, id.data(), idBytes, nullptr, nullptr))
         return false;
 
@@ -403,7 +403,7 @@ extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
         g_pendingReplyTick = 0;
         return 0;
     }
-    std::string text(static_cast<size_t>(bytes), '\\0');
+    std::string text(static_cast<size_t>(bytes), '\0');
     if (WideCharToMultiByte(CP_ACP, 0, g_pendingReplyText.c_str(), -1, text.data(), bytes, nullptr, nullptr)) {
         // nMode=-1 inserts the draft at the beginning and preserves Becky!'s quoted original message.
         g_beckyApi.CompSetText(composeWindow, -1, text.c_str());
