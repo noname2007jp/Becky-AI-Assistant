@@ -1,5 +1,13 @@
 #pragma once
 
 #include <windows.h>
+#include <string>
 
-INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance);
+struct MailContext
+{
+    std::wstring mailId;
+    std::wstring from;
+    std::wstring subject;
+};
+
+INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, const MailContext& mail);
