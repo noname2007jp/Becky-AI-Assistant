@@ -16,7 +16,7 @@ Becky! Internet Mail向けのAIアシスタントプラグインです。
 Visual Studio 2022 の「x86 Native Tools Command Prompt」から実行します。
 
 ```bat
-cmake -S . -B build -A Win32
+cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
