@@ -44,6 +44,6 @@ target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32)
 
 # Becky! recognizes the DLL under this filename in the user's environment.
 set_target_properties(BeckyAIAssistant PROPERTIES
-  OUTPUT_NAME "Becky-AI-Assistant-01"
+  OUTPUT_NAME "Becky-AI-Assistant-02"
   PREFIX ""
 )
