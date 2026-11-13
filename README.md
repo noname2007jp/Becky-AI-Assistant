@@ -9,11 +9,12 @@ Becky! Internet Mail向けのAIアシスタントプラグインです。
 - 右クリックメニュー: メール一覧と本文表示
 - 対象メール: 1通。複数選択時は警告して処理を中止
 - メール本文: MIMEテキスト抽出、添付ファイルは除外
-- バージョン05: 明示的な同意後にメール本文をGeminiへ送信し、要約結果を表示する機能を追加
+- バージョン06: 要約時にGeminiモデルとThinkingレベルを選択可能
+- 標準選択: Gemini 3.5 Flash-Lite (Thinking Medium)
+- モデル選択肢: Gemini 3.8 / 3.6 / 3.5 Flash-Lite、Gemini 2.5、Gemini 3.1 Pro Preview、Gemma 4
 - 要約送信前に送信対象（件名・差出人・本文）を確認。キャンセル時は通信しません。
-- 要約生成はGemini `generateContent` を使用。返信文案・AI相談は未実装
-- 接続テストはモデル一覧APIへのGETのみ。メール本文やメール情報は送信しません
-- Gemini APIへの通信・メール本文の送信はまだ実装していません
+- Gemini APIへの通信・メール本文の送信は、明示的な同意後にのみ実行
+- 返信文案・AI相談は未実装
 
 ## APIキーの保存
 
@@ -32,9 +33,8 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\Release\Becky-AI-Assistant-03.dll`
+生成物: `build\Release\Becky-AI-Assistant-06.dll`
 
 ## 注意
 
 メール本文は、ユーザーが明示的に実行を選び、送信内容を確認するまで外部サービスへ送信しません。
-APIキーやメール本文などの機密情報をリポジトリへ登録しないでください。
