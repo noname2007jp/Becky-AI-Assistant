@@ -7,3 +7,4 @@
 #define IDC_AI_SETTINGS  1004
 #define IDC_MAIL_SUBJECT 1010
 #define IDC_MAIL_FROM    1011
+#define IDC_MAIL_BODY    1012
