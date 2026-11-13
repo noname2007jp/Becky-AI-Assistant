@@ -6,3 +6,4 @@ EXPORTS
   BKC_OnExit       @2
   BKC_OnMenuInit   @3
   BKC_OnPlugInInfo  @14
+  BKC_OnOpenCompose @15
