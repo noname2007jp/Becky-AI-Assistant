@@ -9,7 +9,8 @@ Becky! Internet Mail向けのAIアシスタントプラグインです。
 - 右クリックメニュー: メール一覧と本文表示
 - 対象メール: 1通。複数選択時は警告して処理を中止
 - メール本文: MIMEテキスト抽出、添付ファイルは除外
-- バージョン06: 要約時にGeminiモデルとThinkingレベルを選択可能
+- バージョン07: 要約結果を専用ウィンドウに表示し、部分選択コピー・全文コピーに対応
+- バージョン06から継続: 要約時にGeminiモデルとThinkingレベルを選択可能
 - 標準選択: Gemini 3.5 Flash-Lite (Thinking Medium)
 - モデル選択肢: Gemini 3.8 / 3.6 / 3.5 Flash-Lite、Gemini 2.5、Gemini 3.1 Pro Preview、Gemma 4
 - 要約送信前に送信対象（件名・差出人・本文）を確認。キャンセル時は通信しません。
