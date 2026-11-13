@@ -24,8 +24,7 @@ target_include_directories(BeckyAIAssistant PRIVATE
 
 target_compile_features(BeckyAIAssistant PRIVATE cxx_std_17)
 
-# Statically link the MSVC runtime so Becky! can load the plug-in without
-# requiring a separately installed Visual C++ Redistributable.
+# Statically link the MSVC runtime.
 set_property(TARGET BeckyAIAssistant PROPERTY
   MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 target_compile_definitions(BeckyAIAssistant PRIVATE
@@ -42,7 +41,8 @@ target_compile_options(BeckyAIAssistant PRIVATE
 )
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32)
 
+# Becky! recognizes the DLL under this filename in the user's environment.
 set_target_properties(BeckyAIAssistant PROPERTIES
-  OUTPUT_NAME "BeckyAIAssistant"
+  OUTPUT_NAME "Becky-AI-Assistant-01"
   PREFIX ""
 )
