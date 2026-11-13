@@ -2,21 +2,25 @@
 #include <windows.h>
 #include "../src/ui/resource.h"
 
-IDD_AI_LAUNCHER DIALOGEX 0, 0, 286, 222
+IDD_AI_LAUNCHER DIALOGEX 0, 0, 300, 252
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_DLGMODALFRAME
 CAPTION "Becky AI Assistant"
 FONT 9, "Meiryo UI"
 BEGIN
-    LTEXT           "Becky AI Assistant", -1, 16, 13, 254, 20
-    LTEXT           "メール業務をAIでサポートします", -1, 17, 34, 252, 12
-    LTEXT           "何をしますか？", -1, 17, 58, 252, 12
+    LTEXT           "Becky AI Assistant", -1, 16, 12, 268, 18
+    LTEXT           "対象メール", -1, 17, 34, 80, 12
+    LTEXT           "件名:", -1, 17, 50, 38, 12
+    LTEXT           "", IDC_MAIL_SUBJECT, 56, 50, 225, 24, SS_LEFT
+    LTEXT           "差出人:", -1, 17, 76, 38, 12
+    LTEXT           "", IDC_MAIL_FROM, 56, 76, 225, 24, SS_LEFT
+    LTEXT           "何をしますか？", -1, 17, 106, 264, 12
 
-    PUSHBUTTON      "メールを要約", IDC_AI_SUMMARY, 17, 77, 252, 27
-    PUSHBUTTON      "返信文案を作成", IDC_AI_REPLY, 17, 109, 252, 27
-    PUSHBUTTON      "AIに相談", IDC_AI_CONSULT, 17, 141, 252, 27
+    PUSHBUTTON      "メールを要約", IDC_AI_SUMMARY, 17, 124, 264, 27
+    PUSHBUTTON      "返信文案を作成", IDC_AI_REPLY, 17, 156, 264, 27
+    PUSHBUTTON      "AIに相談", IDC_AI_CONSULT, 17, 188, 264, 27
 
-    CONTROL         "", -1, "STATIC", SS_ETCHEDHORZ, 17, 177, 252, 1
-    PUSHBUTTON      "設定", IDC_AI_SETTINGS, 17, 188, 75, 22
-    DEFPUSHBUTTON   "閉じる", IDOK, 194, 188, 75, 22
+    CONTROL         "", -1, "STATIC", SS_ETCHEDHORZ, 17, 221, 264, 1
+    PUSHBUTTON      "設定", IDC_AI_SETTINGS, 17, 230, 75, 18
+    DEFPUSHBUTTON   "閉じる", IDOK, 206, 230, 75, 18
 END
