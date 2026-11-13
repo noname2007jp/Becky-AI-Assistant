@@ -21,3 +21,4 @@
 #define IDC_AI_RESULT_TEXT    1201
 #define IDC_AI_COPY_ALL       1202
 #define IDC_AI_COPY_STATUS    1203
+#define IDC_AI_RESULT_CLOSE   1204
