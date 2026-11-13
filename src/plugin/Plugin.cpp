@@ -229,8 +229,9 @@ namespace
         if (GetSingleSelectedMail(owner, mail))
         {
             ShowLauncherDialog(owner, g_instance, mail);
-            if (mail.insertReplyRequested)
-                OpenReplyComposer(mail.mailId, mail.replyDraft);
+            if (mail.insertReplyRequested && !OpenReplyComposer(mail.mailId, mail.replyDraft))
+                MessageBoxW(owner, L"Becky!の返信画面を開けませんでした。対象メールを選択し直して、もう一度お試しください。",
+                    L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
         }
     }
 
@@ -397,14 +398,17 @@ extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
         g_pendingReplyText.empty() || GetTickCount64() - g_pendingReplyTick > 15000)
         return 0;
 
-    const int bytes = WideCharToMultiByte(CP_ACP, 0, g_pendingReplyText.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    std::wstring insertion = g_pendingReplyText;
+    if (insertion.size() < 2 || insertion.substr(insertion.size() - 2) != L"\r\n")
+        insertion += L"\r\n\r\n";
+    const int bytes = WideCharToMultiByte(CP_ACP, 0, insertion.c_str(), -1, nullptr, 0, nullptr, nullptr);
     if (bytes <= 1) {
         g_pendingReplyText.clear();
         g_pendingReplyTick = 0;
         return 0;
     }
     std::string text(static_cast<size_t>(bytes), '\0');
-    if (WideCharToMultiByte(CP_ACP, 0, g_pendingReplyText.c_str(), -1, text.data(), bytes, nullptr, nullptr)) {
+    if (WideCharToMultiByte(CP_ACP, 0, insertion.c_str(), -1, text.data(), bytes, nullptr, nullptr)) {
         // nMode=-1 inserts the draft at the beginning and preserves Becky!'s quoted original message.
         g_beckyApi.CompSetText(composeWindow, -1, text.c_str());
     }
