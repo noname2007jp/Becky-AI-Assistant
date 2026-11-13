@@ -4,6 +4,8 @@
 #include "gemini/GeminiConnection.h"
 
 #include <string>
+#include <commctrl.h>
+#include <shellapi.h>
 
 namespace
 {
@@ -56,6 +58,21 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             SetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, key.c_str());
         if (!key.empty()) SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
         return TRUE;
+    }
+
+    case WM_NOTIFY:
+    {
+        const auto* notification = reinterpret_cast<const NMHDR*>(lParam);
+        if (notification != nullptr &&
+            notification->idFrom == IDC_GEMINI_APIKEY_LINK &&
+            (notification->code == NM_CLICK || notification->code == NM_RETURN))
+        {
+            ShellExecuteW(dialog, L"open",
+                L"https://aistudio.google.com/api-keys",
+                nullptr, nullptr, SW_SHOWNORMAL);
+            return TRUE;
+        }
+        break;
     }
 
     case WM_GEMINI_TEST_FINISHED:
@@ -155,6 +172,11 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
 
 INT_PTR ShowSettingsDialog(HWND owner, HINSTANCE instance)
 {
+    INITCOMMONCONTROLSEX controls{};
+    controls.dwSize = sizeof(controls);
+    controls.dwICC = ICC_LINK_CLASS;
+    InitCommonControlsEx(&controls);
+
     SettingsState state;
     return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_SETTINGS),
                            owner, SettingsProc, reinterpret_cast<LPARAM>(&state));
