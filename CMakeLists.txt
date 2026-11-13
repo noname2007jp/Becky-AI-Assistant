@@ -13,6 +13,7 @@ add_library(BeckyAIAssistant SHARED
   src/plugin/Plugin.cpp
   src/mail/MimeTextExtractor.cpp
   src/settings/ApiKeyStore.cpp
+  src/gemini/GeminiConnection.cpp
   src/ui/SettingsDialog.cpp
   src/ui/LauncherDialog.cpp
   resources/Launcher.rc
@@ -42,10 +43,10 @@ target_compile_options(BeckyAIAssistant PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:/EHsc>
   $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
 )
-target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32)
+target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winhttp)
 
 # Becky! recognizes the DLL under this filename in the user's environment.
 set_target_properties(BeckyAIAssistant PROPERTIES
-  OUTPUT_NAME "Becky-AI-Assistant-03"
+  OUTPUT_NAME "Becky-AI-Assistant-04"
   PREFIX ""
 )
