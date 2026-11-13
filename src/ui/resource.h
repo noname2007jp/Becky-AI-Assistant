@@ -1,0 +1,7 @@
+#pragma once
+
+#define IDD_AI_LAUNCHER  100
+#define IDC_AI_SUMMARY   1001
+#define IDC_AI_REPLY     1002
+#define IDC_AI_CONSULT   1003
+#define IDC_AI_SETTINGS  1004
