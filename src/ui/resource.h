@@ -16,3 +16,8 @@
 #define IDC_SETTINGS_SAVE     1102
 #define IDC_SETTINGS_STATUS   1103
 #define IDC_SETTINGS_TEST 1104
+
+#define IDD_AI_RESULT         120
+#define IDC_AI_RESULT_TEXT    1201
+#define IDC_AI_COPY_ALL       1202
+#define IDC_AI_COPY_STATUS    1203
