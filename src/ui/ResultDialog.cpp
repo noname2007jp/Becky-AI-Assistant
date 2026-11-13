@@ -8,7 +8,7 @@
 namespace
 {
     struct FormatRange { LONG start; LONG length; };
-    struct ResultDialogContext { const std::wstring* result; const wchar_t* title; };
+    struct ResultDialogContext { const std::wstring* result; std::wstring* edited; const wchar_t* title; bool replyMode; };
 
     bool CopyToClipboard(HWND owner, const std::wstring& text)
     {
@@ -114,7 +114,14 @@ namespace
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             if (context && context->title) SetWindowTextW(dialog, context->title);
             HWND resultEdit = GetDlgItem(dialog, IDC_AI_RESULT_TEXT);
-            if (context && context->result) SetFormattedResult(resultEdit, *context->result);
+            if (context && context->result) {
+                if (context->replyMode) SetWindowTextW(resultEdit, context->result->c_str());
+                else SetFormattedResult(resultEdit, *context->result);
+            }
+            if (context && context->replyMode) {
+                SendMessageW(resultEdit, EM_SETREADONLY, FALSE, 0);
+                SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"返信内容を編集し、確認後に返信画面へ挿入してください。");
+            }
             SendMessageW(resultEdit, EM_SETSEL, 0, 0);
             SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS,
                 L"必要な箇所を選択して Ctrl+C でもコピーできます。");
@@ -127,10 +134,34 @@ namespace
             {
                 auto* context = reinterpret_cast<ResultDialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
-                if (context && context->result && CopyToClipboard(dialog, *context->result))
-                    SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"要約全文をクリップボードにコピーしました。");
-                else
-                    SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"コピーできませんでした。もう一度お試しください。");
+                if (context && context->result) {
+                    HWND edit = GetDlgItem(dialog, IDC_AI_RESULT_TEXT);
+                    const int length = GetWindowTextLengthW(edit);
+                    std::wstring value(static_cast<size_t>(length) + 1, L'\0');
+                    GetWindowTextW(edit, value.data(), length + 1);
+                    value.resize(static_cast<size_t>(length));
+                    if (CopyToClipboard(dialog, context->replyMode ? value : *context->result))
+                        SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"全文をクリップボードにコピーしました。");
+                    else
+                        SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"コピーできませんでした。もう一度お試しください。");
+                }
+                return TRUE;
+            }
+            case IDC_AI_INSERT_REPLY:
+            {
+                auto* context = reinterpret_cast<ResultDialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (!context || !context->replyMode || !context->edited) return TRUE;
+                HWND edit = GetDlgItem(dialog, IDC_AI_RESULT_TEXT);
+                const int length = GetWindowTextLengthW(edit);
+                std::wstring value(static_cast<size_t>(length) + 1, L'\0');
+                GetWindowTextW(edit, value.data(), length + 1);
+                value.resize(static_cast<size_t>(length));
+                if (value.empty()) {
+                    MessageBoxW(dialog, L"返信文が空です。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                *context->edited = std::move(value);
+                EndDialog(dialog, IDC_AI_INSERT_REPLY);
                 return TRUE;
             }
             case IDC_AI_RESULT_CLOSE:
@@ -154,7 +185,15 @@ INT_PTR ShowResultDialog(HWND owner, HINSTANCE instance, const std::wstring& res
 {
     // Load the Windows Rich Edit control before creating the dialog.
     LoadLibraryW(L"Msftedit.dll");
-    ResultDialogContext context{ &result, title };
+    ResultDialogContext context{ &result, nullptr, title, false };
     return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_RESULT),
         owner, ResultDialogProc, reinterpret_cast<LPARAM>(&context));
+}
+
+bool ShowReplyDraftDialog(HWND owner, HINSTANCE instance, const std::wstring& draft, std::wstring& edited)
+{
+    LoadLibraryW(L"Msftedit.dll");
+    ResultDialogContext context{ &draft, &edited, L"Geminiによる返信文案", true };
+    return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_RESULT), owner,
+        ResultDialogProc, reinterpret_cast<LPARAM>(&context)) == IDC_AI_INSERT_REPLY;
 }
