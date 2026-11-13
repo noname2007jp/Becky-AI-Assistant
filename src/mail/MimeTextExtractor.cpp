@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <algorithm>
 #include <cctype>
+#include <iterator>
 #include <string>
 #include <vector>
 
