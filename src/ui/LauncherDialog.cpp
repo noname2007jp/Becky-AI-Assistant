@@ -1,15 +1,24 @@
 #include "LauncherDialog.h"
+#include "SettingsDialog.h"
 #include "resource.h"
 
 namespace
 {
+    struct DialogContext
+    {
+        const MailContext* mail;
+        HINSTANCE instance;
+    };
+
     INT_PTR CALLBACK LauncherDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
     {
         switch (message)
         {
         case WM_INITDIALOG:
         {
-            const auto* mail = reinterpret_cast<const MailContext*>(lParam);
+            auto* context = reinterpret_cast<DialogContext*>(lParam);
+            SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
+            const auto* mail = context ? context->mail : nullptr;
             if (mail != nullptr)
             {
                 SetDlgItemTextW(dialog, IDC_MAIL_SUBJECT,
@@ -30,13 +39,21 @@ namespace
             case IDC_AI_SUMMARY:
             case IDC_AI_REPLY:
             case IDC_AI_CONSULT:
-            case IDC_AI_SETTINGS:
                 MessageBoxW(
                     dialog,
                     L"この機能は現在開発中です。次の更新で利用できるようになります。",
                     L"Becky AI Assistant",
                     MB_OK | MB_ICONINFORMATION);
                 return TRUE;
+
+            case IDC_AI_SETTINGS:
+            {
+                auto* context = reinterpret_cast<DialogContext*>(
+                    GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context != nullptr)
+                    ShowSettingsDialog(dialog, context->instance);
+                return TRUE;
+            }
 
             case IDCANCEL:
             case IDOK:
@@ -55,17 +72,17 @@ namespace
         default:
             break;
         }
-
         return FALSE;
     }
 }
 
 INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, const MailContext& mail)
 {
+    DialogContext context{ &mail, instance };
     return DialogBoxParamW(
         instance,
         MAKEINTRESOURCEW(IDD_AI_LAUNCHER),
         owner,
         LauncherDialogProc,
-        reinterpret_cast<LPARAM>(&mail));
+        reinterpret_cast<LPARAM>(&context));
 }
