@@ -52,6 +52,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         auto* state = reinterpret_cast<SettingsState*>(lParam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         std::wstring key, error;
+        SetDlgItemTextW(GetDlgItem(dialog, IDC_GEMINI_APIKEY_LINK),
+            0, L"<a href=\"https://aistudio.google.com/api-keys\">Google AI StudioでAPIキーを取得</a>");
         if (!LoadGeminiApiKey(key, error))
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, error.c_str());
         else if (!key.empty())
