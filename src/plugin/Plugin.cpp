@@ -55,8 +55,37 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID)
     return TRUE;
 }
 
+// Required by the Becky! SDK. Becky! silently ignores a plug-in if this
+// callback is missing or the name/vendor fields are left empty.
+typedef struct tagBKPLUGININFO
+{
+    char szPlugInName[80];
+    char szVendor[80];
+    char szVersion[80];
+    char szDescription[256];
+} BKPLUGININFO, *LPBKPLUGININFO;
+
 extern "C"
 {
+    int WINAPI BKC_OnPlugInInfo(LPBKPLUGININFO info)
+    {
+        if (info == nullptr)
+        {
+            return 0;
+        }
+
+        lstrcpynA(info->szPlugInName, "Becky AI Assistant",
+                  static_cast<int>(sizeof(info->szPlugInName)));
+        lstrcpynA(info->szVendor, "noname2007jp",
+                  static_cast<int>(sizeof(info->szVendor)));
+        lstrcpynA(info->szVersion, "0.1.1",
+                  static_cast<int>(sizeof(info->szVersion)));
+        lstrcpynA(info->szDescription,
+                  "AI assistant launcher for Becky! Internet Mail",
+                  static_cast<int>(sizeof(info->szDescription)));
+        return 0;
+    }
+
     int WINAPI BKC_OnStart()
     {
         return 0;
