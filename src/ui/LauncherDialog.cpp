@@ -4,6 +4,7 @@
 #include "resource.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
+#include "gemini/GeminiReply.h"
 
 namespace
 {
@@ -130,6 +131,53 @@ namespace
             }
 
             case IDC_AI_REPLY:
+            {
+                auto* context = reinterpret_cast<DialogContext*>(
+                    GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context == nullptr || context->mail == nullptr) return TRUE;
+                const MailContext& mail = *context->mail;
+                const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
+                if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
+                {
+                    MessageBoxW(dialog, L"Geminiモデルを選択してください。",
+                        L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const int consent = MessageBoxW(dialog,
+                    L"次の情報をGoogle Gemini APIへ送信して返信文案を作成します。\n\n"
+                    L"・メールの件名\n・差出人\n・メール本文\n\n"
+                    L"メール本文には機密情報が含まれる可能性があります。"
+                    L"送信内容を確認し、許可する場合のみ「はい」を選択してください。"
+                    L"キャンセルすると外部送信しません。",
+                    L"返信文案作成 - 外部送信確認",
+                    MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
+                if (consent != IDYES) return TRUE;
+
+                std::wstring apiKey, error;
+                if (!LoadGeminiApiKey(apiKey, error) || apiKey.empty())
+                {
+                    MessageBoxW(dialog,
+                        error.empty() ? L"先に設定画面でGemini APIキーを保存してください。" : error.c_str(),
+                        L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
+                    L"Geminiで返信文案を作成中です。しばらくお待ちください...");
+                EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
+                const auto& model = kModels[selected];
+                GeminiGenerateResult result = GenerateMailReplyDraft(
+                    apiKey, model.modelId, model.thinking, mail.subject, mail.from, mail.body);
+                if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
+                EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
+                if (result.success)
+                    ShowResultDialog(dialog, context->instance, result.text, L"Geminiによる返信文案");
+                else
+                    MessageBoxW(dialog, result.error.c_str(),
+                        L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
+                return TRUE;
+            }
+
             case IDC_AI_CONSULT:
                 MessageBoxW(dialog,
                     L"この機能は次の開発段階で対応します。",
