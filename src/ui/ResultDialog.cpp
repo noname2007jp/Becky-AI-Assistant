@@ -8,7 +8,7 @@
 namespace
 {
     struct FormatRange { LONG start; LONG length; };
-    struct ResultDialogContext { const std::wstring* result; };
+    struct ResultDialogContext { const std::wstring* result; const wchar_t* title; };
 
     bool CopyToClipboard(HWND owner, const std::wstring& text)
     {
@@ -112,6 +112,7 @@ namespace
         {
             auto* context = reinterpret_cast<ResultDialogContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
+            if (context && context->title) SetWindowTextW(dialog, context->title);
             HWND resultEdit = GetDlgItem(dialog, IDC_AI_RESULT_TEXT);
             if (context && context->result) SetFormattedResult(resultEdit, *context->result);
             SendMessageW(resultEdit, EM_SETSEL, 0, 0);
@@ -149,11 +150,11 @@ namespace
     }
 }
 
-INT_PTR ShowResultDialog(HWND owner, HINSTANCE instance, const std::wstring& result)
+INT_PTR ShowResultDialog(HWND owner, HINSTANCE instance, const std::wstring& result, const wchar_t* title)
 {
     // Load the Windows Rich Edit control before creating the dialog.
     LoadLibraryW(L"Msftedit.dll");
-    ResultDialogContext context{ &result };
+    ResultDialogContext context{ &result, title };
     return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_RESULT),
         owner, ResultDialogProc, reinterpret_cast<LPARAM>(&context));
 }
