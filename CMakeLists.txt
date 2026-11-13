@@ -27,8 +27,6 @@ target_compile_definitions(BeckyAIAssistant PRIVATE
   _MBCS
   WIN32_LEAN_AND_MEAN
   NOMINMAX
-  UNICODE
-  _UNICODE
 )
 
 target_compile_options(BeckyAIAssistant PRIVATE /W4 /permissive- /EHsc /utf-8)
