@@ -5,3 +5,4 @@ EXPORTS
   BKC_OnStart      @1
   BKC_OnExit       @2
   BKC_OnMenuInit   @3
+  BKC_OnPlugInInfo  @14
