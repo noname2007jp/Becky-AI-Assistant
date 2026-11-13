@@ -11,6 +11,7 @@ endif()
 
 add_library(BeckyAIAssistant SHARED
   src/plugin/Plugin.cpp
+  src/mail/MimeTextExtractor.cpp
   src/ui/LauncherDialog.cpp
   resources/Launcher.rc
   third_party/becky_sdk/BeckyAPI.cpp
