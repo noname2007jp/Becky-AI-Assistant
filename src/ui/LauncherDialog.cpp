@@ -1,5 +1,6 @@
 #include "LauncherDialog.h"
 #include "SettingsDialog.h"
+#include "ResultDialog.h"
 #include "resource.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
@@ -121,8 +122,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 if (result.success)
-                    MessageBoxW(dialog, result.text.c_str(),
-                        L"Geminiによるメール要約", MB_OK | MB_ICONINFORMATION);
+                    ShowResultDialog(dialog, context->instance, result.text);
                 else
                     MessageBoxW(dialog, result.error.c_str(),
                         L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
