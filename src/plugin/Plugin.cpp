@@ -10,6 +10,8 @@
 #include "ui/LauncherDialog.h"
 #include "ui/SettingsDialog.h"
 
+bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText);
+
 namespace
 {
     HINSTANCE g_instance = nullptr;
@@ -311,7 +313,7 @@ extern "C"
                   static_cast<int>(sizeof(info->szPlugInName)));
         lstrcpynA(info->szVendor, "noname2007jp",
                   static_cast<int>(sizeof(info->szVendor)));
-        lstrcpynA(info->szVersion, "0.10.0",
+        lstrcpynA(info->szVersion, "0.11.0",
                   static_cast<int>(sizeof(info->szVersion)));
         lstrcpynA(info->szDescription,
                   "AI assistant launcher for Becky! Internet Mail",
