@@ -1,0 +1,7 @@
+LIBRARY "BeckyAIAssistant"
+DESCRIPTION 'Becky! AI Assistant plugin'
+
+EXPORTS
+  BKC_OnStart      @1
+  BKC_OnExit       @2
+  BKC_OnMenuInit   @3
