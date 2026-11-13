@@ -16,6 +16,10 @@ namespace
                     mail->subject.empty() ? L"(件名を取得できません)" : mail->subject.c_str());
                 SetDlgItemTextW(dialog, IDC_MAIL_FROM,
                     mail->from.empty() ? L"(差出人を取得できません)" : mail->from.c_str());
+                SetDlgItemTextW(dialog, IDC_MAIL_BODY,
+                    mail->body.empty() ? L"(本文を表示できません)" : mail->body.c_str());
+                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
+                    mail->bodyStatus.empty() ? L"" : mail->bodyStatus.c_str());
             }
             return TRUE;
         }
