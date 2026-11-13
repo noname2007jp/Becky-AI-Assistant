@@ -1,7 +1,5 @@
 #include <windows.h>
-#include <commctrl.h>
-
-#include "BeckyApi.h"
+#include "BeckyAPI.h"
 #include "ui/LauncherDialog.h"
 
 namespace
