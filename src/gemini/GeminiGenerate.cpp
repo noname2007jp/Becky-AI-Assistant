@@ -137,11 +137,12 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
             result.success = ExtractText(response, result.text);
             if (!result.success) result.error = L"応答から文章を取得できませんでした。";
         }
-        else if (code == 400 || code == 401) result.error = L"APIキーまたはリクエストが無効です。";
-        else if (code == 403) result.error = L"API利用権限がありません。";
-        else if (code == 429) result.error = L"APIの利用制限に達しました。";
-        else if (code >= 500) result.error = L"Gemini API側でエラーが発生しました。";
-        else result.error = L"Gemini APIからエラー応答を受信しました。";
+        else if (code == 400 || code == 401) result.error = L"APIキーまたはリクエストが無効です（HTTP " + std::to_wstring(code) + L"）。";
+        else if (code == 403) result.error = L"API利用権限がありません（HTTP 403）。Google AI Studioのプロジェクト・API利用権限を確認してください。";
+        else if (code == 404) result.error = L"指定したモデルまたはAPIエンドポイントが見つかりません（HTTP 404）。モデル名を確認してください。";
+        else if (code == 429) result.error = L"APIの利用制限に達しました（HTTP 429）。時間をおいて再試行してください。";
+        else if (code >= 500) result.error = L"Gemini API側でエラーが発生しました（HTTP " + std::to_wstring(code) + L"）。";
+        else result.error = L"Gemini APIからエラー応答を受信しました（HTTP " + std::to_wstring(code) + L"）。";
     }
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
