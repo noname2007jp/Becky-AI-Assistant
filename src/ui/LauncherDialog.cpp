@@ -6,6 +6,8 @@
 #include "gemini/GeminiGenerate.h"
 #include "gemini/GeminiReply.h"
 
+bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText);
+
 namespace
 {
     struct ModelOption
@@ -41,7 +43,7 @@ namespace
 
     struct DialogContext
     {
-        const MailContext* mail;
+        MailContext* mail;
         HINSTANCE instance;
     };
 
@@ -171,7 +173,14 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 if (result.success)
-                    ShowResultDialog(dialog, context->instance, result.text, L"Geminiによる返信文案");
+                    {
+                    std::wstring edited;
+                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited)) {
+                        context->mail->replyDraft = std::move(edited);
+                        context->mail->insertReplyRequested = true;
+                        EndDialog(dialog, IDOK);
+                    }
+                }
                 else
                     MessageBoxW(dialog, result.error.c_str(),
                         L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
@@ -214,7 +223,7 @@ namespace
     }
 }
 
-INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, const MailContext& mail)
+INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, MailContext& mail)
 {
     DialogContext context{ &mail, instance };
     return DialogBoxParamW(
