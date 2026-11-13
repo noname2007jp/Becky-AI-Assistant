@@ -17,6 +17,7 @@ add_library(BeckyAIAssistant SHARED
   src/gemini/GeminiGenerate.cpp
   src/ui/SettingsDialog.cpp
   src/ui/LauncherDialog.cpp
+  src/ui/ResultDialog.cpp
   resources/Launcher.rc
   third_party/becky_sdk/BeckyAPI.cpp
   BeckyAIAssistant.def
@@ -37,4 +38,4 @@ target_compile_options(BeckyAIAssistant PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
 )
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winhttp)
-set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-06" PREFIX "")
+set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-07" PREFIX "")
