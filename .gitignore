@@ -1,0 +1,22 @@
+# Build output
+/build/
+/out/
+/.vs/
+/x64/
+/Win32/
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+*.pdb
+*.ilk
+*.obj
+*.res
+*.dll
+*.lib
+*.exp
+
+# Local settings and secrets
+*.ini
+*.json.local
+.env
