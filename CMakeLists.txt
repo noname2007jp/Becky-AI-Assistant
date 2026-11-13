@@ -28,16 +28,8 @@ target_include_directories(BeckyAIAssistant PRIVATE
 )
 
 target_compile_features(BeckyAIAssistant PRIVATE cxx_std_17)
-
-# Statically link the MSVC runtime.
-set_property(TARGET BeckyAIAssistant PROPERTY
-  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-target_compile_definitions(BeckyAIAssistant PRIVATE
-  _MBCS
-  WIN32_LEAN_AND_MEAN
-  NOMINMAX
-)
-
+set_property(TARGET BeckyAIAssistant PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+target_compile_definitions(BeckyAIAssistant PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
 target_compile_options(BeckyAIAssistant PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:/W4>
   $<$<COMPILE_LANGUAGE:CXX>:/permissive->
@@ -45,9 +37,4 @@ target_compile_options(BeckyAIAssistant PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
 )
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winhttp)
-
-# Becky! recognizes the DLL under this filename in the user's environment.
-set_target_properties(BeckyAIAssistant PROPERTIES
-  OUTPUT_NAME "Becky-AI-Assistant-05"
-  PREFIX ""
-)
+set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-06" PREFIX "")
