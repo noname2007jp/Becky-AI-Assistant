@@ -29,7 +29,12 @@ target_compile_definitions(BeckyAIAssistant PRIVATE
   NOMINMAX
 )
 
-target_compile_options(BeckyAIAssistant PRIVATE /W4 /permissive- /EHsc /utf-8)
+target_compile_options(BeckyAIAssistant PRIVATE
+  $<$<COMPILE_LANGUAGE:CXX>:/W4>
+  $<$<COMPILE_LANGUAGE:CXX>:/permissive->
+  $<$<COMPILE_LANGUAGE:CXX>:/EHsc>
+  $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
+)
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32)
 
 set_target_properties(BeckyAIAssistant PROPERTIES
