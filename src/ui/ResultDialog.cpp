@@ -4,6 +4,7 @@
 #include <richedit.h>
 #include <cstring>
 #include <vector>
+#include <utility>
 
 namespace
 {
