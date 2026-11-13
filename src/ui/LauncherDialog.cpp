@@ -6,11 +6,51 @@
 
 namespace
 {
+    struct ModelOption
+    {
+        const wchar_t* label;
+        const wchar_t* modelId;
+        const wchar_t* thinking;
+    };
+
+    const ModelOption kModels[] = {
+        { L"Gemini 3.8 Flash (Thinking High)", L"gemini-3.8-flash", L"HIGH" },
+        { L"Gemini 3.8 Flash (Thinking Medium)", L"gemini-3.8-flash", L"MEDIUM" },
+        { L"Gemini 3.8 Flash (Thinking Low)", L"gemini-3.8-flash", L"LOW" },
+        { L"Gemini 3.6 Flash (Thinking High)", L"gemini-3.6-flash", L"HIGH" },
+        { L"Gemini 3.6 Flash (Thinking Medium)", L"gemini-3.6-flash", L"MEDIUM" },
+        { L"Gemini 3.6 Flash (Thinking Low)", L"gemini-3.6-flash", L"LOW" },
+        { L"Gemini 3.6 Flash (Thinking Minimal)", L"gemini-3.6-flash", L"MINIMAL" },
+        { L"Gemini 3.5 Flash-Lite (Thinking High)", L"gemini-3.5-flash-lite", L"HIGH" },
+        { L"Gemini 3.5 Flash-Lite (Thinking Medium)", L"gemini-3.5-flash-lite", L"MEDIUM" },
+        { L"Gemini 3.5 Flash-Lite (Thinking Low)", L"gemini-3.5-flash-lite", L"LOW" },
+        { L"Gemini 3.5 Flash-Lite (Thinking Minimal)", L"gemini-3.5-flash-lite", L"MINIMAL" },
+        { L"Gemini 2.5 Pro (Thinking On)", L"gemini-2.5-pro", L"ON" },
+        { L"Gemini 2.5 Flash (Thinking On)", L"gemini-2.5-flash", L"ON" },
+        { L"Gemini 2.5 Flash (Thinking Off)", L"gemini-2.5-flash", L"OFF" },
+        { L"Gemini 2.5 Flash-Lite (Thinking On)", L"gemini-2.5-flash-lite", L"ON" },
+        { L"Gemini 2.5 Flash-Lite (Thinking Off)", L"gemini-2.5-flash-lite", L"OFF" },
+        { L"Gemini 3.1 Pro Preview (Thinking High)", L"gemini-3.1-pro-preview", L"HIGH" },
+        { L"Gemini 3.1 Pro Preview (Thinking Medium)", L"gemini-3.1-pro-preview", L"MEDIUM" },
+        { L"Gemini 3.1 Pro Preview (Thinking Low)", L"gemini-3.1-pro-preview", L"LOW" },
+        { L"Gemma 4 31B (Thinking High)", L"gemma-4-31b-it", L"" },
+        { L"Gemma 4 31B (Thinking Minimal)", L"gemma-4-31b-it", L"" }
+    };
+
     struct DialogContext
     {
         const MailContext* mail;
         HINSTANCE instance;
     };
+
+    void InitializeModelCombo(HWND dialog)
+    {
+        HWND combo = GetDlgItem(dialog, IDC_GEMINI_MODEL);
+        for (const auto& model : kModels)
+            SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(model.label));
+        // Default to the model that the user has confirmed works in the other system.
+        SendMessageW(combo, CB_SETCURSEL, 8, 0);
+    }
 
     INT_PTR CALLBACK LauncherDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
     {
@@ -20,6 +60,7 @@ namespace
         {
             auto* context = reinterpret_cast<DialogContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
+            InitializeModelCombo(dialog);
             const auto* mail = context ? context->mail : nullptr;
             if (mail != nullptr)
             {
@@ -45,14 +86,22 @@ namespace
                 if (context == nullptr || context->mail == nullptr) return TRUE;
                 const MailContext& mail = *context->mail;
                 const int consent = MessageBoxW(dialog,
-                    L"次の情報をGoogle Gemini APIへ送信して要約します。\\n\\n"
-                    L"・メールの件名\\n・差出人\\n・メール本文\\n\\n"
+                    L"次の情報をGoogle Gemini APIへ送信して要約します。\n\n"
+                    L"・メールの件名\n・差出人\n・メール本文\n\n"
                     L"メール本文には機密情報が含まれる可能性があります。"
                     L"送信先と内容を確認し、許可する場合のみ「はい」を選択してください。"
                     L"キャンセルすると外部送信しません。",
                     L"メール本文の外部送信確認",
                     MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
                 if (consent != IDYES) return TRUE;
+
+                const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
+                if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
+                {
+                    MessageBoxW(dialog, L"Geminiモデルを選択してください。",
+                        L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
 
                 std::wstring apiKey, error;
                 if (!LoadGeminiApiKey(apiKey, error) || apiKey.empty())
@@ -65,8 +114,9 @@ namespace
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで要約中です。しばらくお待ちください...");
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
+                const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailSummary(
-                    apiKey, mail.subject, mail.from, mail.body);
+                    apiKey, model.modelId, model.thinking, mail.subject, mail.from, mail.body);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
