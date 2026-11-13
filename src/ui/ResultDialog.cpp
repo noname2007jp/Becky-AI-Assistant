@@ -122,10 +122,13 @@ namespace
             if (context && context->replyMode) {
                 SendMessageW(resultEdit, EM_SETREADONLY, FALSE, 0);
                 SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"返信内容を編集し、確認後に返信画面へ挿入してください。");
+                ShowWindow(GetDlgItem(dialog, IDC_AI_INSERT_REPLY), SW_SHOW);
+            } else {
+                SendMessageW(resultEdit, EM_SETREADONLY, TRUE, 0);
+                SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"必要な箇所を選択して Ctrl+C でもコピーできます。");
+                ShowWindow(GetDlgItem(dialog, IDC_AI_INSERT_REPLY), SW_HIDE);
             }
             SendMessageW(resultEdit, EM_SETSEL, 0, 0);
-            SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS,
-                L"必要な箇所を選択して Ctrl+C でもコピーできます。");
             return TRUE;
         }
         case WM_COMMAND:
