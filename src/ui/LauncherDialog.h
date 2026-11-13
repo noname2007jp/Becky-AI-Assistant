@@ -10,6 +10,8 @@ struct MailContext
     std::wstring subject;
     std::wstring body;
     std::wstring bodyStatus;
+    std::wstring replyDraft;
+    bool insertReplyRequested = false;
 };
 
-INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, const MailContext& mail);
+INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, MailContext& mail);
