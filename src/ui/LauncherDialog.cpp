@@ -6,6 +6,7 @@
 #include "gemini/GeminiGenerate.h"
 #include "gemini/GeminiReply.h"
 #include <utility>
+#include <commctrl.h>
 
 bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText);
 
@@ -42,24 +43,53 @@ namespace
         { L"Gemma 4 31B (Thinking Minimal)", L"gemma-4-31b-it", L"" }
     };
 
-    struct ReplyToneOption
+    const wchar_t* ReplyToneLabel(int level)
     {
-        const wchar_t* label;
-        const wchar_t* instruction;
-    };
+        static const wchar_t* labels[] = {
+            L"強いビジネス文書", L"かなりフォーマル", L"フォーマル", L"ややフォーマル",
+            L"標準（丁寧）", L"少し柔らかめ", L"やや柔らかめ", L"柔らかく簡潔",
+            L"簡潔", L"最も簡潔"
+        };
+        if (level < 1) level = 1;
+        if (level > 10) level = 10;
+        return labels[level - 1];
+    }
 
-    const ReplyToneOption kReplyTones[] = {
-        { L"標準（丁寧）", L"標準的で丁寧なビジネス敬語を使い、自然で簡潔な文章にしてください。" },
-        { L"やや柔らかめ", L"丁寧さを保ちながら、少し柔らかく親しみやすい表現にしてください。過度にくだけた口調にはしないでください。" },
-        { L"簡潔", L"必要な要点を優先し、回りくどい前置きや重複を避けて、短く簡潔な文章にしてください。失礼のない敬語は維持してください。" }
-    };
-
-    void InitializeReplyToneCombo(HWND dialog)
+    const wchar_t* GetReplyToneInstruction(int level)
     {
-        HWND combo = GetDlgItem(dialog, IDC_REPLY_TONE);
-        for (const auto& tone : kReplyTones)
-            SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(tone.label));
-        SendMessageW(combo, CB_SETCURSEL, 0, 0);
+        static const wchar_t* instructions[] = {
+            L"格式の高いビジネス文書として作成してください。敬語・謙譲語を適切に使い、改まった表現を用いてください。",
+            L"かなりフォーマルなビジネスメールにしてください。丁重な敬語を使い、くだけた表現は避けてください。",
+            L"フォーマルで礼儀正しいビジネスメールにしてください。丁寧な敬語と落ち着いた表現を使ってください。",
+            L"標準より少し改まった丁寧なビジネスメールにしてください。礼儀正しさを重視してください。",
+            L"標準的で丁寧なビジネス敬語を使い、自然で簡潔な文章にしてください。",
+            L"丁寧さを保ちながら、少し柔らかく自然な表現にしてください。",
+            L"丁寧さを保ちつつ、親しみやすく柔らかい表現にしてください。過度にくだけないでください。",
+            L"柔らかく親しみやすい表現を使い、要点を簡潔にまとめてください。失礼のない敬語は維持してください。",
+            L"必要な要点を優先し、回りくどい前置きや重複を避けて、短く簡潔な文章にしてください。",
+            L"最も簡潔な返信にしてください。必要な内容だけを短く伝え、失礼のない敬語は維持してください。"
+        };
+        if (level < 1) level = 1;
+        if (level > 10) level = 10;
+        return instructions[level - 1];
+    }
+
+    void UpdateReplyToneDisplay(HWND dialog)
+    {
+        const int level = static_cast<int>(SendDlgItemMessageW(
+            dialog, IDC_REPLY_TONE, TBM_GETPOS, 0, 0));
+        wchar_t label[128] = {};
+        wsprintfW(label, L"返信トーン：%d/10 %s", level, ReplyToneLabel(level));
+        SetDlgItemTextW(dialog, IDC_REPLY_TONE_LABEL, label);
+    }
+
+    void InitializeReplyToneTrackbar(HWND dialog)
+    {
+        HWND slider = GetDlgItem(dialog, IDC_REPLY_TONE);
+        SendMessageW(slider, TBM_SETRANGE, TRUE, MAKELONG(1, 10));
+        SendMessageW(slider, TBM_SETTICFREQ, 1, 0);
+        SendMessageW(slider, TBM_SETPOS, TRUE, 5);
+        UpdateReplyToneDisplay(dialog);
     }
 
     struct DialogContext
@@ -86,7 +116,7 @@ namespace
             auto* context = reinterpret_cast<DialogContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             InitializeModelCombo(dialog);
-            InitializeReplyToneCombo(dialog);
+            InitializeReplyToneTrackbar(dialog);
             const auto* mail = context ? context->mail : nullptr;
             if (mail != nullptr)
             {
@@ -101,6 +131,11 @@ namespace
             }
             return TRUE;
         }
+
+        case WM_HSCROLL:
+            if (reinterpret_cast<HWND>(lParam) == GetDlgItem(dialog, IDC_REPLY_TONE))
+                UpdateReplyToneDisplay(dialog);
+            return TRUE;
 
         case WM_COMMAND:
             switch (LOWORD(wParam))
@@ -167,8 +202,8 @@ namespace
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                const LRESULT toneSelected = SendDlgItemMessageW(dialog, IDC_REPLY_TONE, CB_GETCURSEL, 0, 0);
-                if (toneSelected < 0 || toneSelected >= static_cast<LRESULT>(_countof(kReplyTones)))
+                const LRESULT toneSelected = SendDlgItemMessageW(dialog, IDC_REPLY_TONE, TBM_GETPOS, 0, 0);
+                if (toneSelected < 1 || toneSelected > 10)
                 {
                     MessageBoxW(dialog, L"返信文案のトーンを選択してください。",
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
@@ -197,7 +232,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailReplyDraft(
-                    apiKey, model.modelId, model.thinking, kReplyTones[toneSelected].instruction, mail.subject, mail.from, mail.body);
+                    apiKey, model.modelId, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
