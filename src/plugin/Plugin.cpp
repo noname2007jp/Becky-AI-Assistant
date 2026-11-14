@@ -20,6 +20,7 @@ namespace
     UINT g_launcherCommandView = 0;
     std::wstring g_pendingReplyText;
     ULONGLONG g_pendingReplyTick = 0;
+    int g_pendingComposeMode = COMPOSE_MODE_REPLY1;
 
     std::string TrimAscii(const std::string& value)
     {
@@ -229,7 +230,7 @@ namespace
         if (GetSingleSelectedMail(owner, mail))
         {
             ShowLauncherDialog(owner, g_instance, mail);
-            if (mail.insertReplyRequested && !OpenReplyComposer(mail.mailId, mail.replyDraft))
+            if (mail.insertReplyRequested && !OpenReplyComposer(mail.mailId, mail.replyDraft, mail.replyAllRequested))
                 MessageBoxW(owner, L"Becky!の返信画面を開けませんでした。対象メールを選択し直して、もう一度お試しください。",
                     L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
         }
@@ -365,7 +366,7 @@ extern "C"
     }
 }
 
-bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText)
+bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText, bool replyAll)
 {
     if (mailId.empty() || replyText.empty()) return false;
 
@@ -384,18 +385,28 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
     g_beckyApi.SetCurrentMail(id.c_str());
     g_pendingReplyText = replyText;
     g_pendingReplyTick = GetTickCount64();
+    g_pendingComposeMode = replyAll ? COMPOSE_MODE_REPLY2 : COMPOSE_MODE_REPLY1;
 
     SetForegroundWindow(mainWindow);
     SetActiveWindow(mainWindow);
     SetFocus(mainWindow);
 
-    INPUT input[4]{};
+    INPUT input[6]{};
     input[0].type = INPUT_KEYBOARD; input[0].ki.wVk = VK_CONTROL;
-    input[1].type = INPUT_KEYBOARD; input[1].ki.wVk = 'R';
-    input[2].type = INPUT_KEYBOARD; input[2].ki.wVk = 'R'; input[2].ki.dwFlags = KEYEVENTF_KEYUP;
-    input[3].type = INPUT_KEYBOARD; input[3].ki.wVk = VK_CONTROL; input[3].ki.dwFlags = KEYEVENTF_KEYUP;
-    const UINT sent = SendInput(4, input, sizeof(INPUT));
-    if (sent != 4) {
+    if (replyAll) {
+        input[1].type = INPUT_KEYBOARD; input[1].ki.wVk = VK_SHIFT;
+        input[2].type = INPUT_KEYBOARD; input[2].ki.wVk = 'R';
+        input[3].type = INPUT_KEYBOARD; input[3].ki.wVk = 'R'; input[3].ki.dwFlags = KEYEVENTF_KEYUP;
+        input[4].type = INPUT_KEYBOARD; input[4].ki.wVk = VK_SHIFT; input[4].ki.dwFlags = KEYEVENTF_KEYUP;
+        input[5].type = INPUT_KEYBOARD; input[5].ki.wVk = VK_CONTROL; input[5].ki.dwFlags = KEYEVENTF_KEYUP;
+    } else {
+        input[1].type = INPUT_KEYBOARD; input[1].ki.wVk = 'R';
+        input[2].type = INPUT_KEYBOARD; input[2].ki.wVk = 'R'; input[2].ki.dwFlags = KEYEVENTF_KEYUP;
+        input[3].type = INPUT_KEYBOARD; input[3].ki.wVk = VK_CONTROL; input[3].ki.dwFlags = KEYEVENTF_KEYUP;
+    }
+    const UINT inputCount = replyAll ? 6 : 4;
+    const UINT sent = SendInput(inputCount, input, sizeof(INPUT));
+    if (sent != inputCount) {
         g_pendingReplyText.clear();
         g_pendingReplyTick = 0;
         return false;
@@ -405,7 +416,7 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
 
 extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
 {
-    if (composeWindow == nullptr || mode != COMPOSE_MODE_REPLY1 ||
+    if (composeWindow == nullptr || mode != g_pendingComposeMode ||
         g_pendingReplyText.empty() || GetTickCount64() - g_pendingReplyTick > 15000)
         return 0;
 
