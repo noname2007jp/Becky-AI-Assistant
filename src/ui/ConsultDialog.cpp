@@ -18,6 +18,7 @@ namespace
         HINSTANCE instance;
         std::wstring modelId;
         std::wstring thinkingLevel;
+        std::wstring toneInstruction;
         std::wstring apiKey;
         std::vector<GeminiChatTurn> history;
         std::wstring transcript;
@@ -219,7 +220,7 @@ namespace
                 const MailContext& mail = *context->mail;
                 GeminiGenerateResult result = GenerateMailReplyDraft(
                     context->apiKey, context->modelId, context->thinkingLevel,
-                    L"標準的で丁寧なビジネス敬語を使い、自然で簡潔な文章にしてください。",
+                    context->toneInstruction,
                     mail.subject, mail.from, mail.body, context->transcript);
 
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
@@ -274,9 +275,10 @@ namespace
 }
 
 INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
-    const std::wstring& modelId, const std::wstring& thinkingLevel)
+    const std::wstring& modelId, const std::wstring& thinkingLevel,
+    const std::wstring& toneInstruction)
 {
-    ConsultContext context{ &mail, instance, modelId, thinkingLevel, {} };
+    ConsultContext context{ &mail, instance, modelId, thinkingLevel, toneInstruction, {} };
     LoadLibraryW(L"Msftedit.dll");
     const INT_PTR result = DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_CONSULT),
         owner, ConsultDialogProc, reinterpret_cast<LPARAM>(&context));
