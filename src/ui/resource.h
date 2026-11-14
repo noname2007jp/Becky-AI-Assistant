@@ -35,3 +35,4 @@
 #define IDC_AI_CONSULT_STATUS       1304
 #define IDC_AI_CONSULT_COPY         1305
 #define IDC_AI_CONSULT_CLOSE        1306
+#define IDC_AI_CONSULT_CLEAR        1307
