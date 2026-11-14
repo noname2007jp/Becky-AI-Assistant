@@ -2,6 +2,8 @@
 #include "resource.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiCompose.h"
+#include "BeckyAPI.h"
+#include <cstring>
 #include <commctrl.h>
 #include <string>
 
@@ -15,7 +17,7 @@ const ModelOption kModels[] = {
     { L"Gemini 3.5 Flash-Lite (Medium)", L"gemini-3.5-flash-lite", L"MEDIUM" },
     { L"Gemini 2.5 Flash", L"gemini-2.5-flash", L"ON" }
 };
-struct Context { HWND compose; HINSTANCE instance; std::wstring subject; std::wstring body; };
+struct Context { HWND compose; HINSTANCE instance; CBeckyAPI* api; };
 
 std::wstring GetText(HWND dlg, int id)
 {
@@ -136,12 +138,31 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 return TRUE;
             }
             char oldSubject[2048]{}, mime[256]{};
-            g_unused:
-            // Query the live compose fields immediately before applying the draft.
-            // The official SDK returns ANSI strings and owns the returned body buffer.
-            CBeckyAPI* api = nullptr;
-            (void)api;
-            // The host API is applied by the caller-facing helper below.
+            c->api->CompGetSpecifiedHeader(c->compose, "Subject", oldSubject, (int)sizeof(oldSubject));
+            oldSubject[sizeof(oldSubject) - 1] = '\\0';
+            LPSTR oldBodyPtr = c->api->CompGetText(c->compose, mime, (int)sizeof(mime));
+            const bool hasOldBody = oldBodyPtr != nullptr && strnlen_s(oldBodyPtr, 1024 * 1024) > 0;
+            const bool hasOldSubject = oldSubject[0] != '\\0';
+            if (hasOldSubject || hasOldBody) {
+                const int confirm = MessageBoxW(dlg,
+                    L"作成画面には既に件名または本文が入力されています。\\n\\n"
+                    L"AI文案を反映すると、件名と本文を置き換えます。続行しますか？",
+                    L"既存内容の置き換え確認", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
+                if (confirm != IDYES) {
+                    if (oldBodyPtr) c->api->Free(oldBodyPtr);
+                    return TRUE;
+                }
+            }
+            if (oldBodyPtr) c->api->Free(oldBodyPtr);
+            const std::string subjectAnsi = ToAnsi(subject);
+            const std::string bodyAnsi = ToAnsi(body);
+            if (subjectAnsi.empty() || bodyAnsi.empty()) {
+                MessageBoxW(dlg, L"件名または本文をBecky!の文字コードに変換できませんでした。",
+                    L"AIメール作成", MB_OK | MB_ICONWARNING);
+                return TRUE;
+            }
+            c->api->CompSetSpecifiedHeader(c->compose, "Subject", subjectAnsi.c_str());
+            c->api->CompSetText(c->compose, 0, bodyAnsi.c_str());
             EndDialog(dlg, IDOK);
             return TRUE;
         }
@@ -155,11 +176,11 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 }
 }
 
-INT_PTR ShowNewMailComposeDialog(HWND composeWindow, HINSTANCE instance)
+INT_PTR ShowNewMailComposeDialog(HWND composeWindow, HINSTANCE instance, CBeckyAPI& beckyApi)
 {
     INITCOMMONCONTROLSEX controls{ sizeof(controls), ICC_BAR_CLASSES };
     InitCommonControlsEx(&controls);
-    Context context{ composeWindow, instance, {}, {} };
+    Context context{ composeWindow, instance, &beckyApi };
     return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_NEWMAIL_COMPOSE),
         composeWindow, Proc, (LPARAM)&context);
 }
