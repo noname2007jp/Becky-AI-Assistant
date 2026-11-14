@@ -40,4 +40,4 @@ target_compile_options(BeckyAIAssistant PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
 )
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winhttp comctl32)
-set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-18" PREFIX "")
+set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-19" PREFIX "")
