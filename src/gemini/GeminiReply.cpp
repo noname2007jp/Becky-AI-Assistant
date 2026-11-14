@@ -109,7 +109,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
         "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"" +
         JsonEscape(Utf8(prompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.13",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.14",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 60000);
