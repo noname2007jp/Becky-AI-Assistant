@@ -1,5 +1,4 @@
 #include "LauncherDialog.h"
-#include "SettingsDialog.h"
 #include "ResultDialog.h"
 #include "ConsultDialog.h"
 #include "resource.h"
@@ -266,15 +265,6 @@ namespace
                 }
                 const auto& model = kModels[selected];
                 ShowConsultDialog(dialog, context->instance, *context->mail, model.modelId, model.thinking);
-                return TRUE;
-            }
-
-            case IDC_AI_SETTINGS:
-            {
-                auto* context = reinterpret_cast<DialogContext*>(
-                    GetWindowLongPtrW(dialog, DWLP_USER));
-                if (context != nullptr)
-                    ShowSettingsDialog(dialog, context->instance);
                 return TRUE;
             }
 
