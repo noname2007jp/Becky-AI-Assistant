@@ -46,9 +46,9 @@ namespace
     const wchar_t* ReplyToneLabel(int level)
     {
         static const wchar_t* labels[] = {
-            L"強いビジネス文書", L"かなりフォーマル", L"フォーマル", L"ややフォーマル",
-            L"標準（丁寧）", L"少し柔らかめ", L"やや柔らかめ", L"柔らかく簡潔",
-            L"簡潔", L"最も簡潔"
+            L"強ビジネス", L"かなり堅め", L"フォーマル", L"やや堅め",
+            L"標準", L"少し柔らか", L"やや柔らか", L"柔らかめ",
+            L"簡潔", L"最短"
         };
         if (level < 1) level = 1;
         if (level > 10) level = 10;
@@ -79,7 +79,7 @@ namespace
         const int level = static_cast<int>(SendDlgItemMessageW(
             dialog, IDC_REPLY_TONE, TBM_GETPOS, 0, 0));
         wchar_t label[128] = {};
-        wsprintfW(label, L"返信トーン：%d/10 %s", level, ReplyToneLabel(level));
+        wsprintfW(label, L"%d/10 %s", level, ReplyToneLabel(level));
         SetDlgItemTextW(dialog, IDC_REPLY_TONE_LABEL, label);
     }
 
