@@ -9,6 +9,8 @@
 #include "BeckyAPI.h"
 #include "ui/LauncherDialog.h"
 #include "ui/SettingsDialog.h"
+#include "ui/ComposeDialog.h"
+#include <unordered_map>
 
 bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText, bool replyAll);
 
@@ -18,6 +20,8 @@ namespace
     CBeckyAPI g_beckyApi;
     UINT g_launcherCommandList = 0;
     UINT g_launcherCommandView = 0;
+    UINT g_newMailCommand = 0;
+    std::unordered_map<HWND, int> g_composeModes;
     std::wstring g_pendingReplyText;
     ULONGLONG g_pendingReplyTick = 0;
     int g_pendingComposeMode = COMPOSE_MODE_REPLY1;
