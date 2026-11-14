@@ -14,6 +14,7 @@ constexpr UINT WM_GEMINI_TEST_FINISHED = WM_APP + 41;
 struct SettingsState
 {
     bool testRunning = false;
+    bool apiKeyVisible = false;
 };
 
 struct TestResult
@@ -97,6 +98,22 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
     case WM_COMMAND:
         switch (LOWORD(wParam))
         {
+        case IDC_SETTINGS_TOGGLE_KEY:
+        {
+            auto* state = reinterpret_cast<SettingsState*>(
+                GetWindowLongPtrW(dialog, DWLP_USER));
+            if (state == nullptr) return TRUE;
+
+            HWND edit = GetDlgItem(dialog, IDC_GEMINI_API_KEY);
+            state->apiKeyVisible = !state->apiKeyVisible;
+            SendMessageW(edit, EM_SETPASSWORDCHAR,
+                         state->apiKeyVisible ? 0 : L'*', 0);
+            InvalidateRect(edit, nullptr, TRUE);
+            SetDlgItemTextW(dialog, IDC_SETTINGS_TOGGLE_KEY,
+                            state->apiKeyVisible ? L"非表示" : L"表示");
+            return TRUE;
+        }
+
         case IDC_SETTINGS_SAVE:
         {
             const int length = GetWindowTextLengthW(GetDlgItem(dialog, IDC_GEMINI_API_KEY));
