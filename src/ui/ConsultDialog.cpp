@@ -14,6 +14,8 @@ namespace
         std::wstring modelId;
         std::wstring thinkingLevel;
         std::wstring apiKey;
+        std::vector<GeminiChatTurn> history;
+        std::wstring transcript;
     };
 
     bool CopyConsultText(HWND owner, const std::wstring& value)
@@ -85,27 +87,44 @@ namespace
                         return TRUE;
                     }
                 }
-                const int consent = MessageBoxW(dialog,
+                std::wstring consentMessage =
                     L"次の情報をGoogle Gemini APIへ送信して質問に回答します。\n\n"
-                    L"・メールの件名\n・差出人\n・メール本文\n・入力した質問\n\n"
-                    L"メール本文には機密情報が含まれる可能性があります。"
+                    L"・メールの件名\n・差出人\n・メール本文\n・入力した質問\n";
+                if (!context->history.empty())
+                    consentMessage += L"・これまでの質問とAIの回答（会話履歴）\n";
+                consentMessage +=
+                    L"\nメール本文や会話履歴には機密情報が含まれる可能性があります。"
                     L"送信内容を確認し、許可する場合のみ「はい」を選択してください。"
-                    L"キャンセルすると外部送信しません。",
+                    L"キャンセルすると外部送信しません。";
+                const int consent = MessageBoxW(dialog, consentMessage.c_str(),
                     L"AI相談 - 外部送信確認", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
                 if (consent != IDYES) return TRUE;
 
                 SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), FALSE);
-                SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
                 const MailContext& mail = *context->mail;
                 GeminiGenerateResult result = GenerateMailConsultation(
                     context->apiKey, context->modelId, context->thinkingLevel,
-                    mail.subject, mail.from, mail.body, question);
+                    mail.subject, mail.from, mail.body, context->history, question);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
                 if (result.success)
                 {
-                    SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), result.text.c_str());
-                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"回答が完了しました。別の質問も入力できます。");
+                    context->history.push_back({ false, context->history.empty()
+                        ? L"元メールを参照して相談を開始します。\n質問：\n" + question
+                        : question });
+                    context->history.push_back({ true, result.text });
+                    while (context->history.size() > 16 && context->history.size() >= 4)
+                        context->history.erase(context->history.begin() + 2,
+                                               context->history.begin() + 4);
+
+                    if (!context->transcript.empty()) context->transcript += L"\r\n\r\n";
+                    context->transcript += L"【質問】\r\n" + question +
+                        L"\r\n\r\n【回答】\r\n" + result.text;
+                    SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE),
+                                   context->transcript.c_str());
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_QUESTION, L"");
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                        L"回答が完了しました。前の会話を踏まえて追加質問できます。");
                 }
                 else
                 {
@@ -115,6 +134,20 @@ namespace
                 if (!context->apiKey.empty())
                     SecureZeroMemory(context->apiKey.data(), context->apiKey.size() * sizeof(wchar_t));
                 context->apiKey.clear();
+                return TRUE;
+            }
+            case IDC_AI_CONSULT_CLEAR:
+            {
+                auto* context = reinterpret_cast<ConsultContext*>(
+                    GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context)
+                {
+                    context->history.clear();
+                    context->transcript.clear();
+                    SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                        L"会話履歴をクリアしました。次の質問から新しく相談できます。");
+                }
                 return TRUE;
             }
             case IDC_AI_CONSULT_COPY:
