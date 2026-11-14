@@ -2,6 +2,7 @@
 #include "ResultDialog.h"
 #include "ConsultDialog.h"
 #include "resource.h"
+#include "ProgressIndicator.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
 #include "gemini/GeminiReply.h"
@@ -172,14 +173,18 @@ namespace
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
+                ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで要約中です。しばらくお待ちください...");
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
                 const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailSummary(
                     apiKey, model.modelId, model.thinking, mail.subject, mail.from, mail.body);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 if (result.success)
                     ShowResultDialog(dialog, context->instance, result.text);
@@ -227,14 +232,18 @@ namespace
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
+                ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで返信文案を作成中です。しばらくお待ちください...");
+                EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
                 const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailReplyDraft(
                     apiKey, model.modelId, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
+                EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 if (result.success)
                     {
