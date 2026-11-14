@@ -239,9 +239,11 @@ namespace
                 if (result.success)
                     {
                     std::wstring edited;
-                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited)) {
+                    bool replyAll = false;
+                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll)) {
                         context->mail->replyDraft = std::move(edited);
                         context->mail->insertReplyRequested = true;
+                        context->mail->replyAllRequested = replyAll;
                         EndDialog(dialog, IDOK);
                     }
                 }
