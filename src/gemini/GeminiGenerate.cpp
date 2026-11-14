@@ -1,6 +1,7 @@
 #include "GeminiGenerate.h"
 #include <windows.h>
 #include <winhttp.h>
+#include "GeminiError.h"
 #include <string>
 
 #pragma comment(lib, "winhttp.lib")
@@ -127,7 +128,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), (DWORD)headers.size(),
         (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
-    if (!received) result.error = L"通信に失敗しました。ネットワークやプロキシ設定を確認してください。";
+    if (!received) result.error = FormatWinHttpError(GetLastError());
     else
     {
         DWORD code = 0, size = sizeof(code);
@@ -151,13 +152,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
             result.success = ExtractText(response, result.text);
             if (!result.success) result.error = L"応答から文章を取得できませんでした。";
         }
-        else if (code == 400 || code == 401) result.error = L"APIキーまたはリクエストが無効です（HTTP " + std::to_wstring(code) + L"）。";
-        else if (code == 403) result.error = L"API利用権限がありません（HTTP 403）。Google AI Studioのプロジェクト・API利用権限を確認してください。";
-        else if (code == 404) result.error = L"指定したモデルまたはAPIエンドポイントが見つかりません（HTTP 404）。モデル名を確認してください。";
-        else if (code == 429) result.error = L"APIの利用制限に達しました（HTTP 429）。時間をおいて再試行してください。";
-        else if (code == 503) result.error = L"Gemini APIが一時的に利用できません（HTTP 503）。モデルを変更するか、時間をおいて再試行してください。";
-        else if (code >= 500) result.error = L"Gemini API側でエラーが発生しました（HTTP " + std::to_wstring(code) + L"）。";
-        else result.error = L"Gemini APIからエラー応答を受信しました（HTTP " + std::to_wstring(code) + L"）。";
+        else result.error = FormatGeminiHttpError(code);
     }
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
