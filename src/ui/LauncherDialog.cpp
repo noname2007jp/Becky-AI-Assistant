@@ -42,6 +42,26 @@ namespace
         { L"Gemma 4 31B (Thinking Minimal)", L"gemma-4-31b-it", L"" }
     };
 
+    struct ReplyToneOption
+    {
+        const wchar_t* label;
+        const wchar_t* instruction;
+    };
+
+    const ReplyToneOption kReplyTones[] = {
+        { L"標準（丁寧）", L"標準的で丁寧なビジネス敬語を使い、自然で簡潔な文章にしてください。" },
+        { L"やや柔らかめ", L"丁寧さを保ちながら、少し柔らかく親しみやすい表現にしてください。過度にくだけた口調にはしないでください。" },
+        { L"簡潔", L"必要な要点を優先し、回りくどい前置きや重複を避けて、短く簡潔な文章にしてください。失礼のない敬語は維持してください。" }
+    };
+
+    void InitializeReplyToneCombo(HWND dialog)
+    {
+        HWND combo = GetDlgItem(dialog, IDC_REPLY_TONE);
+        for (const auto& tone : kReplyTones)
+            SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(tone.label));
+        SendMessageW(combo, CB_SETCURSEL, 0, 0);
+    }
+
     struct DialogContext
     {
         MailContext* mail;
@@ -66,6 +86,7 @@ namespace
             auto* context = reinterpret_cast<DialogContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             InitializeModelCombo(dialog);
+            InitializeReplyToneCombo(dialog);
             const auto* mail = context ? context->mail : nullptr;
             if (mail != nullptr)
             {
@@ -121,7 +142,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
                 const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailSummary(
-                    apiKey, model.modelId, model.thinking, mail.subject, mail.from, mail.body);
+                    apiKey, model.modelId, model.thinking, kReplyTones[toneSelected].instruction, mail.subject, mail.from, mail.body);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
@@ -143,6 +164,13 @@ namespace
                 if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
                 {
                     MessageBoxW(dialog, L"Geminiモデルを選択してください。",
+                        L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const LRESULT toneSelected = SendDlgItemMessageW(dialog, IDC_REPLY_TONE, CB_GETCURSEL, 0, 0);
+                if (toneSelected < 0 || toneSelected >= static_cast<LRESULT>(_countof(kReplyTones)))
+                {
+                    MessageBoxW(dialog, L"返信文案のトーンを選択してください。",
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
