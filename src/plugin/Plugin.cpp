@@ -252,6 +252,29 @@ namespace
         ShowSettingsDialog(owner, g_instance);
     }
 
+    UINT FindMenuCommandByText(HMENU menu, const wchar_t* target)
+    {
+        if (!menu || !target || !*target) return 0;
+
+        const int count = GetMenuItemCount(menu);
+        for (int i = 0; i < count; ++i) {
+            wchar_t label[256]{};
+            GetMenuStringW(menu, i, label, static_cast<int>(_countof(label)), MF_BYPOSITION);
+            if (wcsstr(label, target) != nullptr) {
+                const UINT commandId = GetMenuItemID(menu, i);
+                if (commandId != static_cast<UINT>(-1) && commandId != 0)
+                    return commandId;
+            }
+
+            HMENU submenu = GetSubMenu(menu, i);
+            if (submenu) {
+                const UINT commandId = FindMenuCommandByText(submenu, target);
+                if (commandId != 0) return commandId;
+            }
+        }
+        return 0;
+    }
+
     void AddAssistantMenuItem(
         HMENU menu,
         int menuType,
@@ -381,7 +404,7 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
     if (!g_beckyApi.GetWindowHandles(&mainWindow, &tree, &list, &view) || !mainWindow)
         return false;
 
-    // Keep the target message selected before invoking Becky!'s own Ctrl+R reply command.
+    // Keep the target message selected before invoking Becky!'s native reply command.
     g_beckyApi.SetCurrentMail(id.c_str());
     g_pendingReplyText = replyText;
     g_pendingReplyTick = GetTickCount64();
@@ -391,34 +414,44 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
     SetActiveWindow(mainWindow);
     SetFocus(mainWindow);
 
-    INPUT input[6]{};
-    input[0].type = INPUT_KEYBOARD; input[0].ki.wVk = VK_CONTROL;
     if (replyAll) {
-        input[1].type = INPUT_KEYBOARD; input[1].ki.wVk = VK_SHIFT;
-        input[2].type = INPUT_KEYBOARD; input[2].ki.wVk = 'R';
-        input[3].type = INPUT_KEYBOARD; input[3].ki.wVk = 'R'; input[3].ki.dwFlags = KEYEVENTF_KEYUP;
-        input[4].type = INPUT_KEYBOARD; input[4].ki.wVk = VK_SHIFT; input[4].ki.dwFlags = KEYEVENTF_KEYUP;
-        input[5].type = INPUT_KEYBOARD; input[5].ki.wVk = VK_CONTROL; input[5].ki.dwFlags = KEYEVENTF_KEYUP;
+        // Ctrl+Shift+R is NOT Becky!'s Reply All command (Shift invokes template selection).
+        // Resolve the native menu command by its visible Japanese label instead.
+        const UINT commandId = FindMenuCommandByText(GetMenu(mainWindow), L"全員に返信");
+        if (commandId == 0) {
+            g_pendingReplyText.clear();
+            g_pendingReplyTick = 0;
+            return false;
+        }
+        SendMessageW(mainWindow, WM_COMMAND, MAKEWPARAM(commandId, 0), 0);
     } else {
+        INPUT input[4]{};
+        input[0].type = INPUT_KEYBOARD; input[0].ki.wVk = VK_CONTROL;
         input[1].type = INPUT_KEYBOARD; input[1].ki.wVk = 'R';
         input[2].type = INPUT_KEYBOARD; input[2].ki.wVk = 'R'; input[2].ki.dwFlags = KEYEVENTF_KEYUP;
         input[3].type = INPUT_KEYBOARD; input[3].ki.wVk = VK_CONTROL; input[3].ki.dwFlags = KEYEVENTF_KEYUP;
-    }
-    const UINT inputCount = replyAll ? 6 : 4;
-    const UINT sent = SendInput(inputCount, input, sizeof(INPUT));
-    if (sent != inputCount) {
-        g_pendingReplyText.clear();
-        g_pendingReplyTick = 0;
-        return false;
+        const UINT sent = SendInput(4, input, sizeof(INPUT));
+        if (sent != 4) {
+            g_pendingReplyText.clear();
+            g_pendingReplyTick = 0;
+            return false;
+        }
     }
     return true;
 }
 
 extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
 {
-    if (composeWindow == nullptr || mode != g_pendingComposeMode ||
-        g_pendingReplyText.empty() || GetTickCount64() - g_pendingReplyTick > 15000)
+    if (g_pendingReplyText.empty())
         return 0;
+
+    // Never let a draft intended for one compose mode leak into a later manual action.
+    if (composeWindow == nullptr || GetTickCount64() - g_pendingReplyTick > 15000 ||
+        mode != g_pendingComposeMode) {
+        g_pendingReplyText.clear();
+        g_pendingReplyTick = 0;
+        return 0;
+    }
 
     std::wstring insertion = g_pendingReplyText;
     if (insertion.size() < 2 || insertion.substr(insertion.size() - 2) != L"\r\n")
