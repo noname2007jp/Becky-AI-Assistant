@@ -128,6 +128,7 @@ namespace
                 SendMessageW(resultEdit, EM_SETREADONLY, TRUE, 0);
                 SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"必要な箇所を選択して Ctrl+C でもコピーできます。");
                 ShowWindow(GetDlgItem(dialog, IDC_AI_INSERT_REPLY), SW_HIDE);
+                ShowWindow(GetDlgItem(dialog, IDC_AI_INSERT_REPLY_ALL), SW_HIDE);
             }
             SendMessageW(resultEdit, EM_SETSEL, 0, 0);
             return TRUE;
