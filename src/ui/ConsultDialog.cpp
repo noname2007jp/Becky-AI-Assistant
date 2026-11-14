@@ -8,6 +8,7 @@
 
 #include <richedit.h>
 #include <cstring>
+#include <utility>
 
 namespace
 {
