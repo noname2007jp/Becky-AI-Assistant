@@ -314,7 +314,7 @@ extern "C"
                   static_cast<int>(sizeof(info->szPlugInName)));
         lstrcpynA(info->szVendor, "noname2007jp",
                   static_cast<int>(sizeof(info->szVendor)));
-        lstrcpynA(info->szVersion, "0.12.0",
+        lstrcpynA(info->szVersion, "0.13.0",
                   static_cast<int>(sizeof(info->szVersion)));
         lstrcpynA(info->szDescription,
                   "AI assistant launcher for Becky! Internet Mail",
