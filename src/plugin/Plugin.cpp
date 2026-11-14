@@ -18,6 +18,7 @@ namespace
     CBeckyAPI g_beckyApi;
     UINT g_launcherCommandList = 0;
     UINT g_launcherCommandView = 0;
+    UINT g_settingsCommand = 0;
     std::wstring g_pendingReplyText;
     ULONGLONG g_pendingReplyTick = 0;
 
@@ -246,6 +247,65 @@ namespace
         }
     }
 
+    void WINAPI OpenAssistantSettings(HWND owner, LPARAM)
+    {
+        ShowSettingsDialog(owner, g_instance);
+    }
+
+    HMENU FindPluginSettingsMenu(HMENU mainMenu)
+    {
+        // Becky! main-menu index 4 is Tools (per the official SDK sample).
+        HMENU toolsMenu = GetSubMenu(mainMenu, 4);
+        if (toolsMenu == nullptr)
+            return nullptr;
+
+        const int count = GetMenuItemCount(toolsMenu);
+        for (int i = 0; i < count; ++i)
+        {
+            wchar_t label[128] = {};
+            GetMenuStringW(toolsMenu, static_cast<UINT>(i), label,
+                static_cast<int>(_countof(label)), MF_BYPOSITION);
+            if (wcsstr(label, L"プラグイン") != nullptr ||
+                wcsstr(label, L"Plugin") != nullptr ||
+                wcsstr(label, L"plugin") != nullptr)
+            {
+                HMENU submenu = GetSubMenu(toolsMenu, i);
+                if (submenu != nullptr)
+                    return submenu;
+            }
+        }
+
+        // Japanese Becky! menu layout: "プラグインの設定" is Tools position 2.
+        return GetSubMenu(toolsMenu, 2);
+    }
+
+    void AddSettingsMenuItem(HMENU mainMenu)
+    {
+        HMENU pluginMenu = FindPluginSettingsMenu(mainMenu);
+        if (pluginMenu == nullptr)
+            return;
+
+        if (g_settingsCommand == 0)
+        {
+            g_settingsCommand = g_beckyApi.RegisterCommand(
+                "Becky AI Assistant settings", BKC_MENU_MAIN,
+                OpenAssistantSettings);
+        }
+        if (g_settingsCommand == 0)
+            return;
+
+        const int count = GetMenuItemCount(pluginMenu);
+        for (int i = 0; i < count; ++i)
+        {
+            if (GetMenuItemID(pluginMenu, i) == g_settingsCommand)
+                return;
+        }
+
+        AppendMenuW(pluginMenu, MF_STRING,
+            static_cast<UINT_PTR>(g_settingsCommand),
+            L"Becky AI Assistant...");
+    }
+
     void AddAssistantMenuItem(
         HMENU menu,
         int menuType,
@@ -314,7 +374,7 @@ extern "C"
                   static_cast<int>(sizeof(info->szPlugInName)));
         lstrcpynA(info->szVendor, "noname2007jp",
                   static_cast<int>(sizeof(info->szVendor)));
-        lstrcpynA(info->szVersion, "0.14.0",
+        lstrcpynA(info->szVersion, "0.15.0",
                   static_cast<int>(sizeof(info->szVersion)));
         lstrcpynA(info->szDescription,
                   "AI assistant launcher for Becky! Internet Mail",
@@ -336,6 +396,10 @@ extern "C"
     {
         switch (menuType)
         {
+        case BKC_MENU_MAIN:
+            AddSettingsMenuItem(menu);
+            break;
+
         case BKC_MENU_LISTVIEW:
             AddAssistantMenuItem(
                 menu, menuType, g_launcherCommandList, OpenAssistantFromList);
