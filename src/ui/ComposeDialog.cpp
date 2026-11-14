@@ -28,6 +28,28 @@ std::wstring GetText(HWND dlg, int id)
     value.resize((size_t)len);
     return value;
 }
+std::wstring NormalizeWindowsNewlines(const std::wstring& value)
+{
+    std::wstring normalized;
+    normalized.reserve(value.size() + 16);
+    for (size_t i = 0; i < value.size(); ++i)
+    {
+        if (value[i] == L'\r')
+        {
+            normalized += L"\r\n";
+            if (i + 1 < value.size() && value[i + 1] == L'\n') ++i;
+        }
+        else if (value[i] == L'\n')
+        {
+            normalized += L"\r\n";
+        }
+        else
+        {
+            normalized += value[i];
+        }
+    }
+    return normalized;
+}
 std::string ToAnsi(const std::wstring& value)
 {
     if (value.empty()) return {};
@@ -123,7 +145,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 return TRUE;
             }
             SetDlgItemTextW(dlg, IDC_NEWMAIL_SUBJECT, subject.c_str());
-            SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, body.c_str());
+            const std::wstring displayBody = NormalizeWindowsNewlines(body);\n            SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, displayBody.c_str());
             SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"生成しました。件名・本文を編集してから反映してください。");
             return TRUE;
         }
