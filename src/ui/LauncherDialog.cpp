@@ -289,6 +289,8 @@ namespace
 
 INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, MailContext& mail)
 {
+    INITCOMMONCONTROLSEX controls{ sizeof(controls), ICC_BAR_CLASSES };
+    InitCommonControlsEx(&controls);
     DialogContext context{ &mail, instance };
     return DialogBoxParamW(
         instance,
