@@ -36,3 +36,14 @@
 #define IDC_AI_CONSULT_COPY         1305
 #define IDC_AI_CONSULT_CLOSE        1306
 #define IDC_AI_CONSULT_CLEAR        1307
+
+#define IDD_NEWMAIL_COMPOSE       140
+#define IDC_NEWMAIL_PURPOSE       1401
+#define IDC_NEWMAIL_REQUIREMENTS  1402
+#define IDC_NEWMAIL_MODEL         1403
+#define IDC_NEWMAIL_TONE          1404
+#define IDC_NEWMAIL_STATUS        1405
+#define IDC_NEWMAIL_GENERATE      1406
+#define IDC_NEWMAIL_SUBJECT       1407
+#define IDC_NEWMAIL_BODY          1408
+#define IDC_NEWMAIL_APPLY         1409
