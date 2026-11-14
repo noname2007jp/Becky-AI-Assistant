@@ -1,6 +1,8 @@
 #include "LauncherDialog.h"
 #include "resource.h"
 #include "ProgressIndicator.h"
+#include "ResultDialog.h"
+#include "gemini/GeminiReply.h"
 #include "gemini/GeminiGenerate.h"
 #include "settings/ApiKeyStore.h"
 
@@ -11,7 +13,7 @@ namespace
 {
     struct ConsultContext
     {
-        const MailContext* mail;
+        MailContext* mail;
         std::wstring modelId;
         std::wstring thinkingLevel;
         std::wstring apiKey;
@@ -173,6 +175,85 @@ namespace
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"コピーできませんでした。");
                 return TRUE;
             }
+            case IDC_AI_CONSULT_REPLY:
+            {
+                auto* context = reinterpret_cast<ConsultContext*>(
+                    GetWindowLongPtrW(dialog, DWLP_USER));
+                if (!context || !context->mail) return TRUE;
+                if (context->transcript.empty())
+                {
+                    MessageBoxW(dialog, L"先にAIへの相談と回答を行ってください。", L"返信文案の作成", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
+
+                std::wstring consentMessage =
+                    L"元メールと、この画面での質問・AIの回答をGoogle Gemini APIへ送信し、返信文案を作成します。\n\n"
+                    L"・メールの件名、差出人、本文\n・相談で入力した質問\n・AIの回答を含む会話履歴\n\n"
+                    L"相談内容には機密情報が含まれる可能性があります。送信を許可する場合のみ「はい」を選択してください。\n"
+                    L"キャンセルすると外部送信しません。";
+                const int consent = MessageBoxW(dialog, consentMessage.c_str(),
+                    L"返信文案作成 - 外部送信確認", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
+                if (consent != IDYES) return TRUE;
+
+                if (context->apiKey.empty())
+                {
+                    std::wstring error;
+                    if (!LoadGeminiApiKey(context->apiKey, error) || context->apiKey.empty())
+                    {
+                        MessageBoxW(dialog,
+                            error.empty() ? L"Gemini APIキーを読み込めません。" : error.c_str(),
+                            L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                        return TRUE;
+                    }
+                }
+
+                ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS,
+                    L"相談内容を踏まえた返信文案を作成しています...");
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
+
+                const MailContext& mail = *context->mail;
+                GeminiGenerateResult result = GenerateMailReplyDraft(
+                    context->apiKey, context->modelId, context->thinkingLevel,
+                    L"標準的で丁寧なビジネス敬語を使い、自然で簡潔な文章にしてください。",
+                    mail.subject, mail.from, mail.body, context->transcript);
+
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+
+                if (!context->apiKey.empty())
+                    SecureZeroMemory(context->apiKey.data(), context->apiKey.size() * sizeof(wchar_t));
+                context->apiKey.clear();
+
+                if (result.success)
+                {
+                    std::wstring edited;
+                    bool replyAll = false;
+                    if (ShowReplyDraftDialog(dialog, GetModuleHandleW(nullptr),
+                        result.text, edited, replyAll))
+                    {
+                        context->mail->replyDraft = std::move(edited);
+                        context->mail->insertReplyRequested = true;
+                        context->mail->replyAllRequested = replyAll;
+                        EndDialog(dialog, IDOK);
+                    }
+                    else
+                    {
+                        SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                            L"返信文案の編集画面を閉じました。相談を続けられます。");
+                    }
+                }
+                else
+                {
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"返信文案の作成に失敗しました。");
+                    MessageBoxW(dialog, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
+                }
+                return TRUE;
+            }
             case IDC_AI_CONSULT_CLOSE:
             case IDCANCEL:
             case IDOK:
@@ -190,7 +271,7 @@ namespace
     }
 }
 
-INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, const MailContext& mail,
+INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
     const std::wstring& modelId, const std::wstring& thinkingLevel)
 {
     ConsultContext context{ &mail, modelId, thinkingLevel, {} };
