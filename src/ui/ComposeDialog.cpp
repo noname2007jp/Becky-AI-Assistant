@@ -139,13 +139,13 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             }
             char oldSubject[2048]{}, mime[256]{};
             c->api->CompGetSpecifiedHeader(c->compose, "Subject", oldSubject, (int)sizeof(oldSubject));
-            oldSubject[sizeof(oldSubject) - 1] = '\\0';
+            oldSubject[sizeof(oldSubject) - 1] = '\0';
             LPSTR oldBodyPtr = c->api->CompGetText(c->compose, mime, (int)sizeof(mime));
             const bool hasOldBody = oldBodyPtr != nullptr && strnlen_s(oldBodyPtr, 1024 * 1024) > 0;
-            const bool hasOldSubject = oldSubject[0] != '\\0';
+            const bool hasOldSubject = oldSubject[0] != '\0';
             if (hasOldSubject || hasOldBody) {
                 const int confirm = MessageBoxW(dlg,
-                    L"作成画面には既に件名または本文が入力されています。\\n\\n"
+                    L"作成画面には既に件名または本文が入力されています。\n\n"
                     L"AI文案を反映すると、件名と本文を置き換えます。続行しますか？",
                     L"既存内容の置き換え確認", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
                 if (confirm != IDYES) {
