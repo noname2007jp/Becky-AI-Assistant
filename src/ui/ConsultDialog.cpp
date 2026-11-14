@@ -1,5 +1,6 @@
 #include "LauncherDialog.h"
 #include "resource.h"
+#include "ProgressIndicator.h"
 #include "gemini/GeminiGenerate.h"
 #include "settings/ApiKeyStore.h"
 
@@ -100,13 +101,17 @@ namespace
                     L"AI相談 - 外部送信確認", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
                 if (consent != IDYES) return TRUE;
 
-                SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
+                ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 const MailContext& mail = *context->mail;
                 GeminiGenerateResult result = GenerateMailConsultation(
                     context->apiKey, context->modelId, context->thinkingLevel,
                     mail.subject, mail.from, mail.body, context->history, question);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                 if (result.success)
                 {
                     context->history.push_back({ false, context->history.empty()
