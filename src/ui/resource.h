@@ -4,7 +4,6 @@
 #define IDC_AI_SUMMARY   1001
 #define IDC_AI_REPLY     1002
 #define IDC_AI_CONSULT   1003
-#define IDC_AI_SETTINGS  1004
 #define IDC_MAIL_SUBJECT 1010
 #define IDC_MAIL_FROM    1011
 #define IDC_MAIL_BODY    1012
