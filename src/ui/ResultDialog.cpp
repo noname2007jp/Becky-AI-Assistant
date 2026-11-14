@@ -9,7 +9,7 @@
 namespace
 {
     struct FormatRange { LONG start; LONG length; };
-    struct ResultDialogContext { const std::wstring* result; std::wstring* edited; const wchar_t* title; bool replyMode; };
+    struct ResultDialogContext { const std::wstring* result; std::wstring* edited; const wchar_t* title; bool replyMode; bool* replyAll; };
 
     bool CopyToClipboard(HWND owner, const std::wstring& text)
     {
@@ -123,6 +123,7 @@ namespace
                 SendMessageW(resultEdit, EM_SETREADONLY, FALSE, 0);
                 SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"返信内容を編集し、確認後に返信画面へ挿入してください。");
                 ShowWindow(GetDlgItem(dialog, IDC_AI_INSERT_REPLY), SW_SHOW);
+                ShowWindow(GetDlgItem(dialog, IDC_AI_INSERT_REPLY_ALL), SW_SHOW);
             } else {
                 SendMessageW(resultEdit, EM_SETREADONLY, TRUE, 0);
                 SetDlgItemTextW(dialog, IDC_AI_COPY_STATUS, L"必要な箇所を選択して Ctrl+C でもコピーできます。");
@@ -152,6 +153,7 @@ namespace
                 return TRUE;
             }
             case IDC_AI_INSERT_REPLY:
+            case IDC_AI_INSERT_REPLY_ALL:
             {
                 auto* context = reinterpret_cast<ResultDialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
                 if (!context || !context->replyMode || !context->edited) return TRUE;
@@ -165,7 +167,8 @@ namespace
                     return TRUE;
                 }
                 *context->edited = std::move(value);
-                EndDialog(dialog, IDC_AI_INSERT_REPLY);
+                if (context->replyAll) *context->replyAll = (LOWORD(wParam) == IDC_AI_INSERT_REPLY_ALL);
+                EndDialog(dialog, LOWORD(wParam));
                 return TRUE;
             }
             case IDC_AI_RESULT_CLOSE:
@@ -189,15 +192,17 @@ INT_PTR ShowResultDialog(HWND owner, HINSTANCE instance, const std::wstring& res
 {
     // Load the Windows Rich Edit control before creating the dialog.
     LoadLibraryW(L"Msftedit.dll");
-    ResultDialogContext context{ &result, nullptr, title, false };
+    ResultDialogContext context{ &result, nullptr, title, false, nullptr };
     return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_RESULT),
         owner, ResultDialogProc, reinterpret_cast<LPARAM>(&context));
 }
 
-bool ShowReplyDraftDialog(HWND owner, HINSTANCE instance, const std::wstring& draft, std::wstring& edited)
+bool ShowReplyDraftDialog(HWND owner, HINSTANCE instance, const std::wstring& draft, std::wstring& edited, bool& replyAll)
 {
     LoadLibraryW(L"Msftedit.dll");
-    ResultDialogContext context{ &draft, &edited, L"Geminiによる返信文案", true };
-    return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_RESULT), owner,
-        ResultDialogProc, reinterpret_cast<LPARAM>(&context)) == IDC_AI_INSERT_REPLY;
+    replyAll = false;
+    ResultDialogContext context{ &draft, &edited, L"Geminiによる返信文案", true, &replyAll };
+    const INT_PTR result = DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_RESULT), owner,
+        ResultDialogProc, reinterpret_cast<LPARAM>(&context));
+    return result == IDC_AI_INSERT_REPLY || result == IDC_AI_INSERT_REPLY_ALL;
 }
