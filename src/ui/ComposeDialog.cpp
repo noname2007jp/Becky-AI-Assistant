@@ -145,7 +145,8 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 return TRUE;
             }
             SetDlgItemTextW(dlg, IDC_NEWMAIL_SUBJECT, subject.c_str());
-            const std::wstring displayBody = NormalizeWindowsNewlines(body);\n            SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, displayBody.c_str());
+            const std::wstring displayBody = NormalizeWindowsNewlines(body);
+            SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, displayBody.c_str());
             SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"生成しました。件名・本文を編集してから反映してください。");
             return TRUE;
         }
