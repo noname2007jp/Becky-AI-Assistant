@@ -78,8 +78,8 @@ bool ExtractText(const std::string& json, std::wstring& output)
 
 GeminiGenerateResult GenerateMailReplyDraft(
     const std::wstring& apiKey, const std::wstring& modelId,
-    const std::wstring& thinkingLevel, const std::wstring& subject,
-    const std::wstring& from, const std::wstring& body)
+    const std::wstring& thinkingLevel, const std::wstring& toneInstruction,
+    const std::wstring& subject, const std::wstring& from, const std::wstring& body)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
     if (apiKey.empty()) { result.error = L"APIキーが設定されていません。"; return result; }
@@ -89,7 +89,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
 
     const std::wstring prompt =
         L"あなたは日本語のビジネスメール作成アシスタントです。以下の受信メールに対する返信文案を作成してください。"
-        L"標準的で丁寧なビジネス敬語を使い、自然で簡潔な文章にしてください。"
+        toneInstruction + L" "
         L"出力は返信メール本文のみとし、件名、解説、Markdownのコードブロックは付けないでください。"
         L"元メールに書かれていない事実、日付、金額、約束、対応完了などを勝手に追加しないでください。"
         L"回答に必要な情報が不足している場合は、断定せず確認する表現にしてください。"
@@ -109,7 +109,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
         "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"" +
         JsonEscape(Utf8(prompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.10",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.12",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 60000);
