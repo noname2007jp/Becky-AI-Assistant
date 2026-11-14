@@ -3,5 +3,5 @@
 #include <windows.h>
 #include <string>
 
-INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, const MailContext& mail,
+INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
     const std::wstring& modelId, const std::wstring& thinkingLevel);
