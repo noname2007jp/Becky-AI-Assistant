@@ -2,37 +2,36 @@
 #include <windows.h>
 #include "../src/ui/resource.h"
 
-IDD_AI_LAUNCHER DIALOGEX 0, 0, 300, 344
+IDD_AI_LAUNCHER DIALOGEX 0, 0, 300, 328
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_DLGMODALFRAME
 CAPTION "Becky AI Assistant"
 FONT 9, "Meiryo UI"
 BEGIN
-    LTEXT           "Becky AI Assistant", -1, 16, 10, 268, 16
-    LTEXT           "対象メール", -1, 17, 29, 80, 12
-    LTEXT           "件名:", -1, 17, 45, 38, 12
-    LTEXT           "", IDC_MAIL_SUBJECT, 56, 45, 225, 18, SS_LEFT
-    LTEXT           "差出人:", -1, 17, 65, 38, 12
-    LTEXT           "", IDC_MAIL_FROM, 56, 65, 225, 18, SS_LEFT
+    LTEXT           "対象メール", -1, 17, 12, 80, 12
+    LTEXT           "件名:", -1, 17, 28, 38, 12
+    LTEXT           "", IDC_MAIL_SUBJECT, 56, 28, 225, 18, SS_LEFT
+    LTEXT           "差出人:", -1, 17, 48, 38, 12
+    LTEXT           "", IDC_MAIL_FROM, 56, 48, 225, 18, SS_LEFT
 
-    LTEXT           "本文プレビュー", -1, 17, 88, 264, 12
-    EDITTEXT        IDC_MAIL_BODY, 17, 103, 264, 76, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "", IDC_MAIL_BODY_STATUS, 17, 181, 264, 14
+    LTEXT           "本文プレビュー", -1, 17, 71, 264, 12
+    EDITTEXT        IDC_MAIL_BODY, 17, 86, 264, 76, ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "", IDC_MAIL_BODY_STATUS, 17, 164, 264, 14
 
-    LTEXT           "Geminiモデル", -1, 17, 202, 122, 12
-    LTEXT           "返信トーン：標準", IDC_REPLY_TONE_LABEL, 147, 202, 134, 12
-    COMBOBOX        IDC_GEMINI_MODEL, 17, 217, 122, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "", IDC_REPLY_TONE, "msctls_trackbar32", TBS_AUTOTICKS | WS_TABSTOP | WS_CHILD | WS_VISIBLE, 147, 215, 134, 25
-    LTEXT           "強ビジネス文書", -1, 147, 241, 67, 12
-    LTEXT           "簡潔", -1, 255, 241, 26, 12, SS_RIGHT
+    LTEXT           "Geminiモデル", -1, 17, 185, 122, 12
+    LTEXT           "返信トーン：標準", IDC_REPLY_TONE_LABEL, 147, 185, 134, 12
+    COMBOBOX        IDC_GEMINI_MODEL, 17, 200, 122, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "", IDC_REPLY_TONE, "msctls_trackbar32", TBS_AUTOTICKS | WS_TABSTOP | WS_CHILD | WS_VISIBLE, 147, 198, 134, 25
+    LTEXT           "強ビジネス文書", -1, 147, 224, 67, 12
+    LTEXT           "簡潔", -1, 255, 224, 26, 12, SS_RIGHT
 
-    PUSHBUTTON      "メール要約", IDC_AI_SUMMARY, 17, 260, 84, 26
-    PUSHBUTTON      "返信文案", IDC_AI_REPLY, 107, 260, 84, 26
-    PUSHBUTTON      "AIに相談", IDC_AI_CONSULT, 197, 260, 84, 26
+    PUSHBUTTON      "メール要約", IDC_AI_SUMMARY, 17, 243, 84, 26
+    PUSHBUTTON      "返信文案", IDC_AI_REPLY, 107, 243, 84, 26
+    PUSHBUTTON      "AIに相談", IDC_AI_CONSULT, 197, 243, 84, 26
 
-    CONTROL         "", -1, "STATIC", SS_ETCHEDHORZ, 17, 293, 264, 1
-    PUSHBUTTON      "設定", IDC_AI_SETTINGS, 17, 303, 75, 22
-    DEFPUSHBUTTON   "閉じる", IDOK, 206, 303, 75, 22
+    CONTROL         "", -1, "STATIC", SS_ETCHEDHORZ, 17, 276, 264, 1
+    PUSHBUTTON      "設定", IDC_AI_SETTINGS, 17, 286, 75, 22
+    DEFPUSHBUTTON   "閉じる", IDOK, 206, 286, 75, 22
 END
 
 IDD_AI_SETTINGS DIALOGEX 0, 0, 300, 164
