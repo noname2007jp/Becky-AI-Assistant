@@ -276,6 +276,8 @@ namespace
                 }
                 const auto& model = kModels[selected];
                 ShowConsultDialog(dialog, context->instance, *context->mail, model.modelId, model.thinking);
+                if (context->mail->insertReplyRequested)
+                    EndDialog(dialog, IDOK);
                 return TRUE;
             }
 
