@@ -1,6 +1,7 @@
 #include "LauncherDialog.h"
 #include "SettingsDialog.h"
 #include "ResultDialog.h"
+#include "ConsultDialog.h"
 #include "resource.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
@@ -252,10 +253,21 @@ namespace
             }
 
             case IDC_AI_CONSULT:
-                MessageBoxW(dialog,
-                    L"この機能は次の開発段階で対応します。",
-                    L"Becky AI Assistant", MB_OK | MB_ICONINFORMATION);
+            {
+                auto* context = reinterpret_cast<DialogContext*>(
+                    GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context == nullptr || context->mail == nullptr) return TRUE;
+                const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
+                if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
+                {
+                    MessageBoxW(dialog, L"Geminiモデルを選択してください。",
+                        L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const auto& model = kModels[selected];
+                ShowConsultDialog(dialog, context->instance, *context->mail, model.modelId, model.thinking);
                 return TRUE;
+            }
 
             case IDC_AI_SETTINGS:
             {
