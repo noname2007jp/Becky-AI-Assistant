@@ -1,5 +1,6 @@
 #include "SettingsDialog.h"
 #include "resource.h"
+#include "ProgressIndicator.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiConnection.h"
 
@@ -141,8 +142,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             if (state == nullptr || state->testRunning) return TRUE;
 
             state->testRunning = true;
-            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
-                            L"Gemini APIへ接続しています...");
+            ShowApiProcessingStatus(dialog, IDC_SETTINGS_STATUS,
+                                    L"Gemini APIへ接続しています...");
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), FALSE);
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), FALSE);
             EnableWindow(GetDlgItem(dialog, IDCANCEL), FALSE);
