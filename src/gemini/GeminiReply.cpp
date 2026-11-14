@@ -89,7 +89,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
 
     const std::wstring prompt =
         L"あなたは日本語のビジネスメール作成アシスタントです。以下の受信メールに対する返信文案を作成してください。"
-        toneInstruction + L" "
+        + toneInstruction + L" "
         L"出力は返信メール本文のみとし、件名、解説、Markdownのコードブロックは付けないでください。"
         L"元メールに書かれていない事実、日付、金額、約束、対応完了などを勝手に追加しないでください。"
         L"回答に必要な情報が不足している場合は、断定せず確認する表現にしてください。"
