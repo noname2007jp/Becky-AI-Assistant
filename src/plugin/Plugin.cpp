@@ -256,6 +256,17 @@ namespace
         ShowSettingsDialog(owner, g_instance);
     }
 
+    void WINAPI OpenAssistantNewMail(HWND owner, LPARAM)
+    {
+        auto it = g_composeModes.find(owner);
+        if (it == g_composeModes.end() || it->second != COMPOSE_MODE_COMPOSE1) {
+            MessageBoxW(owner, L"AI新規メール作成は、新規メールの作成画面で利用できます。",
+                L"Becky AI Assistant", MB_OK | MB_ICONINFORMATION);
+            return;
+        }
+        ShowNewMailComposeDialog(owner, g_instance, g_beckyApi);
+    }
+
     UINT FindMenuCommandByText(HMENU menu, const wchar_t* target)
     {
         if (!menu || !target || !*target) return 0;
@@ -385,6 +396,11 @@ extern "C"
                 menu, menuType, g_launcherCommandView, OpenAssistantFromView);
             break;
 
+        case BKC_MENU_COMPOSE:
+            AddAssistantMenuItem(
+                menu, menuType, g_newMailCommand, OpenAssistantNewMail);
+            break;
+
         default:
             break;
         }
@@ -446,6 +462,12 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
 
 extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
 {
+    for (auto it = g_composeModes.begin(); it != g_composeModes.end();) {
+        if (!IsWindow(it->first)) it = g_composeModes.erase(it);
+        else ++it;
+    }
+    if (composeWindow != nullptr) g_composeModes[composeWindow] = mode;
+
     if (g_pendingReplyText.empty())
         return 0;
 
