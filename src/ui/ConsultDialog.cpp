@@ -14,6 +14,7 @@ namespace
     struct ConsultContext
     {
         MailContext* mail;
+        HINSTANCE instance;
         std::wstring modelId;
         std::wstring thinkingLevel;
         std::wstring apiKey;
@@ -233,7 +234,7 @@ namespace
                 {
                     std::wstring edited;
                     bool replyAll = false;
-                    if (ShowReplyDraftDialog(dialog, GetModuleHandleW(nullptr),
+                    if (ShowReplyDraftDialog(dialog, context->instance,
                         result.text, edited, replyAll))
                     {
                         context->mail->replyDraft = std::move(edited);
@@ -274,7 +275,7 @@ namespace
 INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
     const std::wstring& modelId, const std::wstring& thinkingLevel)
 {
-    ConsultContext context{ &mail, modelId, thinkingLevel, {} };
+    ConsultContext context{ &mail, instance, modelId, thinkingLevel, {} };
     LoadLibraryW(L"Msftedit.dll");
     const INT_PTR result = DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_CONSULT),
         owner, ConsultDialogProc, reinterpret_cast<LPARAM>(&context));
