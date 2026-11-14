@@ -275,7 +275,9 @@ namespace
                     return TRUE;
                 }
                 const auto& model = kModels[selected];
-                ShowConsultDialog(dialog, context->instance, *context->mail, model.modelId, model.thinking);
+                const int toneLevel = static_cast<int>(SendDlgItemMessageW(dialog, IDC_REPLY_TONE, TBM_GETPOS, 0, 0));
+                ShowConsultDialog(dialog, context->instance, *context->mail,
+                    model.modelId, model.thinking, GetReplyToneInstruction(toneLevel));
                 if (context->mail->insertReplyRequested)
                     EndDialog(dialog, IDOK);
                 return TRUE;
