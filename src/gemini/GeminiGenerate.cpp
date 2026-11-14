@@ -219,7 +219,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
         return result;
     }
 
-    const std::wstring headers = L"x-goog-api-key: " + apiKey + L"\\r\\nContent-Type: application/json; charset=utf-8\\r\\n";
+    const std::wstring headers = L"x-goog-api-key: " + apiKey + L"\r\nContent-Type: application/json; charset=utf-8\r\n";
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), (DWORD)headers.size(),
         (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
