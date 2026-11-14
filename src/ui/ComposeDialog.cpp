@@ -141,7 +141,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             c->api->CompGetSpecifiedHeader(c->compose, "Subject", oldSubject, (int)sizeof(oldSubject));
             oldSubject[sizeof(oldSubject) - 1] = '\0';
             LPSTR oldBodyPtr = c->api->CompGetText(c->compose, mime, (int)sizeof(mime));
-            const bool hasOldBody = oldBodyPtr != nullptr && strnlen_s(oldBodyPtr, 1024 * 1024) > 0;
+            const bool hasOldBody = oldBodyPtr != nullptr && oldBodyPtr[0] != '\0';
             const bool hasOldSubject = oldSubject[0] != '\0';
             if (hasOldSubject || hasOldBody) {
                 const int confirm = MessageBoxW(dlg,
