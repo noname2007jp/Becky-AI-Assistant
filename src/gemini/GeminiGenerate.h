@@ -16,3 +16,12 @@ GeminiGenerateResult GenerateMailSummary(
     const std::wstring& subject,
     const std::wstring& from,
     const std::wstring& body);
+
+GeminiGenerateResult GenerateMailConsultation(
+    const std::wstring& apiKey,
+    const std::wstring& modelId,
+    const std::wstring& thinkingLevel,
+    const std::wstring& subject,
+    const std::wstring& from,
+    const std::wstring& body,
+    const std::wstring& question);
