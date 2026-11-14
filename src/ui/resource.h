@@ -36,6 +36,7 @@
 #define IDC_AI_CONSULT_COPY         1305
 #define IDC_AI_CONSULT_CLOSE        1306
 #define IDC_AI_CONSULT_CLEAR        1307
+#define IDC_AI_CONSULT_REPLY        1308
 
 #define IDD_NEWMAIL_COMPOSE       140
 #define IDC_NEWMAIL_PURPOSE       1401
