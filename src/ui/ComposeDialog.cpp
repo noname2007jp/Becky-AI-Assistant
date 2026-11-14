@@ -1,5 +1,6 @@
 #include "ComposeDialog.h"
 #include "resource.h"
+#include "ProgressIndicator.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiCompose.h"
 #include "BeckyAPI.h"
@@ -127,12 +128,14 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                     L"Becky AI Assistant", MB_OK | MB_ICONWARNING); return TRUE;
             }
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), FALSE);
-            SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"Geminiで文案を作成しています...");
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), FALSE);
+            ShowApiProcessingStatus(dlg, IDC_NEWMAIL_STATUS, L"Geminiで文案を作成しています...");
             const auto& model = kModels[selected];
             GeminiGenerateResult result = GenerateNewMailDraft(key, model.id, model.thinking,
                 toneText[(tone < 1 || tone > 10) ? 4 : tone - 1], purpose, requirements);
             SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t)); key.clear();
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), TRUE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), TRUE);
             if (!result.success) {
                 SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"文案の作成に失敗しました。");
                 MessageBoxW(dlg, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
