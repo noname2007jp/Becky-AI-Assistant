@@ -109,6 +109,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
     }
 
     PiiMasker masker;
+    if (!masker.IsReady()) { result.error = masker.Error(); return result; }
     prompt = masker.Mask(prompt);
     std::string generationConfig = "\"maxOutputTokens\":2048";
     if (modelId.find(L"gemini-2.5-") == 0)
