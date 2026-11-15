@@ -125,3 +125,91 @@ bool SaveGeminiApiKey(const std::wstring& apiKey, std::wstring& error)
     }
     return true;
 }
+
+bool LoadPiiMaskTerms(std::vector<std::wstring>& terms, std::wstring& error)
+{
+    terms.clear();
+    error.clear();
+    wchar_t appData[MAX_PATH] = {};
+    if (SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE,
+                         nullptr, SHGFP_TYPE_CURRENT, appData) != S_OK)
+    {
+        error = L"マスキング設定の保存先を取得できません。";
+        return false;
+    }
+    const std::wstring path = std::wstring(appData) + L"\\Becky-AI-Assistant\\pii-mask.dat";
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return true;
+    file.seekg(0, std::ios::end);
+    const auto size = file.tellg();
+    if (size <= 0 || size > 1024 * 1024) { error = L"マスキング設定ファイルのサイズが不正です。"; return false; }
+    file.seekg(0, std::ios::beg);
+    std::vector<BYTE> encrypted(static_cast<size_t>(size));
+    if (!file.read(reinterpret_cast<char*>(encrypted.data()), size)) { error = L"マスキング設定を読み込めません。"; return false; }
+    DATA_BLOB input{ static_cast<DWORD>(encrypted.size()), encrypted.data() };
+    DATA_BLOB output{};
+    if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &output))
+    { error = L"マスキング設定を復号できません。"; return false; }
+    if (output.cbData % sizeof(wchar_t) != 0 || output.cbData > 512 * 1024)
+    {
+        SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
+        error = L"マスキング設定の形式が不正です."; return false;
+    }
+    std::wstring all(reinterpret_cast<wchar_t*>(output.pbData), output.cbData / sizeof(wchar_t));
+    SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
+    size_t start = 0;
+    while (start < all.size())
+    {
+        size_t end = all.find(L'\n', start);
+        if (end == std::wstring::npos) end = all.size();
+        std::wstring term = all.substr(start, end - start);
+        if (!term.empty() && term.back() == L'\r') term.pop_back();
+        if (term.size() >= 2) terms.push_back(std::move(term));
+        start = end + 1;
+    }
+    return true;
+}
+
+bool SavePiiMaskTerms(const std::vector<std::wstring>& terms, std::wstring& error)
+{
+    error.clear();
+    std::wstring all;
+    for (const auto& term : terms)
+    {
+        if (term.size() < 2) continue;
+        if (term.find_first_of(L"\r\n") != std::wstring::npos) continue;
+        all += term + L"\n";
+    }
+    if (all.size() > 65536) { error = L"マスキング語句が多すぎます。"; return false; }
+    DATA_BLOB input{ static_cast<DWORD>(all.size() * sizeof(wchar_t)),
+        reinterpret_cast<BYTE*>(all.data()) };
+    DATA_BLOB encrypted{};
+    if (!CryptProtectData(&input, L"Becky AI Assistant PII mask terms",
+        nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &encrypted))
+    { error = L"マスキング設定の暗号化に失敗しました。"; return false; }
+    wchar_t appData[MAX_PATH] = {};
+    if (SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE,
+                         nullptr, SHGFP_TYPE_CURRENT, appData) != S_OK)
+    {
+        SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+        error = L"マスキング設定の保存先を取得できません。"; return false;
+    }
+    const std::wstring directory = std::wstring(appData) + L"\\Becky-AI-Assistant";
+    if (!CreateDirectoryW(directory.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS)
+    {
+        SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+        error = L"マスキング設定の保存先を作成できません。"; return false;
+    }
+    const std::wstring path = directory + L"\\pii-mask.dat";
+    const std::wstring temp = path + L".tmp";
+    std::ofstream file(temp, std::ios::binary | std::ios::trunc);
+    const bool written = file && static_cast<bool>(file.write(
+        reinterpret_cast<const char*>(encrypted.pbData), encrypted.cbData));
+    file.close();
+    SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+    if (!written || !MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    {
+        DeleteFileW(temp.c_str()); error = L"マスキング設定を保存できません。"; return false;
+    }
+    return true;
+}
