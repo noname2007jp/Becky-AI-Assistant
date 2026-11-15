@@ -54,7 +54,7 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
         L"(?:株式会社|有限会社|合同会社|合資会社|合名会社)[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}|[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}(?:株式会社|有限会社|合同会社|合資会社|合名会社)",
         L"COMPANY");
     output = ApplyPattern(output,
-        L"(?:氏名|担当者名|ご担当者|お名前|名前)\\s*[:：]\\s*[一-龠々ぁ-んァ-ヶ]{2,12}(?:\\s*[一-龠々ぁ-んァ-ヶ]{1,12})?",
+        L"(?:氏名|担当者名|ご担当者|お名前|名前|差出人|送信者|宛先|宛名|担当者)\\s*[:：】]\\s*[一-龠々ぁ-んァ-ヶ]{2,12}(?:\\s*[一-龠々ぁ-んァ-ヶ]{1,12})?",
         L"PERSON");
     output = ApplyPattern(output,
         L"[一-龠々ぁ-んァ-ヶ]{2,8}(?:\\s+[一-龠々ぁ-んァ-ヶ]{1,8})?(?:様|さん|氏)",
@@ -66,10 +66,10 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
         L"(?:口座番号|カード番号|顧客番号|社員番号)\\s*[:：]\\s*[0-9０-９ -]{4,24}",
         L"ACCOUNT");
     output = ApplyPattern(output,
-        L"0[0-9]{1,4}[-ー－ ]?[0-9]{1,4}[-ー－ ]?[0-9]{3,4}",
+        L"0[0-9０-９]{1,4}[-ー－ ]?[0-9０-９]{1,4}[-ー－ ]?[0-9０-９]{3,4}",
         L"PHONE");
     output = ApplyPattern(output,
-        L"[0-9]{3}-?[0-9]{4}", L"POSTAL");
+        L"[0-9０-９]{3}-?[0-9０-９]{4}", L"POSTAL");
     output = ApplyPattern(output,
         L"(?:[0-9]{1,3}\\.){3}[0-9]{1,3}", L"IP");
     std::sort(customTerms_.begin(), customTerms_.end(),
