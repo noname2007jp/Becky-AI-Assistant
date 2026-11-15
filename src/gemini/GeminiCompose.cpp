@@ -114,7 +114,7 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
 
     const std::string payload =
         "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"" +
-        JsonEscape(Utf8(prompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
+        JsonEscape(Utf8(maskedPrompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
 
     HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.21",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
