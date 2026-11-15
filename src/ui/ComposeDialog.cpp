@@ -119,7 +119,9 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             };
             const int consent = MessageBoxW(dlg,
                 L"入力した目的・補足条件をGoogle Gemini APIへ送信して文案を作成します。\n\n"
-                L"入力内容に機密情報が含まれる場合があります。送信を許可しますか？",
+                L"入力内容に機密情報が含まれる場合があります。メールアドレス・電話番号などは送信前にマスキングします。"
+                 L"氏名・会社名などは自動検出できない場合があるため、設定画面への登録を推奨します。"
+                 L"送信を許可しますか？",
                 L"AI新規メール作成 - 外部送信確認", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
             if (consent != IDYES) return TRUE;
             std::wstring key, error;
