@@ -41,9 +41,9 @@ BEGIN
     PUSHBUTTON      "表示", IDC_SETTINGS_TOGGLE_KEY, 238, 27, 70, 18
     CONTROL         "", IDC_GEMINI_APIKEY_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD, 12, 51, 296, 16
     LTEXT           "キーはWindows DPAPIで暗号化して保存します。", -1, 12, 72, 296, 12
-    LTEXT           "マスキングする語句（1行に1件）", -1, 12, 94, 296, 12
+    LTEXT           "追加でマスキングする語句（1行に1件）", -1, 12, 94, 296, 12
     EDITTEXT        IDC_SETTINGS_MASK_TERMS, 12, 110, 296, 76, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL | WS_TABSTOP | WS_BORDER
-    LTEXT           "会社名・氏名・部署名などを登録。語句はDPAPIで暗号化保存します。", -1, 12, 190, 296, 24
+    LTEXT           "自動検出：メール・電話・郵便番号・IP・法人格付き会社名・氏名表記。追加語句はDPAPIで暗号化。", -1, 12, 190, 296, 24
     LTEXT           "", IDC_SETTINGS_STATUS, 12, 212, 296, 12
     PUSHBUTTON      "接続テスト", IDC_SETTINGS_TEST, 12, 226, 85, 20
     DEFPUSHBUTTON   "保存", IDC_SETTINGS_SAVE, 178, 226, 60, 20
