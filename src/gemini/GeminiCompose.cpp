@@ -102,6 +102,7 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
         L"\n\n【補足・含めたい内容・条件】\n" + requirements;
 
     PiiMasker masker;
+    if (!masker.IsReady()) { result.error = masker.Error(); return result; }
     const std::wstring maskedPrompt = masker.Mask(prompt);
     std::string generationConfig = "\"maxOutputTokens\":4096";
     if (modelId.find(L"gemini-2.5-") == 0)
