@@ -5,6 +5,7 @@
 #include "gemini/GeminiConnection.h"
 
 #include <string>
+#include <vector>
 #include <commctrl.h>
 #include <shellapi.h>
 
@@ -61,6 +62,16 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         else if (!key.empty())
             SetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, key.c_str());
         if (!key.empty()) SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
+        std::vector<std::wstring> maskTerms;
+        std::wstring maskError;
+        if (LoadPiiMaskTerms(maskTerms, maskError))
+        {
+            std::wstring text;
+            for (const auto& term : maskTerms) text += term + L"\r\n";
+            SetDlgItemTextW(dialog, IDC_SETTINGS_MASK_TERMS, text.c_str());
+        }
+        else if (!maskError.empty())
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, maskError.c_str());
         return TRUE;
     }
 
@@ -117,11 +128,47 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
 
         case IDC_SETTINGS_SAVE:
         {
-            const int length = GetWindowTextLengthW(GetDlgItem(dialog, IDC_GEMINI_API_KEY));
-            if (length <= 0 || length > 4096)
+            const int keyLength = GetWindowTextLengthW(GetDlgItem(dialog, IDC_GEMINI_API_KEY));
+            std::wstring error;
+            bool keySaved = true;
+            if (keyLength > 0)
             {
-                SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"APIキーを入力してください。");
+                if (keyLength > 4096)
+                {
+                    SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"APIキーが長すぎます。");
+                    return TRUE;
+                }
+                std::wstring key(static_cast<size_t>(keyLength) + 1, L'\0');
+                GetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, key.data(), keyLength + 1);
+                key.resize(static_cast<size_t>(keyLength));
+                keySaved = SaveGeminiApiKey(key, error);
+                SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
+            }
+            const int termsLength = GetWindowTextLengthW(GetDlgItem(dialog, IDC_SETTINGS_MASK_TERMS));
+            if (termsLength > 65536)
+            {
+                SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"マスキング語句が多すぎます。");
                 return TRUE;
+            }
+            std::wstring raw(static_cast<size_t>(termsLength) + 1, L'\0');
+            GetDlgItemTextW(dialog, IDC_SETTINGS_MASK_TERMS, raw.data(), termsLength + 1);
+            raw.resize(static_cast<size_t>(termsLength));
+            std::vector<std::wstring> terms;
+            size_t lineStart = 0;
+            while (lineStart < raw.size())
+            {
+                size_t lineEnd = raw.find_first_of(L"\r\n", lineStart);
+                if (lineEnd == std::wstring::npos) lineEnd = raw.size();
+                std::wstring term = raw.substr(lineStart, lineEnd - lineStart);
+                if (term.size() >= 2) terms.push_back(std::move(term));
+                lineStart = lineEnd + 1;
+                while (lineStart < raw.size() && (raw[lineStart] == L'\r' || raw[lineStart] == L'\n')) ++lineStart;
+            }
+            const bool termsSaved = SavePiiMaskTerms(terms, error);
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
+                keySaved && termsSaved ? L"設定を暗号化して保存しました。"
+                    : (error.empty() ? L"設定を保存できませんでした。" : error.c_str()));
+            return TRUE;
             }
             std::wstring key(static_cast<size_t>(length) + 1, L'\0');
             GetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, key.data(), length + 1);
