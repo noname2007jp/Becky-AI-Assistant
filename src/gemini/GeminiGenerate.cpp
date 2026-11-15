@@ -193,6 +193,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
             L"\n\n【ユーザーからの質問】\n" + question;
     }
 
+    PiiMasker masker;
     std::string contents = "\"contents\":[";
     bool first = true;
     auto appendTurn = [&](const char* role, const std::wstring& text)
@@ -275,7 +276,8 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
         if (code == 200)
         {
             result.success = ExtractText(response, result.text);
-            if (!result.success) result.error = L"応答から文章を取得できませんでした。";
+            if (result.success) result.text = masker.Restore(result.text);
+            else result.error = L"応答から文章を取得できませんでした。";
         }
         else if (code == 400 || code == 401) result.error = L"APIキーまたはリクエストが無効です（HTTP " + std::to_wstring(code) + L"）。";
         else if (code == 403) result.error = L"API利用権限がありません（HTTP 403）。Google AI Studioのプロジェクト・API利用権限を確認してください。";
