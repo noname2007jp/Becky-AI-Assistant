@@ -195,6 +195,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     }
 
     PiiMasker masker;
+    if (!masker.IsReady()) { result.error = masker.Error(); return result; }
     std::string contents = "\"contents\":[";
     bool first = true;
     auto appendTurn = [&](const char* role, const std::wstring& text)
