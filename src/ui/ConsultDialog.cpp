@@ -22,6 +22,7 @@ namespace
         std::wstring apiKey;
         std::vector<GeminiChatTurn> history;
         std::wstring transcript;
+        unsigned int roundCount = 0;
     };
 
     bool CopyConsultText(HWND owner, const std::wstring& value)
@@ -134,8 +135,11 @@ namespace
                         context->history.erase(context->history.begin() + 2,
                                                context->history.begin() + 4);
 
-                    if (!context->transcript.empty()) context->transcript += L"\r\n\r\n";
-                    context->transcript += L"【質問】\r\n" + question +
+                    if (!context->transcript.empty())
+                        context->transcript += L"\r\n\r\n────────────────────────\r\n\r\n";
+                    ++context->roundCount;
+                    context->transcript += L"【第" + std::to_wstring(context->roundCount) + L"回】\r\n"
+                        L"【質問】\r\n" + question +
                         L"\r\n\r\n【回答】\r\n" + result.text;
                     SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE),
                                    context->transcript.c_str());
@@ -161,6 +165,7 @@ namespace
                 {
                     context->history.clear();
                     context->transcript.clear();
+                    context->roundCount = 0;
                     SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
                         L"会話履歴をクリアしました。次の質問から新しく相談できます。");
