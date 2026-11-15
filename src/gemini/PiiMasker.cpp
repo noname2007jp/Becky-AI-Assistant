@@ -5,6 +5,7 @@
 
 PiiMasker::PiiMasker()
 {
+    LoadPiiMaskTerms(customTerms_, error_);
 }
 
 std::wstring PiiMasker::AddReplacement(const std::wstring& value, const wchar_t* label)
@@ -71,22 +72,17 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
         L"[0-9]{3}-?[0-9]{4}", L"POSTAL");
     output = ApplyPattern(output,
         L"(?:[0-9]{1,3}\\.){3}[0-9]{1,3}", L"IP");
-    std::vector<std::wstring> terms;
-    std::wstring ignored;
-    if (LoadPiiMaskTerms(terms, ignored))
+    std::sort(customTerms_.begin(), customTerms_.end(),
+        [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
+    for (const auto& term : customTerms_)
     {
-        std::sort(terms.begin(), terms.end(),
-            [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
-        for (const auto& term : terms)
+        if (term.size() < 2) continue;
+        size_t position = 0;
+        while ((position = output.find(term, position)) != std::wstring::npos)
         {
-            if (term.size() < 2) continue;
-            size_t position = 0;
-            while ((position = output.find(term, position)) != std::wstring::npos)
-            {
-                const std::wstring token = AddReplacement(term, L"CUSTOM");
-                output.replace(position, term.size(), token);
-                position += token.size();
-            }
+            const std::wstring token = AddReplacement(term, L"CUSTOM");
+            output.replace(position, term.size(), token);
+            position += token.size();
         }
     }
     return output;
