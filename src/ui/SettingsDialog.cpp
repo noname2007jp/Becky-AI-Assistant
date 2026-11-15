@@ -169,17 +169,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 keySaved && termsSaved ? L"設定を暗号化して保存しました。"
                     : (error.empty() ? L"設定を保存できませんでした。" : error.c_str()));
             return TRUE;
-            }
-            std::wstring key(static_cast<size_t>(length) + 1, L'\0');
-            GetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, key.data(), length + 1);
-            key.resize(static_cast<size_t>(length));
-            std::wstring error;
-            const bool saved = SaveGeminiApiKey(key, error);
-            SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
-            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
-                saved ? L"APIキーを暗号化して保存しました。「接続テスト」で確認できます。"
-                      : error.c_str());
-            return TRUE;
         }
 
         case IDC_SETTINGS_TEST:
