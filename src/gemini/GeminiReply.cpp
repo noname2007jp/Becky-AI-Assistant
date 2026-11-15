@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <winhttp.h>
 #include "GeminiError.h"
+#include "PiiMasker.h"
 #include <string>
 
 namespace
@@ -107,6 +108,8 @@ GeminiGenerateResult GenerateMailReplyDraft(
             L"【相談記録】\n" + consultationTranscript;
     }
 
+    PiiMasker masker;
+    prompt = masker.Mask(prompt);
     std::string generationConfig = "\"maxOutputTokens\":2048";
     if (modelId.find(L"gemini-2.5-") == 0)
     {
@@ -161,7 +164,8 @@ GeminiGenerateResult GenerateMailReplyDraft(
         if (code == 200)
         {
             result.success = ExtractText(response, result.text);
-            if (!result.success) result.error = L"応答から返信文案を取得できませんでした。";
+            if (result.success) result.text = masker.Restore(result.text);
+            else result.error = L"応答から返信文案を取得できませんでした。";
         }
         else result.error = FormatGeminiHttpError(code);
     }
