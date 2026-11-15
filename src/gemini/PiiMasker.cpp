@@ -1,0 +1,99 @@
+#include "PiiMasker.h"
+#include "settings/ApiKeyStore.h"
+#include <algorithm>
+#include <regex>
+
+PiiMasker::PiiMasker()
+{
+}
+
+std::wstring PiiMasker::AddReplacement(const std::wstring& value, const wchar_t* label)
+{
+    if (value.empty()) return value;
+    for (const auto& item : replacements_)
+        if (item.first == value) return item.second;
+    const std::wstring token = L"[" + std::wstring(label) + L"_" +
+        std::to_wstring(nextId_++) + L"]";
+    replacements_.push_back({ value, token });
+    return token;
+}
+
+std::wstring PiiMasker::ApplyPattern(const std::wstring& value,
+    const std::wstring& pattern, const wchar_t* label)
+{
+    try
+    {
+        const std::wregex expression(pattern, std::regex_constants::ECMAScript |
+            std::regex_constants::icase);
+        std::wstring output;
+        std::wsregex_iterator current(value.begin(), value.end(), expression), end;
+        size_t copied = 0;
+        for (; current != end; ++current)
+        {
+            const auto& match = *current;
+            const size_t position = static_cast<size_t>(match.position());
+            const size_t length = static_cast<size_t>(match.length());
+            output.append(value, copied, position - copied);
+            output += AddReplacement(match.str(), label);
+            copied = position + length;
+        }
+        if (copied == 0) return value;
+        output.append(value, copied, std::wstring::npos);
+        return output;
+    }
+    catch (...) { return value; }
+}
+
+std::wstring PiiMasker::Mask(const std::wstring& value)
+{
+    std::wstring output = value;
+    output = ApplyPattern(output,
+        L"[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}", L"EMAIL");
+    output = ApplyPattern(output,
+        L"(?:株式会社|有限会社|合同会社|合資会社|合名会社)[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}|[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}(?:株式会社|有限会社|合同会社|合資会社|合名会社)",
+        L"COMPANY");
+    output = ApplyPattern(output,
+        L"(?:氏名|担当者名|ご担当者|お名前|名前)\\s*[:：]\\s*[一-龠々ぁ-んァ-ヶ]{2,12}(?:\\s*[一-龠々ぁ-んァ-ヶ]{1,12})?",
+        L"PERSON");
+    output = ApplyPattern(output,
+        L"0[0-9]{1,4}[-ー－ ]?[0-9]{1,4}[-ー－ ]?[0-9]{3,4}",
+        L"PHONE");
+    output = ApplyPattern(output,
+        L"[0-9]{3}-?[0-9]{4}", L"POSTAL");
+    output = ApplyPattern(output,
+        L"(?:[0-9]{1,3}\\.){3}[0-9]{1,3}", L"IP");
+    std::vector<std::wstring> terms;
+    std::wstring ignored;
+    if (LoadPiiMaskTerms(terms, ignored))
+    {
+        std::sort(terms.begin(), terms.end(),
+            [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
+        for (const auto& term : terms)
+        {
+            if (term.size() < 2) continue;
+            size_t position = 0;
+            while ((position = output.find(term, position)) != std::wstring::npos)
+            {
+                const std::wstring token = AddReplacement(term, L"CUSTOM");
+                output.replace(position, term.size(), token);
+                position += token.size();
+            }
+        }
+    }
+    return output;
+}
+
+std::wstring PiiMasker::Restore(const std::wstring& value) const
+{
+    std::wstring output = value;
+    for (const auto& item : replacements_)
+    {
+        size_t position = 0;
+        while ((position = output.find(item.second, position)) != std::wstring::npos)
+        {
+            output.replace(position, item.second.size(), item.first);
+            position += item.first.size();
+        }
+    }
+    return output;
+}
