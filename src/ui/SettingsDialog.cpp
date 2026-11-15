@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <utility>
 #include <commctrl.h>
 #include <shellapi.h>
 
