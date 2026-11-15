@@ -164,7 +164,7 @@ bool LoadPiiMaskTerms(std::vector<std::wstring>& terms, std::wstring& error)
         if (end == std::wstring::npos) end = all.size();
         std::wstring term = all.substr(start, end - start);
         if (!term.empty() && term.back() == L'\r') term.pop_back();
-        if (term.size() >= 2) terms.push_back(std::move(term));
+        if (term.size() >= 2) terms.push_back(term);
         start = end + 1;
     }
     return true;
@@ -181,6 +181,7 @@ bool SavePiiMaskTerms(const std::vector<std::wstring>& terms, std::wstring& erro
         all += term + L"\n";
     }
     if (all.size() > 65536) { error = L"マスキング語句が多すぎます。"; return false; }
+    if (all.empty()) all = L"\n";
     DATA_BLOB input{ static_cast<DWORD>(all.size() * sizeof(wchar_t)),
         reinterpret_cast<BYTE*>(all.data()) };
     DATA_BLOB encrypted{};
