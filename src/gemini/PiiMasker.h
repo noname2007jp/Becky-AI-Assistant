@@ -18,6 +18,7 @@ private:
     std::vector<std::pair<std::wstring, std::wstring>> replacements_;
     unsigned int nextId_ = 1;
     std::vector<std::wstring> customTerms_;
+    std::vector<std::wstring> manualTerms_;
     std::wstring error_;
     PiiMaskOptions options_;
     std::wstring AddReplacement(const std::wstring& value, const wchar_t* label);
