@@ -211,12 +211,12 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             ShowApiProcessingStatus(dlg, IDC_NEWMAIL_STATUS, L"Geminiで文案を作成しています...");
             const bool started = GeminiAsync::Start(dlg, std::move(key),
                 [modelId, thinking, models, autoFallback, toneInstruction, purpose, requirements, masker]
-                (const std::wstring& workerKey) mutable {
+                (const std::wstring& workerKey, const std::atomic<int>& cancelState) mutable {
                     return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                         [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                             return GenerateNewMailDraft(workerKey, candidateId, candidateThinking,
                                 toneInstruction, purpose, requirements, &masker);
-                        });
+                        }, &cancelState);
                 }, 0, &c->work);
             if (!started) {
                 c->busy = false;
