@@ -79,6 +79,10 @@ namespace
                 if (work->result.cancelled) {
                     const bool closeNow = context->closeAfterCancel;
                     context->closeAfterCancel = false;
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"生成処理をキャンセルしました。");
                     GeminiAsync::Destroy(work);
                     if (closeNow) EndDialog(dialog, IDCANCEL);
@@ -213,6 +217,8 @@ namespace
                             subject, from, body, history, question, &masker);
                     }, 1, &context->work)) {
                     context->busy = false;
+                    context->work = nullptr;
+                    ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
