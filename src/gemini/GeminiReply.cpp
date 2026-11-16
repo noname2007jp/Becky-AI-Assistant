@@ -144,7 +144,11 @@ GeminiGenerateResult GenerateMailReplyDraft(
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), (DWORD)headers.size(),
         (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
-    if (!received) result.error = FormatWinHttpError(GetLastError());
+    if (!received) {
+        const DWORD networkError = GetLastError();
+        result.error = FormatWinHttpError(networkError);
+        result.retryable = networkError == ERROR_WINHTTP_TIMEOUT;
+    }
     else
     {
         DWORD code = 0, size = sizeof(code);
@@ -153,23 +157,48 @@ GeminiGenerateResult GenerateMailReplyDraft(
         result.httpStatus = code;
         std::string response;
         DWORD available = 0;
-        while (WinHttpQueryDataAvailable(request, &available) && available)
+        bool responseReadFailed = false;
+        DWORD responseReadError = ERROR_SUCCESS;
+        for (;;)
         {
+            if (!WinHttpQueryDataAvailable(request, &available))
+            {
+                responseReadFailed = true;
+                responseReadError = GetLastError();
+                break;
+            }
+            if (!available) break;
             if (response.size() + available > 2 * 1024 * 1024) break;
             size_t old = response.size();
             response.resize(old + available);
             DWORD read = 0;
-            if (!WinHttpReadData(request, response.data() + old, available, &read)) break;
+            if (!WinHttpReadData(request, response.data() + old, available, &read))
+            {
+                responseReadFailed = true;
+                responseReadError = GetLastError();
+                break;
+            }
             response.resize(old + read);
             if (!read) break;
         }
         if (code == 200)
         {
-            result.success = ExtractText(response, result.text);
-            if (result.success) result.text = masker.Restore(result.text);
-            else result.error = L"応答から返信文案を取得できませんでした。";
+            if (responseReadFailed)
+            {
+                result.error = FormatWinHttpError(responseReadError);
+                result.retryable = responseReadError == ERROR_WINHTTP_TIMEOUT;
+            }
+            else
+            {
+                result.success = ExtractText(response, result.text);
+                if (result.success) result.text = masker.Restore(result.text);
+                else { result.error = L"応答から返信文案を取得できませんでした。"; result.retryable = true; }
+            }
         }
-        else result.error = FormatGeminiHttpError(code);
+        else {
+            result.error = FormatGeminiHttpError(code);
+            result.retryable = code == 408 || code == 429 || (code >= 500 && code <= 599);
+        }
     }
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);

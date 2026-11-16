@@ -10,6 +10,9 @@ struct GeminiGenerateResult
     std::wstring text;
     std::wstring error;
     bool cancelled = false;
+    bool retryable = false;
+    std::wstring modelUsed;
+    std::wstring notice;
 };
 
 GeminiGenerateResult GenerateMailSummary(

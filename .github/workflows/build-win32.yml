@@ -2,7 +2,7 @@ name: Build Becky AI Assistant (Win32)
 
 on:
   push:
-    branches: [main, feature/v0.37-pii-mask-tests]
+    branches: [main, feature/v0.38-model-fallback]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -26,19 +26,19 @@ jobs:
       - name: Package plugin
         shell: pwsh
         run: |
-          $dll = "build/Release/Becky-AI-Assistant-37.dll"
+          $dll = "build/Release/Becky-AI-Assistant-38.dll"
           if (!(Test-Path $dll)) {
             throw "Expected plugin DLL was not produced: $dll"
           }
           New-Item -ItemType Directory -Force -Path package | Out-Null
           Copy-Item $dll package/
           Copy-Item README.md package/
-          Compress-Archive -Path package/* -DestinationPath Becky-AI-Assistant-37-win32.zip -Force
+          Compress-Archive -Path package/* -DestinationPath Becky-AI-Assistant-38-win32.zip -Force
 
       - name: Upload Win32 ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Becky-AI-Assistant-37-win32
-          path: Becky-AI-Assistant-37-win32.zip
+          name: Becky-AI-Assistant-38-win32
+          path: Becky-AI-Assistant-38-win32.zip
           if-no-files-found: error
           retention-days: 14

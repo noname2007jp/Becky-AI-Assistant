@@ -134,6 +134,14 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         }
         else SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, optionsError.c_str());
         CheckDlgButton(dialog, IDC_SETTINGS_INCLUDE_PAID, BST_UNCHECKED);
+        CheckDlgButton(dialog, IDC_SETTINGS_AUTO_FALLBACK, BST_CHECKED);
+        GeminiReliabilityOptions reliability;
+        std::wstring reliabilityError;
+        if (LoadGeminiReliabilityOptions(reliability, reliabilityError))
+            CheckDlgButton(dialog, IDC_SETTINGS_AUTO_FALLBACK,
+                reliability.automaticModelFallback ? BST_CHECKED : BST_UNCHECKED);
+        else
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, reliabilityError.c_str());
         std::vector<GeminiModelOption> cachedModels;
         std::wstring modelError;
         if (LoadGeminiModelCatalog(cachedModels, modelError))
@@ -274,8 +282,13 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             maskOptions.account = IsDlgButtonChecked(dialog, IDC_MASK_ACCOUNT) == BST_CHECKED;
             maskOptions.custom = IsDlgButtonChecked(dialog, IDC_MASK_CUSTOM) == BST_CHECKED;
             const bool optionsSaved = SavePiiMaskOptions(maskOptions, error);
+            GeminiReliabilityOptions reliability;
+            reliability.automaticModelFallback =
+                IsDlgButtonChecked(dialog, IDC_SETTINGS_AUTO_FALLBACK) == BST_CHECKED;
+            const bool reliabilitySaved = SaveGeminiReliabilityOptions(reliability, error);
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
-                keySaved && termsSaved && optionsSaved ? L"設定を暗号化して保存しました。"
+                keySaved && termsSaved && optionsSaved && reliabilitySaved
+                    ? L"設定を暗号化して保存しました。"
                     : (error.empty() ? L"設定を保存できませんでした。" : error.c_str()));
             return TRUE;
         }
