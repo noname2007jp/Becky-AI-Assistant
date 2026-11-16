@@ -184,6 +184,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         }
         if (state != nullptr) state->testRunning = false;
         EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), TRUE);
         EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), TRUE);
         EnableWindow(GetDlgItem(dialog, IDCANCEL), TRUE);
         return TRUE;
