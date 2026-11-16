@@ -135,6 +135,11 @@ namespace
                 if (work->result.cancelled) {
                     const bool closeNow = context->closeAfterCancel;
                     context->closeAfterCancel = false;
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"生成処理をキャンセルしました。");
                     GeminiAsync::Destroy(work);
                     if (closeNow) EndDialog(dialog, IDCANCEL);
@@ -223,6 +228,8 @@ namespace
                         return GenerateMailSummary(key, modelId, thinking, subject, from, body, &masker);
                     }, 1, &context->work)) {
                     context->busy = false;
+                    context->work = nullptr;
+                    ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
