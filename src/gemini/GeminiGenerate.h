@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+class PiiMasker;
 
 struct GeminiGenerateResult
 {
@@ -16,7 +17,8 @@ GeminiGenerateResult GenerateMailSummary(
     const std::wstring& thinkingLevel,
     const std::wstring& subject,
     const std::wstring& from,
-    const std::wstring& body);
+    const std::wstring& body,
+    PiiMasker* masker = nullptr);
 
 struct GeminiChatTurn
 {
@@ -32,4 +34,5 @@ GeminiGenerateResult GenerateMailConsultation(
     const std::wstring& from,
     const std::wstring& body,
     const std::vector<GeminiChatTurn>& history,
-    const std::wstring& question);
+    const std::wstring& question,
+    PiiMasker* masker = nullptr);
