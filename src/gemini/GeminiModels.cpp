@@ -365,9 +365,17 @@ bool LoadGeminiModelCatalog(std::vector<GeminiModelOption>& models, std::wstring
         const std::string thinking = line.substr(a + 1, b - a - 1);
         const std::string label = line.substr(b + 1, c - b - 1);
         const size_t d = line.find('|', c + 1);
-        const bool freeTier = line.substr(c + 1, d == std::string::npos ? d : d - c - 1) == "1";
         const bool pricingKnown = d != std::string::npos && line.substr(d + 1) == "1";
-        if (!id.empty()) models.push_back({ Wide(label), Wide(id), Wide(thinking), freeTier, pricingKnown });
+        const bool freeTier = pricingKnown &&
+            line.substr(c + 1, d == std::string::npos ? d : d - c - 1) == "1";
+        std::string safeLabel = label;
+        if (!pricingKnown)
+        {
+            const std::string stale = "（無料枠対象）";
+            const size_t stalePos = safeLabel.find(stale);
+            if (stalePos != std::string::npos) safeLabel.replace(stalePos, stale.size(), "（料金未確認）");
+        }
+        if (!id.empty()) models.push_back({ Wide(safeLabel), Wide(id), Wide(thinking), freeTier, pricingKnown });
     }
     if (models.empty()) { models = DefaultGeminiModels(); }
     return true;
