@@ -31,7 +31,8 @@ int main()
 {
     Check(IsRetryableGeminiStatus(408) && IsRetryableGeminiStatus(429) &&
         IsRetryableGeminiStatus(500) && IsRetryableGeminiStatus(502) &&
-        IsRetryableGeminiStatus(503) && IsRetryableGeminiStatus(504),
+        IsRetryableGeminiStatus(501) && IsRetryableGeminiStatus(503) &&
+        IsRetryableGeminiStatus(504) && IsRetryableGeminiStatus(599),
         "transient HTTP statuses are retryable");
     Check(!IsRetryableGeminiStatus(400) && !IsRetryableGeminiStatus(401) &&
         !IsRetryableGeminiStatus(403) && !IsRetryableGeminiStatus(404) &&
