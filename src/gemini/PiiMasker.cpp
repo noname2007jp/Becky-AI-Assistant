@@ -5,7 +5,10 @@
 
 PiiMasker::PiiMasker()
 {
-    LoadPiiMaskTerms(customTerms_, error_);
+    if (!LoadPiiMaskOptions(options_, error_)) return;
+    if (!LoadPiiMaskTerms(customTerms_, error_)) return;
+    std::sort(customTerms_.begin(), customTerms_.end(),
+        [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
 }
 
 std::wstring PiiMasker::AddReplacement(const std::wstring& value, const wchar_t* label)
@@ -48,33 +51,31 @@ std::wstring PiiMasker::ApplyPattern(const std::wstring& value,
 std::wstring PiiMasker::Mask(const std::wstring& value)
 {
     std::wstring output = value;
-    output = ApplyPattern(output,
+    if (options_.email) output = ApplyPattern(output,
         L"[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}", L"EMAIL");
-    output = ApplyPattern(output,
+    if (options_.company) output = ApplyPattern(output,
         L"(?:株式会社|有限会社|合同会社|合資会社|合名会社)[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}|[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}(?:株式会社|有限会社|合同会社|合資会社|合名会社)",
         L"COMPANY");
-    output = ApplyPattern(output,
+    if (options_.person) output = ApplyPattern(output,
         L"(?:氏名|担当者名|ご担当者|お名前|名前|差出人|送信者|宛先|宛名|担当者)\\s*[:：】]\\s*[一-龠々ぁ-んァ-ヶ]{2,12}(?:\\s*[一-龠々ぁ-んァ-ヶ]{1,12})?",
         L"PERSON");
-    output = ApplyPattern(output,
+    if (options_.person) output = ApplyPattern(output,
         L"[一-龠々ぁ-んァ-ヶ]{2,8}(?:\\s+[一-龠々ぁ-んァ-ヶ]{1,8})?(?:様|さん|氏)",
         L"PERSON");
-    output = ApplyPattern(output,
+    if (options_.address) output = ApplyPattern(output,
         L"(?:住所|所在地|送付先)\\s*[:：]\\s*[^\\r\\n]+",
         L"ADDRESS");
-    output = ApplyPattern(output,
+    if (options_.account) output = ApplyPattern(output,
         L"(?:口座番号|カード番号|顧客番号|社員番号)\\s*[:：]\\s*[0-9０-９ -]{4,24}",
         L"ACCOUNT");
-    output = ApplyPattern(output,
+    if (options_.phone) output = ApplyPattern(output,
         L"0[0-9０-９]{1,4}[-ー－ ]?[0-9０-９]{1,4}[-ー－ ]?[0-9０-９]{3,4}",
         L"PHONE");
-    output = ApplyPattern(output,
+    if (options_.postal) output = ApplyPattern(output,
         L"[0-9０-９]{3}-?[0-9０-９]{4}", L"POSTAL");
-    output = ApplyPattern(output,
+    if (options_.ip) output = ApplyPattern(output,
         L"(?:[0-9]{1,3}\\.){3}[0-9]{1,3}", L"IP");
-    std::sort(customTerms_.begin(), customTerms_.end(),
-        [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
-    for (const auto& term : customTerms_)
+    if (options_.custom) for (const auto& term : customTerms_)
     {
         if (term.size() < 2) continue;
         size_t position = 0;
