@@ -7,4 +7,5 @@ GeminiGenerateResult GenerateNewMailDraft(
     const std::wstring& thinkingLevel,
     const std::wstring& toneInstruction,
     const std::wstring& purpose,
-    const std::wstring& requirements);
+    const std::wstring& requirements,
+    PiiMasker* masker = nullptr);
