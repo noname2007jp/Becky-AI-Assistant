@@ -7,6 +7,7 @@
 #include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
+#include "gemini/GeminiAsync.h"
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiModels.h"
 #include <utility>
@@ -70,6 +71,7 @@ namespace
         MailContext* mail;
         HINSTANCE instance;
         std::vector<GeminiModelOption> models;
+        bool busy = false;
     };
 
     void InitializeModelCombo(HWND dialog, DialogContext* context)
@@ -118,6 +120,39 @@ namespace
                 UpdateReplyToneDisplay(dialog);
             return TRUE;
 
+        case GeminiAsync::WM_GENERATION_COMPLETE:
+        {
+            auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+            auto* work = reinterpret_cast<GeminiAsync::WorkItem*>(lParam);
+            if (!work) return TRUE;
+            if (context) {
+                context->busy = false;
+                EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
+                const auto& result = work->result;
+                if (!result.success) {
+                    MessageBoxW(dialog, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
+                } else if (wParam == 1) {
+                    ShowResultDialog(dialog, context->instance, result.text);
+                } else if (wParam == 2) {
+                    std::wstring edited;
+                    bool replyAll = false;
+                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll)) {
+                        context->mail->replyDraft = std::move(edited);
+                        context->mail->insertReplyRequested = true;
+                        context->mail->replyAllRequested = replyAll;
+                        EndDialog(dialog, IDOK);
+                    }
+                }
+            }
+            delete work;
+            return TRUE;
+        }
+
         case WM_COMMAND:
             switch (LOWORD(wParam))
             {
@@ -125,7 +160,7 @@ namespace
             {
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
-                if (context == nullptr || context->mail == nullptr) return TRUE;
+                if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
                 const MailContext& mail = *context->mail;
                 PiiMasker masker;
                 if (!masker.IsReady())
@@ -156,24 +191,30 @@ namespace
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
+                const auto& model = context->models[static_cast<size_t>(selected)];
+                const std::wstring modelId = model.id, thinking = model.thinking;
+                const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
+                context->busy = true;
                 ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで要約中です。しばらくお待ちください...");
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
-                const auto& model = context->models[static_cast<size_t>(selected)];
-                GeminiGenerateResult result = GenerateMailSummary(
-                    apiKey, model.id, model.thinking, mail.subject, mail.from, mail.body, &masker);
-                if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
-                EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
-                EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
-                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
-                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
-                if (result.success)
-                    ShowResultDialog(dialog, context->instance, result.text);
-                else
-                    MessageBoxW(dialog, result.error.c_str(),
-                        L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
+                EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
+                if (!GeminiAsync::Start(dialog, std::move(apiKey),
+                    [modelId, thinking, subject, from, body, masker](const std::wstring& key) mutable {
+                        return GenerateMailSummary(key, modelId, thinking, subject, from, body, &masker);
+                    }, 1)) {
+                    context->busy = false;
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                    SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
+                    MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                }
                 return TRUE;
             }
 
@@ -181,7 +222,7 @@ namespace
             {
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
-                if (context == nullptr || context->mail == nullptr) return TRUE;
+                if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
                 const MailContext& mail = *context->mail;
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
                 if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
@@ -218,33 +259,31 @@ namespace
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
+                const auto& model = context->models[static_cast<size_t>(selected)];
+                const std::wstring modelId = model.id, thinking = model.thinking;
+                const std::wstring tone = GetReplyToneInstruction(static_cast<int>(toneSelected));
+                const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
+                context->busy = true;
                 ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで返信文案を作成中です。しばらくお待ちください...");
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
-                const auto& model = context->models[static_cast<size_t>(selected)];
-                GeminiGenerateResult result = GenerateMailReplyDraft(
-                    apiKey, model.id, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body, L"", &masker);
-                if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
-                EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
-                EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
-                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
-                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
-                if (result.success)
-                    {
-                    std::wstring edited;
-                    bool replyAll = false;
-                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll)) {
-                        context->mail->replyDraft = std::move(edited);
-                        context->mail->insertReplyRequested = true;
-                        context->mail->replyAllRequested = replyAll;
-                        EndDialog(dialog, IDOK);
-                    }
+                EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
+                if (!GeminiAsync::Start(dialog, std::move(apiKey),
+                    [modelId, thinking, tone, subject, from, body, masker](const std::wstring& key) mutable {
+                        return GenerateMailReplyDraft(key, modelId, thinking, tone, subject, from, body, L"", &masker);
+                    }, 2)) {
+                    context->busy = false;
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                    SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
+                    MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
-                else
-                    MessageBoxW(dialog, result.error.c_str(),
-                        L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
                 return TRUE;
             }
 
@@ -271,6 +310,7 @@ namespace
 
             case IDCANCEL:
             case IDOK:
+                if (auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) return TRUE;
                 EndDialog(dialog, LOWORD(wParam));
                 return TRUE;
 
@@ -280,6 +320,7 @@ namespace
             break;
 
         case WM_CLOSE:
+            if (auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) return TRUE;
             EndDialog(dialog, IDCANCEL);
             return TRUE;
 

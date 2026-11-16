@@ -1,4 +1,8 @@
 #include <windows.h>
+
+#ifndef BECKY_AI_ASSISTANT_VERSION
+#define BECKY_AI_ASSISTANT_VERSION "0.33.0"
+#endif
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -358,7 +362,7 @@ extern "C"
                   static_cast<int>(sizeof(info->szPlugInName)));
         lstrcpynA(info->szVendor, "noname2007jp",
                   static_cast<int>(sizeof(info->szVendor)));
-        lstrcpynA(info->szVersion, "0.29.0",
+        lstrcpynA(info->szVersion, BECKY_AI_ASSISTANT_VERSION,
                   static_cast<int>(sizeof(info->szVersion)));
         lstrcpynA(info->szDescription,
                   "AI assistant launcher for Becky! Internet Mail",

@@ -5,6 +5,7 @@
 #include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiCompose.h"
+#include "gemini/GeminiAsync.h"
 #include "gemini/GeminiModels.h"
 #include "BeckyAPI.h"
 #include <cstring>
@@ -13,7 +14,7 @@
 
 namespace
 {
-struct Context { HWND compose; HINSTANCE instance; CBeckyAPI* api; std::vector<GeminiModelOption> models; };
+struct Context { HWND compose; HINSTANCE instance; CBeckyAPI* api; std::vector<GeminiModelOption> models; bool busy = false; };
 
 std::wstring GetText(HWND dlg, int id)
 {
@@ -95,6 +96,39 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"メールの目的を入力して「文案を作成」を押してください。");
         return TRUE;
     }
+    if (msg == GeminiAsync::WM_GENERATION_COMPLETE)
+    {
+        auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));
+        auto* work = reinterpret_cast<GeminiAsync::WorkItem*>(lp);
+        if (!work) return TRUE;
+        if (c) {
+            c->busy = false;
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), TRUE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), TRUE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_PURPOSE), TRUE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_REQUIREMENTS), TRUE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_MODEL), TRUE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TRUE);
+            const GeminiGenerateResult& result = work->result;
+            if (!result.success) {
+                SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"文案の作成に失敗しました。");
+                MessageBoxW(dlg, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
+            } else {
+                std::wstring subject, body;
+                if (!ParseDraft(result.text, subject, body)) {
+                    SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"応答形式を解析できませんでした。");
+                    SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, result.text.c_str());
+                } else {
+                    SetDlgItemTextW(dlg, IDC_NEWMAIL_SUBJECT, subject.c_str());
+                    const std::wstring displayBody = NormalizeWindowsNewlines(body);
+                    SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, displayBody.c_str());
+                    SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"生成しました。件名・本文を編集してから反映してください。");
+                }
+            }
+        }
+        delete work;
+        return TRUE;
+    }
     if (msg == WM_COMMAND)
     {
         switch (LOWORD(wp))
@@ -102,7 +136,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         case IDC_NEWMAIL_GENERATE:
         {
             auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));
-            if (!c) return TRUE;
+            if (!c || c->busy) return TRUE;
             const std::wstring purpose = GetText(dlg, IDC_NEWMAIL_PURPOSE);
             const std::wstring requirements = GetText(dlg, IDC_NEWMAIL_REQUIREMENTS);
             if (purpose.empty()) { MessageBoxW(dlg, L"メールの目的を入力してください。", L"AIメール作成", MB_OK | MB_ICONWARNING); return TRUE; }
@@ -138,30 +172,36 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 MessageBoxW(dlg, error.empty() ? L"先に設定画面でGemini APIキーを保存してください。" : error.c_str(),
                     L"Becky AI Assistant", MB_OK | MB_ICONWARNING); return TRUE;
             }
+            const auto& model = c->models[static_cast<size_t>(selected)];
+            const std::wstring modelId = model.id;
+            const std::wstring thinking = model.thinking;
+            const std::wstring toneInstruction = toneText[(tone < 1 || tone > 10) ? 4 : tone - 1];
+            c->busy = true;
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), FALSE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), FALSE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_PURPOSE), FALSE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_REQUIREMENTS), FALSE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_MODEL), FALSE);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_TONE), FALSE);
             ShowApiProcessingStatus(dlg, IDC_NEWMAIL_STATUS, L"Geminiで文案を作成しています...");
-            const auto& model = c->models[static_cast<size_t>(selected)];
-            GeminiGenerateResult result = GenerateNewMailDraft(key, model.id, model.thinking,
-                toneText[(tone < 1 || tone > 10) ? 4 : tone - 1], purpose, requirements, &masker);
-            SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t)); key.clear();
-            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), TRUE);
-            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), TRUE);
-            if (!result.success) {
-                SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"文案の作成に失敗しました。");
-                MessageBoxW(dlg, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
-                return TRUE;
+            const bool started = GeminiAsync::Start(dlg, std::move(key),
+                [modelId, thinking, toneInstruction, purpose, requirements, masker]
+                (const std::wstring& workerKey) mutable {
+                    return GenerateNewMailDraft(workerKey, modelId, thinking,
+                        toneInstruction, purpose, requirements, &masker);
+                });
+            if (!started) {
+                c->busy = false;
+                EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), TRUE);
+                EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), TRUE);
+                EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_PURPOSE), TRUE);
+                EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_REQUIREMENTS), TRUE);
+                EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_MODEL), TRUE);
+                EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TRUE);
+                SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"バックグラウンド処理を開始できませんでした。");
+                MessageBoxW(dlg, L"非同期処理を開始できませんでした。もう一度お試しください。",
+                    L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
             }
-            std::wstring subject, body;
-            if (!ParseDraft(result.text, subject, body)) {
-                SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"応答形式を解析できませんでした。");
-                SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, result.text.c_str());
-                return TRUE;
-            }
-            SetDlgItemTextW(dlg, IDC_NEWMAIL_SUBJECT, subject.c_str());
-            const std::wstring displayBody = NormalizeWindowsNewlines(body);
-            SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, displayBody.c_str());
-            SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"生成しました。件名・本文を編集してから反映してください。");
             return TRUE;
         }
         case IDC_NEWMAIL_APPLY:
@@ -208,7 +248,11 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             EndDialog(dlg, LOWORD(wp)); return TRUE;
         }
     }
-    if (msg == WM_CLOSE) { EndDialog(dlg, IDCANCEL); return TRUE; }
+    if (msg == WM_CLOSE) {
+        auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));
+        if (c && c->busy) return TRUE;
+        EndDialog(dlg, IDCANCEL); return TRUE;
+    }
     return FALSE;
 }
 }

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.33.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -37,7 +37,7 @@ target_include_directories(BeckyAIAssistant PRIVATE
 
 target_compile_features(BeckyAIAssistant PRIVATE cxx_std_17)
 set_property(TARGET BeckyAIAssistant PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-target_compile_definitions(BeckyAIAssistant PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_definitions(BeckyAIAssistant PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX BECKY_AI_ASSISTANT_VERSION=\"${PROJECT_VERSION}\")
 target_compile_options(BeckyAIAssistant PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:/W4>
   $<$<COMPILE_LANGUAGE:CXX>:/permissive->
@@ -45,4 +45,4 @@ target_compile_options(BeckyAIAssistant PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
 )
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winhttp comctl32)
-set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-32" PREFIX "")
+set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-${PROJECT_VERSION_MINOR}" PREFIX "")
