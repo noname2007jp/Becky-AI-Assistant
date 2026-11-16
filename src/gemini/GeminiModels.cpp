@@ -128,61 +128,50 @@ bool ReadFreeTierFromSection(const std::string& page, const std::string& modelId
     bool& known, bool& freeTier)
 {
     known = false; freeTier = false;
-    // Google currently publishes this page as a documentation/Markdown-like
-    // response as well as HTML. Locate the model's explicit anchor first.
-    const std::string anchors[] = {
-        "{% id=\"" + modelId + "\" %}",
-        "id=\"" + modelId + "\"",
-        "id='" + modelId + "'"
-    };
-    size_t begin = std::string::npos;
-    for (const auto& anchor : anchors)
-    {
-        begin = page.find(anchor);
-        if (begin != std::string::npos) break;
-    }
-    if (begin == std::string::npos) return false;
+    // Google documents the Standard table as rows: Input price / Free Tier value.
+    const std::string anchor = "id=\"" + modelId + "\"";
+    size_t modelStart = page.find(anchor);
+    if (modelStart == std::string::npos) return false;
 
-    size_t end = page.size();
-    const std::string prefixes[] = { "{% id=\"gemini-", "{% id=\"gemma-", "id=\"gemini-", "id=\"gemma-" };
-    for (const auto& prefix : prefixes)
+    size_t modelEnd = page.size();
+    const char* boundaries[] = { "## Gemini ", "## Gemma ", "{% id=\"gemini-", "{% id=\"gemma-" };
+    for (const char* boundary : boundaries)
     {
-        size_t next = page.find(prefix, begin + 1);
-        if (next != std::string::npos && next < end) end = next;
+        size_t next = page.find(boundary, modelStart + anchor.size());
+        if (next != std::string::npos && next < modelEnd) modelEnd = next;
     }
-    std::string section = page.substr(begin, end - begin);
-    std::string normalized = Lower(StripHtml(section));
+    std::string section = Lower(StripHtml(page.substr(modelStart, modelEnd - modelStart)));
+    size_t standardStart = section.find("title=\"standard\"");
+    if (standardStart == std::string::npos) standardStart = section.find("title='standard'");
+    if (standardStart == std::string::npos) return false;
+    size_t standardEnd = section.find("{% /tab %}", standardStart);
+    if (standardEnd == std::string::npos) standardEnd = section.size();
+    const std::string standard = section.substr(standardStart, standardEnd - standardStart);
 
-    // Use only the Standard tab. Other tabs can have different pricing rules.
-    size_t standard = normalized.find("title=\"standard\"");
-    if (standard == std::string::npos) standard = normalized.find("standard");
-    if (standard == std::string::npos) return false;
-    size_t input = normalized.find("input price", standard);
-    if (input == std::string::npos) input = normalized.find("入力料金", standard);
+    size_t input = standard.find("input price");
     if (input == std::string::npos) return false;
+    size_t output = standard.find("output price", input + 1);
+    if (output == std::string::npos) output = standard.size();
+    const std::string inputRow = standard.substr(input, output - input);
 
-    // In Google's documentation source the table is represented as rows:
-    // "* Input price", "* Free of charge", "* $x.xx". In HTML, the same
-    // information may be rendered as adjacent cells. Inspect only this row,
-    // ending before the Output price row to avoid matching unrelated prices.
-    size_t rowEnd = normalized.find("output price", input + 1);
-    if (rowEnd == std::string::npos) rowEnd = normalized.find("出力料金", input + 1);
-    if (rowEnd == std::string::npos || rowEnd - input > 2500)
-        rowEnd = (std::min)(normalized.size(), input + 2500);
-    const std::string row = normalized.substr(input, rowEnd - input);
+    size_t newline = inputRow.find('\n');
+    std::string value = newline == std::string::npos ? inputRow : inputRow.substr(newline + 1);
+    while (!value.empty() && (value.front() == ' ' || value.front() == '\t' ||
+        value.front() == '*' || value.front() == '-' || value.front() == '\r'))
+        value.erase(value.begin());
+    value = Lower(value);
+    if (value.find("free of charge") == 0 || value.find("free") == 0 || value.find("無料") == 0)
+    { known = true; freeTier = true; return true; }
+    if (value.find("not available") == 0 || value.find("利用不可") == 0 ||
+        value.find('$') == 0 || value.find("€") == 0)
+    { known = true; freeTier = false; return true; }
 
-    if (row.find("free of charge") != std::string::npos ||
-        row.find("無料") != std::string::npos)
-    {
-        known = true; freeTier = true; return true;
-    }
-    if (row.find("not available") != std::string::npos ||
-        row.find("利用不可") != std::string::npos ||
-        row.find("$") != std::string::npos ||
-        row.find("€") != std::string::npos)
-    {
-        known = true; freeTier = false; return true;
-    }
+    // Fallback for HTML-rendered tables: only inspect the Input price row.
+    if (inputRow.find("free of charge") != std::string::npos || inputRow.find("無料") != std::string::npos)
+    { known = true; freeTier = true; return true; }
+    if (inputRow.find("not available") != std::string::npos || inputRow.find("利用不可") != std::string::npos ||
+        inputRow.find('$') != std::string::npos || inputRow.find("€") != std::string::npos)
+    { known = true; freeTier = false; return true; }
     return false;
 }
 bool DownloadPricingPage(std::string& response, std::wstring& error)
