@@ -7,6 +7,7 @@
 #include "gemini/GeminiCompose.h"
 #include "gemini/GeminiAsync.h"
 #include "gemini/GeminiModels.h"
+#include "gemini/GeminiFallback.h"
 #include "BeckyAPI.h"
 #include <cstring>
 #include <commctrl.h>
@@ -134,7 +135,9 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                     SetDlgItemTextW(dlg, IDC_NEWMAIL_SUBJECT, subject.c_str());
                     const std::wstring displayBody = NormalizeWindowsNewlines(body);
                     SetDlgItemTextW(dlg, IDC_NEWMAIL_BODY, displayBody.c_str());
-                    SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"生成しました。件名・本文を編集してから反映してください。");
+                    SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, result.notice.empty()
+                        ? L"生成しました。件名・本文を編集してから反映してください。"
+                        : result.notice.c_str());
                 }
             }
         }
@@ -187,6 +190,14 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             const auto& model = c->models[static_cast<size_t>(selected)];
             const std::wstring modelId = model.id;
             const std::wstring thinking = model.thinking;
+            const auto models = c->models;
+            GeminiReliabilityOptions reliability;
+            std::wstring reliabilityError;
+            if (!LoadGeminiReliabilityOptions(reliability, reliabilityError)) {
+                MessageBoxW(dlg, reliabilityError.c_str(), L"設定エラー", MB_OK | MB_ICONWARNING);
+                return TRUE;
+            }
+            const bool autoFallback = reliability.automaticModelFallback;
             const std::wstring toneInstruction = toneText[(tone < 1 || tone > 10) ? 4 : tone - 1];
             c->busy = true;
             ShowWindow(GetDlgItem(dlg, IDC_NEWMAIL_CANCEL), SW_SHOW);
@@ -199,10 +210,13 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_TONE), FALSE);
             ShowApiProcessingStatus(dlg, IDC_NEWMAIL_STATUS, L"Geminiで文案を作成しています...");
             const bool started = GeminiAsync::Start(dlg, std::move(key),
-                [modelId, thinking, toneInstruction, purpose, requirements, masker]
+                [modelId, thinking, models, autoFallback, toneInstruction, purpose, requirements, masker]
                 (const std::wstring& workerKey) mutable {
-                    return GenerateNewMailDraft(workerKey, modelId, thinking,
-                        toneInstruction, purpose, requirements, &masker);
+                    return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
+                        [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
+                            return GenerateNewMailDraft(workerKey, candidateId, candidateThinking,
+                                toneInstruction, purpose, requirements, &masker);
+                        });
                 }, 0, &c->work);
             if (!started) {
                 c->busy = false;
