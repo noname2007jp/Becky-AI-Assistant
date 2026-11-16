@@ -3,6 +3,7 @@
 #include "GeminiGenerate.h"
 #include "GeminiModels.h"
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <vector>
 
@@ -17,11 +18,13 @@ inline GeminiGenerateResult GenerateWithModelFallback(
     const std::wstring& selectedThinking,
     const std::vector<GeminiModelOption>& models,
     bool enabled,
-    const std::function<GeminiGenerateResult(const std::wstring&, const std::wstring&)>& generate)
+    const std::function<GeminiGenerateResult(const std::wstring&, const std::wstring&)>& generate,
+    const std::atomic<int>* cancelState = nullptr)
 {
     GeminiGenerateResult result = generate(selectedModelId, selectedThinking);
     result.modelUsed = selectedModelId;
-    if (!enabled || result.success || !result.retryable)
+    if (!enabled || result.success || !result.retryable ||
+        (cancelState && cancelState->load(std::memory_order_acquire) != 0))
         return result;
 
     // Only fall back to models explicitly identified as free by the latest
@@ -43,9 +46,14 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         });
 
     if (candidates.empty())
+    {
+        result.error += L"\n料金確認済みの無料Flash代替モデルがありません。設定画面でモデル一覧を更新してください。";
         return result;
+    }
 
     const GeminiModelOption& fallback = *candidates.front();
+    if (cancelState && cancelState->load(std::memory_order_acquire) != 0)
+        return result;
     GeminiGenerateResult alternate = generate(fallback.id, fallback.thinking);
     alternate.modelUsed = fallback.id;
     if (alternate.success)
@@ -55,7 +63,8 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         return alternate;
     }
 
-    alternate.error += L"\n別モデル「" + fallback.label +
+    alternate.error += L"\n最初のモデルのエラー: " + result.error +
+        L"\n別モデル「" + fallback.label +
         L"」への切り替えも試しましたが、応答を取得できませんでした。";
     return alternate;
 }
