@@ -71,7 +71,7 @@ Gemini APIキーと追加マスキング語句、マスキング対象設定は�
 
 ## テスト
 
-Win32 Releaseビルド時に回帰テストを実行します。MIME本文抽出（プレーンテキスト、Base64、Quoted-Printable、multipart/alternative、HTML文字参照・段落改行、添付ファイル除外、空メール）に加え、個人情報マスキング（ON/OFF、メール・電話・郵便番号・IPv4・住所・口座番号、追加登録語句、手動選択、復元、カテゴリ別設定）を確認します。プレーンテキスト、Base64、Quoted-Printable、multipart/alternative、HTML文字参照・段落改行、添付ファイル除外、空メールを確認します。
+Win32 Releaseビルド時に回帰テストを実行します。MIME本文抽出（プレーンテキスト、Base64、Quoted-Printable、multipart/alternative、HTML文字参照・段落改行、添付ファイル除外、空メール）、個人情報マスキング（ON/OFF、各種検出、追加登録語句、手動選択、復元、カテゴリ別設定）、モデル自動切り替え（対象HTTPステータス、OFF設定、403の除外、有料・料金未確認モデルの除外）を確認します。
 
 ## ビルド
 
