@@ -150,21 +150,43 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
         result.httpStatus = code;
         std::string response;
         DWORD available = 0;
-        while (WinHttpQueryDataAvailable(request, &available) && available)
+        bool responseReadFailed = false;
+        DWORD responseReadError = ERROR_SUCCESS;
+        for (;;)
         {
+            if (!WinHttpQueryDataAvailable(request, &available))
+            {
+                responseReadFailed = true;
+                responseReadError = GetLastError();
+                break;
+            }
+            if (!available) break;
             if (response.size() + available > 2 * 1024 * 1024) break;
             size_t old = response.size();
             response.resize(old + available);
             DWORD read = 0;
-            if (!WinHttpReadData(request, response.data() + old, available, &read)) break;
+            if (!WinHttpReadData(request, response.data() + old, available, &read))
+            {
+                responseReadFailed = true;
+                responseReadError = GetLastError();
+                break;
+            }
             response.resize(old + read);
             if (!read) break;
         }
         if (code == 200)
         {
-            result.success = ExtractText(response, result.text);
-            if (result.success) result.text = masker.Restore(result.text);
-            else { result.error = L"応答からメール文案を取得できませんでした。"; result.retryable = true; }
+            if (responseReadFailed)
+            {
+                result.error = FormatWinHttpError(responseReadError);
+                result.retryable = responseReadError == ERROR_WINHTTP_TIMEOUT;
+            }
+            else
+            {
+                result.success = ExtractText(response, result.text);
+                if (result.success) result.text = masker.Restore(result.text);
+                else { result.error = L"応答からメール文案を取得できませんでした。"; result.retryable = true; }
+            }
         }
         else {
             result.error = FormatGeminiHttpError(code);
