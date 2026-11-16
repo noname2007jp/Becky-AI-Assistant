@@ -60,7 +60,7 @@ BEGIN
     CONTROL         "有料モデル・料金未確認モデルも含める", IDC_SETTINGS_INCLUDE_PAID, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 342, 336, 16
     CONTROL         "", IDC_SETTINGS_PRICING_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD, 12, 362, 336, 16
     CONTROL         "詳細デバッグログを有効にする（マスキングON時のみ送信内容を記録）", IDC_SETTINGS_DEBUG_LOG, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 382, 336, 18
-    LTEXT           "ログにはマスキング後の文章が残ります。確認後、debug.logを削除してください。", -1, 12, 402, 336, 16
+    LTEXT           "ログにはマスキング後の送信文章が残ります。未検出情報が含まれる可能性があるため、確認後は削除してください。", -1, 12, 402, 336, 16
     PUSHBUTTON      "APIモデルを更新", IDC_SETTINGS_UPDATE_MODELS, 12, 424, 104, 22
     LTEXT           "", IDC_SETTINGS_STATUS, 124, 428, 224, 18
     PUSHBUTTON      "接続テスト", IDC_SETTINGS_TEST, 12, 456, 85, 20
