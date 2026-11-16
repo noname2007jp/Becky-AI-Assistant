@@ -22,6 +22,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Becky-AI-Assistant-38-win32
-          path: build/Release/Becky-AI-Assistant-37.dll
+          path: build/Release/Becky-AI-Assistant-38.dll
           if-no-files-found: error
           retention-days: 14
