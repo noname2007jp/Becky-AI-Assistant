@@ -8,6 +8,7 @@ struct GeminiModelOption
     std::wstring id;
     std::wstring thinking;
     bool freeTier = false;
+    bool pricingKnown = false;
 };
 
 std::vector<GeminiModelOption> DefaultGeminiModels();
