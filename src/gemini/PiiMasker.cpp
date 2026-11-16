@@ -11,6 +11,13 @@ PiiMasker::PiiMasker()
         [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
 }
 
+PiiMasker::PiiMasker(const PiiMaskOptions& options, std::vector<std::wstring> customTerms)
+    : customTerms_(std::move(customTerms)), options_(options)
+{
+    std::sort(customTerms_.begin(), customTerms_.end(),
+        [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
+}
+
 std::wstring PiiMasker::AddReplacement(const std::wstring& value, const wchar_t* label)
 {
     if (value.empty()) return value;
