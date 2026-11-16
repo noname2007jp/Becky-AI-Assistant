@@ -134,6 +134,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         }
         else SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, optionsError.c_str());
         CheckDlgButton(dialog, IDC_SETTINGS_INCLUDE_PAID, BST_UNCHECKED);
+        CheckDlgButton(dialog, IDC_SETTINGS_AUTO_FALLBACK, BST_CHECKED);
         GeminiReliabilityOptions reliability;
         std::wstring reliabilityError;
         if (LoadGeminiReliabilityOptions(reliability, reliabilityError))
