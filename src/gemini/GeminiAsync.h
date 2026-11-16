@@ -85,7 +85,7 @@ namespace GeminiAsync
     inline bool Start(
         HWND target,
         std::wstring apiKey,
-        std::function<GeminiGenerateResult(const std::wstring&)> operation,
+        std::function<GeminiGenerateResult(const std::wstring&, const std::atomic<int>&)> operation,
         WPARAM tag = 0,
         WorkItem** outputWork = nullptr)
     {
