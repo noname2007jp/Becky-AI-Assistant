@@ -8,6 +8,7 @@ class PiiMasker
 {
 public:
     PiiMasker();
+    PiiMasker(const PiiMaskOptions& options, std::vector<std::wstring> customTerms);
     std::wstring Mask(const std::wstring& value);
     bool MaskSelected(std::wstring& preview, size_t start, size_t length);
     std::wstring Restore(const std::wstring& value) const;
