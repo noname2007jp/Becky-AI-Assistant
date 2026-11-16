@@ -13,12 +13,14 @@
 
 namespace
 {
-constexpr UINT WM_GEMINI_TEST_FINISHED = WM_APP + 41;\nconstexpr UINT WM_MODEL_UPDATE_FINISHED = WM_APP + 42;
+constexpr UINT WM_GEMINI_TEST_FINISHED = WM_APP + 41;
+constexpr UINT WM_MODEL_UPDATE_FINISHED = WM_APP + 42;
 
 struct SettingsState
 {
     bool testRunning = false;
-    bool apiKeyVisible = false;\n    bool modelUpdateRunning = false;
+    bool apiKeyVisible = false;
+    bool modelUpdateRunning = false;
 };
 
 struct TestResult
@@ -164,6 +166,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         if (state) state->modelUpdateRunning = false;
         EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), TRUE);
         EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), TRUE);
         EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), TRUE);
         EnableWindow(GetDlgItem(dialog, IDCANCEL), TRUE);
         return TRUE;
@@ -269,7 +272,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             const bool includePaid = IsDlgButtonChecked(dialog, IDC_SETTINGS_INCLUDE_PAID) == BST_CHECKED;
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"Googleからモデル一覧を取得しています...");
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), FALSE);
-            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), FALSE);\n            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), FALSE);
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), FALSE);
             EnableWindow(GetDlgItem(dialog, IDCANCEL), FALSE);
             auto* args = new ModelUpdateArgs{ dialog, includePaid };
@@ -298,6 +301,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             ShowApiProcessingStatus(dialog, IDC_SETTINGS_STATUS,
                                     L"Gemini APIへ接続しています...");
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), FALSE);
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), FALSE);
             EnableWindow(GetDlgItem(dialog, IDCANCEL), FALSE);
 
@@ -306,6 +310,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             {
                 state->testRunning = false;
                 EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDCANCEL), TRUE);
                 SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
