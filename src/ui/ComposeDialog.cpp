@@ -5,6 +5,7 @@
 #include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiCompose.h"
+#include "gemini/GeminiModels.h"
 #include "BeckyAPI.h"
 #include <cstring>
 #include <commctrl.h>
@@ -12,15 +13,7 @@
 
 namespace
 {
-struct ModelOption { const wchar_t* label; const wchar_t* id; const wchar_t* thinking; };
-const ModelOption kModels[] = {
-    { L"Gemini 3.8 Flash (Medium)", L"gemini-3.8-flash", L"MEDIUM" },
-    { L"Gemini 3.8 Flash (High)", L"gemini-3.8-flash", L"HIGH" },
-    { L"Gemini 3.6 Flash (Medium)", L"gemini-3.6-flash", L"MEDIUM" },
-    { L"Gemini 3.5 Flash-Lite (Medium)", L"gemini-3.5-flash-lite", L"MEDIUM" },
-    { L"Gemini 2.5 Flash", L"gemini-2.5-flash", L"ON" }
-};
-struct Context { HWND compose; HINSTANCE instance; CBeckyAPI* api; };
+struct Context { HWND compose; HINSTANCE instance; CBeckyAPI* api; std::vector<GeminiModelOption> models; };
 
 std::wstring GetText(HWND dlg, int id)
 {
@@ -86,8 +79,17 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         SetWindowLongPtrW(dlg, DWLP_USER, (LONG_PTR)c);
         SendDlgItemMessageW(dlg, IDC_NEWMAIL_PURPOSE, EM_SETLIMITTEXT, 10000, 0);
         SendDlgItemMessageW(dlg, IDC_NEWMAIL_REQUIREMENTS, EM_SETLIMITTEXT, 30000, 0);
-        for (const auto& m : kModels) SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_ADDSTRING, 0, (LPARAM)m.label);
-        SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_SETCURSEL, 3, 0);
+        std::wstring modelError;
+        if (!LoadGeminiModelCatalog(c->models, modelError) || c->models.empty())
+            c->models = DefaultGeminiModels();
+        int defaultIndex = 0;
+        for (size_t i = 0; i < c->models.size(); ++i)
+        {
+            SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_ADDSTRING, 0,
+                reinterpret_cast<LPARAM>(c->models[i].label.c_str()));
+            if (c->models[i].id == L"gemini-3.8-flash") defaultIndex = static_cast<int>(i);
+        }
+        SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_SETCURSEL, defaultIndex, 0);
         SendMessageW(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TBM_SETRANGE, TRUE, MAKELONG(1, 10));
         SendMessageW(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TBM_SETPOS, TRUE, 5);
         SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"メールの目的を入力して「文案を作成」を押してください。");
@@ -105,7 +107,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             const std::wstring requirements = GetText(dlg, IDC_NEWMAIL_REQUIREMENTS);
             if (purpose.empty()) { MessageBoxW(dlg, L"メールの目的を入力してください。", L"AIメール作成", MB_OK | MB_ICONWARNING); return TRUE; }
             LRESULT selected = SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_GETCURSEL, 0, 0);
-            if (selected < 0 || selected >= (LRESULT)_countof(kModels)) return TRUE;
+            if (selected < 0 || selected >= (LRESULT)c->models.size()) return TRUE;
             const int tone = (int)SendDlgItemMessageW(dlg, IDC_NEWMAIL_TONE, TBM_GETPOS, 0, 0);
             const wchar_t* toneText[] = {
                 L"格式の高いビジネス文書として、改まった敬語を使ってください。",
@@ -139,7 +141,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), FALSE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), FALSE);
             ShowApiProcessingStatus(dlg, IDC_NEWMAIL_STATUS, L"Geminiで文案を作成しています...");
-            const auto& model = kModels[selected];
+            const auto& model = c->models[static_cast<size_t>(selected)];
             GeminiGenerateResult result = GenerateNewMailDraft(key, model.id, model.thinking,
                 toneText[(tone < 1 || tone > 10) ? 4 : tone - 1], purpose, requirements, &masker);
             SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t)); key.clear();
