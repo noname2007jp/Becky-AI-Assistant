@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <fstream>
 #include <set>
+#include <cctype>
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -94,14 +95,147 @@ bool IsTextModel(const std::string& id)
     for (const char* term : excluded) if (id.find(term) != std::string::npos) return false;
     return true;
 }
-bool IsFreeTierModel(const std::string& id)
+std::string Lower(std::string value)
 {
-    // Curated from Google's published pricing table; update this allowlist with the pricing docs.
-    static const std::set<std::string> freeModels = {
-        "gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3.6-flash",
-        "gemini-3.5-flash-lite"
+    std::transform(value.begin(), value.end(), value.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return value;
+}
+std::string StripHtml(std::string value)
+{
+    std::string out; bool inTag = false;
+    for (char c : value)
+    {
+        if (c == '<') { inTag = true; out += ' '; }
+        else if (c == '>') { inTag = false; out += ' '; }
+        else if (!inTag) out += c;
+    }
+    const std::pair<const char*, const char*> entities[] = {
+        {"&nbsp;", " "}, {"&amp;", "&"}, {"&quot;", "\""}, {"&#39;", "'"},
+        {"&lt;", "<"}, {"&gt;", ">"}
     };
-    return freeModels.find(id) != freeModels.end();
+    for (const auto& e : entities)
+    {
+        size_t p = 0;
+        while ((p = out.find(e.first, p)) != std::string::npos)
+        { out.replace(p, std::strlen(e.first), e.second); p += std::strlen(e.second); }
+    }
+    return out;
+}
+bool ReadFreeTierFromSection(const std::string& page, const std::string& modelId,
+    bool& known, bool& freeTier)
+{
+    known = false; freeTier = false;
+    const std::string anchor = "id=\"" + modelId + "\"";
+    size_t begin = page.find(anchor);
+    if (begin == std::string::npos)
+    {
+        const std::string alt = "id='" + modelId + "'";
+        begin = page.find(alt);
+    }
+    if (begin == std::string::npos) return false;
+    size_t end = page.find("id=\"gemini-", begin + anchor.size());
+    const size_t gemmaEnd = page.find("id=\"gemma-", begin + anchor.size());
+    if (end == std::string::npos || (gemmaEnd != std::string::npos && gemmaEnd < end)) end = gemmaEnd;
+    if (end == std::string::npos) end = page.size();
+    const std::string section = page.substr(begin, end - begin);
+
+    // The Standard tier's Input price row is the relevant classification for this plugin.
+    size_t standard = section.find("Standard");
+    if (standard == std::string::npos) return false;
+    size_t input = section.find("Input price", standard);
+    if (input == std::string::npos) input = section.find("入力料金", standard);
+    if (input == std::string::npos) return false;
+
+    // HTML tables: the cell immediately after the Input price cell is the Free Tier value.
+    size_t closeCell = section.find("</td>", input);
+    if (closeCell != std::string::npos)
+    {
+        size_t nextCell = section.find("<td", closeCell + 5);
+        if (nextCell != std::string::npos)
+        {
+            size_t cellEnd = section.find("</td>", nextCell);
+            if (cellEnd != std::string::npos)
+            {
+                const std::string value = Lower(StripHtml(section.substr(nextCell, cellEnd - nextCell)));
+                if (value.find("free of charge") != std::string::npos ||
+                    value.find("無料") != std::string::npos)
+                { known = true; freeTier = true; return true; }
+                if (value.find("not available") != std::string::npos ||
+                    value.find("利用不可") != std::string::npos ||
+                    value.find("$") != std::string::npos ||
+                    value.find("€") != std::string::npos)
+                { known = true; freeTier = false; return true; }
+            }
+        }
+    }
+
+    // Text/Markdown fallback for documentation responses without HTML table cells.
+    size_t lineEnd = section.find('\n', input);
+    if (lineEnd != std::string::npos)
+    {
+        size_t next = section.find_first_not_of(" \r\n\t*-", lineEnd);
+        if (next != std::string::npos)
+        {
+            size_t valueEnd = section.find_first_of("\r\n", next);
+            const std::string value = Lower(section.substr(next,
+                valueEnd == std::string::npos ? std::string::npos : valueEnd - next));
+            if (value.find("free of charge") != std::string::npos || value.find("無料") != std::string::npos)
+            { known = true; freeTier = true; return true; }
+            if (value.find("not available") != std::string::npos || value.find("利用不可") != std::string::npos ||
+                value.find("$") != std::string::npos)
+            { known = true; freeTier = false; return true; }
+        }
+    }
+    return false;
+}
+bool DownloadPricingPage(std::string& response, std::wstring& error)
+{
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.30",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!session) { error = L"Google公式料金ページへの通信を開始できません。"; return false; }
+    WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
+    HINTERNET connection = WinHttpConnect(session, L"ai.google.dev", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    HINTERNET request = connection ? WinHttpOpenRequest(connection, L"GET",
+        L"/gemini-api/docs/pricing", nullptr, WINHTTP_NO_REFERER,
+        WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
+    if (!request)
+    {
+        if (connection) WinHttpCloseHandle(connection);
+        WinHttpCloseHandle(session); error = L"Google公式料金ページへ接続できません。"; return false;
+    }
+    const wchar_t* headers = L"Accept: text/html, text/plain;q=0.9, */*;q=0.8\r\n";
+    BOOL sent = WinHttpSendRequest(request, headers, (DWORD)-1L,
+        WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
+    BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
+    if (!received)
+    {
+        const DWORD code = GetLastError();
+        WinHttpCloseHandle(request); WinHttpCloseHandle(connection); WinHttpCloseHandle(session);
+        error = L"Google公式料金ページを取得できませんでした（通信エラー " + std::to_wstring(code) + L"）。";
+        return false;
+    }
+    DWORD status = 0, statusSize = sizeof(status);
+    WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+        WINHTTP_HEADER_NAME_BY_INDEX, &status, &statusSize, WINHTTP_NO_HEADER_INDEX);
+    DWORD available = 0;
+    while (WinHttpQueryDataAvailable(request, &available) && available)
+    {
+        if (response.size() + available > 8 * 1024 * 1024) break;
+        const size_t old = response.size(); response.resize(old + available);
+        DWORD read = 0;
+        if (!WinHttpReadData(request, response.data() + old, available, &read))
+        { response.resize(old); break; }
+        response.resize(old + read); if (!read) break;
+    }
+    WinHttpCloseHandle(request); WinHttpCloseHandle(connection); WinHttpCloseHandle(session);
+    if (status != 200 || response.empty())
+    {
+        error = L"Google公式料金ページがHTTP " + std::to_wstring(status) +
+            L"を返しました。料金情報を確認できないため、モデル一覧は更新しませんでした。";
+        return false;
+    }
+    return true;
 }
 bool DownloadModelPage(const std::wstring& apiKey, const std::wstring& path, std::string& response, std::wstring& error)
 {
@@ -148,7 +282,8 @@ bool DownloadModelPage(const std::wstring& apiKey, const std::wstring& path, std
     }
     return true;
 }
-void ParseModels(const std::string& json, std::vector<GeminiModelOption>& models, bool includePaid)
+void ParseModels(const std::string& json, const std::string& pricingPage,
+    std::vector<GeminiModelOption>& models, bool includePaid)
 {
     const size_t modelsKey = json.find("\"models\"");
     if (modelsKey == std::string::npos) return;
@@ -179,26 +314,28 @@ void ParseModels(const std::string& json, std::vector<GeminiModelOption>& models
         std::string name = StringField(object, "name");
         if (name.rfind("models/", 0) == 0) name.erase(0, 7);
         if (!IsTextModel(name)) continue;
-        const bool freeTier = IsFreeTierModel(name);
-        if (!includePaid && !freeTier) continue;
+        bool pricingKnown = false, freeTier = false;
+        ReadFreeTierFromSection(pricingPage, name, pricingKnown, freeTier);
+        if (!includePaid && (!pricingKnown || !freeTier)) continue;
         std::string display = StringField(object, "displayName");
         if (display.empty()) display = name;
         std::wstring thinking;
         if (SupportsThinking(object))
             thinking = name.rfind("gemini-2.5-", 0) == 0 ? L"ON" : L"MEDIUM";
-        std::wstring label = Wide(display) + (freeTier ? L"（無料枠対象）" : L"（料金未分類・有料を含む）");
-        models.push_back({ label, Wide(name), thinking, freeTier });
+        std::wstring label = Wide(display) + (freeTier ? L"（無料枠あり）" :
+            (pricingKnown ? L"（無料枠なし）" : L"（料金未確認）"));
+        models.push_back({ label, Wide(name), thinking, freeTier, pricingKnown });
     }
 }
 }
 
 std::vector<GeminiModelOption> DefaultGeminiModels()
 {
+    // Before the first pricing refresh, expose only conservative defaults as unclassified.
     return {
-        { L"Gemini 4 Hydrogen（無料枠対象）", L"gemini-4-hydrogen", L"MEDIUM", true },
-        { L"Gemini 3.8 Flash（無料枠対象）", L"gemini-3.8-flash", L"MEDIUM", true },
-        { L"Gemini 3.6 Flash（無料枠対象）", L"gemini-3.6-flash", L"MEDIUM", true },
-        { L"Gemini 3.5 Flash-Lite（無料枠対象）", L"gemini-3.5-flash-lite", L"MEDIUM", true }
+        { L"Gemini 3.8 Flash（料金未確認）", L"gemini-3.8-flash", L"MEDIUM", false, false },
+        { L"Gemini 3.6 Flash（料金未確認）", L"gemini-3.6-flash", L"MEDIUM", false, false },
+        { L"Gemini 3.5 Flash-Lite（料金未確認）", L"gemini-3.5-flash-lite", L"MEDIUM", false, false }
     };
 }
 
@@ -218,8 +355,10 @@ bool LoadGeminiModelCatalog(std::vector<GeminiModelOption>& models, std::wstring
         const std::string id = line.substr(0, a);
         const std::string thinking = line.substr(a + 1, b - a - 1);
         const std::string label = line.substr(b + 1, c - b - 1);
-        const bool freeTier = line.substr(c + 1) == "1";
-        if (!id.empty()) models.push_back({ Wide(label), Wide(id), Wide(thinking), freeTier });
+        const size_t d = line.find('|', c + 1);
+        const bool freeTier = line.substr(c + 1, d == std::string::npos ? d : d - c - 1) == "1";
+        const bool pricingKnown = d != std::string::npos && line.substr(d + 1) == "1";
+        if (!id.empty()) models.push_back({ Wide(label), Wide(id), Wide(thinking), freeTier, pricingKnown });
     }
     if (models.empty()) { models = DefaultGeminiModels(); }
     return true;
@@ -236,7 +375,7 @@ bool SaveGeminiModelCatalog(const std::vector<GeminiModelOption>& models, std::w
     for (const auto& model : models)
     {
         const std::string line = Utf8(model.id) + "|" + Utf8(model.thinking) + "|" +
-            Utf8(model.label) + "|" + (model.freeTier ? "1" : "0") + "\n";
+            Utf8(model.label) + "|" + (model.freeTier ? "1" : "0") + "|" + (model.pricingKnown ? "1" : "0") + "\n";
         file.write(line.data(), static_cast<std::streamsize>(line.size()));
     }
     file.close();
@@ -252,9 +391,10 @@ bool FetchGeminiModelCatalog(const std::wstring& apiKey, bool includePaid,
 {
     models.clear(); error.clear();
     if (apiKey.empty()) { error = L"Gemini APIキーが設定されていません。"; return false; }
-    std::string response;
+    std::string response, pricingPage;
+    if (!DownloadPricingPage(pricingPage, error)) return false;
     if (!DownloadModelPage(apiKey, L"/v1beta/models?pageSize=1000", response, error)) return false;
-    ParseModels(response, models, includePaid);
+    ParseModels(response, pricingPage, models, includePaid);
     std::sort(models.begin(), models.end(), [](const auto& a, const auto& b) {
         if (a.freeTier != b.freeTier) return a.freeTier > b.freeTier;
         return a.label < b.label;
@@ -263,7 +403,7 @@ bool FetchGeminiModelCatalog(const std::wstring& apiKey, bool includePaid,
     {
         error = includePaid
             ? L"generateContent対応のテキスト生成モデルが見つかりませんでした。"
-            : L"無料枠対象モデルが見つかりませんでした。料金区分またはAPIキーの利用可能モデルを確認してください。";
+            : L"Google公式料金ページでStandardの無料枠を確認できるモデルがありませんでした。料金情報を取得できない場合は、有料モデルも含める設定で再試行してください。";
         return false;
     }
     return true;
