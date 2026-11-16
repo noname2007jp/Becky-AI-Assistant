@@ -12,6 +12,7 @@ public:
     bool MaskSelected(std::wstring& preview, size_t start, size_t length);
     std::wstring Restore(const std::wstring& value) const;
     bool IsReady() const { return error_.empty(); }
+    bool IsEnabled() const { return options_.enabled; }
     const std::wstring& Error() const { return error_; }
 
 private:
