@@ -349,7 +349,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
-                    [modelId, thinking, models, autoFallback, tone, subject, from, body, masker](const std::wstring& key) mutable {
+                    [modelId, thinking, models, autoFallback, tone, subject, from, body, masker](const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone, subject, from, body, L"", &masker);
