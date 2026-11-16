@@ -37,6 +37,7 @@ inline GeminiGenerateResult GenerateWithModelFallback(
 {
     GeminiGenerateResult result = generate(selectedModelId, selectedThinking);
     result.modelUsed = selectedModelId;
+    const std::wstring initialError = result.error;
     if (!enabled || result.success || !result.retryable ||
         (cancelState && cancelState->load(std::memory_order_acquire) != 0))
         return result;
@@ -91,14 +92,14 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         // Transient failures can also justify trying the next free-tier candidate.
         if (alternate.httpStatus != 404 && !alternate.retryable)
         {
-            alternate.error += L"\\n最初のモデルのエラー: " + result.error +
+            alternate.error += L"\\n最初のモデルのエラー: " + initialError +
                 L"\\n代替モデル「" + fallback.label + L"」でも解決できませんでした。";
             return alternate;
         }
         result = std::move(alternate);
     }
 
-    result.error += L"\\n最初のモデルのエラー: " + result.error;
+    result.error += L"\\n最初のモデルのエラー: " + initialError;
     result.error += L"\\n代替モデルを試しましたが、利用可能な応答を取得できませんでした: " + attempted;
     return result;
 }
