@@ -162,6 +162,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 const auto& result = work->result;
+                if (!result.notice.empty())
+                    SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, result.notice.c_str());
                 if (!result.success) {
                     MessageBoxW(dialog, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
                 } else if (wParam == 1) {
