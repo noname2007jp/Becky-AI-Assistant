@@ -184,7 +184,7 @@ namespace
                 if (context == nullptr || context->mail == nullptr) return TRUE;
                 const MailContext& mail = *context->mail;
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
-                if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
+                if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
                 {
                     MessageBoxW(dialog, L"Geminiモデルを選択してください。",
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
@@ -223,9 +223,9 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
-                const auto& model = kModels[selected];
+                const auto& model = context->models[static_cast<size_t>(selected)];
                 GeminiGenerateResult result = GenerateMailReplyDraft(
-                    apiKey, model.modelId, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body, L"", &masker);
+                    apiKey, model.id, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body, L"", &masker);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
@@ -254,16 +254,16 @@ namespace
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr) return TRUE;
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
-                if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
+                if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
                 {
                     MessageBoxW(dialog, L"Geminiモデルを選択してください。",
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                const auto& model = kModels[selected];
+                const auto& model = context->models[static_cast<size_t>(selected)];
                 const int toneLevel = static_cast<int>(SendDlgItemMessageW(dialog, IDC_REPLY_TONE, TBM_GETPOS, 0, 0));
                 ShowConsultDialog(dialog, context->instance, *context->mail,
-                    model.modelId, model.thinking, GetReplyToneInstruction(toneLevel));
+                    model.id, model.thinking, GetReplyToneInstruction(toneLevel));
                 if (context->mail->insertReplyRequested)
                     EndDialog(dialog, IDOK);
                 return TRUE;
