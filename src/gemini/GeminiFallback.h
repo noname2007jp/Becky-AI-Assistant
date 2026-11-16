@@ -63,8 +63,12 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         return alternate;
     }
 
-    alternate.error += L"\n最初のモデルのエラー: " + result.error +
-        L"\n別モデル「" + fallback.label +
-        L"」への切り替えも試しましたが、応答を取得できませんでした。";
+    alternate.error += L"\n最初のモデルのエラー: " + result.error;
+    if (alternate.retryable)
+        alternate.error += L"\n別モデル「" + fallback.label +
+            L"」への切り替えも試しましたが、応答を取得できませんでした。";
+    else
+        alternate.error += L"\n別モデル「" + fallback.label +
+            L"」へ切り替えましたが、こちらでもエラーが発生しました。";
     return alternate;
 }
