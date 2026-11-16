@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.36.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.37.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -59,4 +59,16 @@ if(BUILD_TESTING)
   target_compile_definitions(MimeTextExtractorTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
   target_compile_options(MimeTextExtractorTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME MimeTextExtractorTests COMMAND MimeTextExtractorTests)
+
+  add_executable(PiiMaskerTests
+    tests/PiiMaskerTests.cpp
+    src/gemini/PiiMasker.cpp
+    src/settings/ApiKeyStore.cpp
+  )
+  target_include_directories(PiiMaskerTests PRIVATE src)
+  target_compile_features(PiiMaskerTests PRIVATE cxx_std_17)
+  target_compile_definitions(PiiMaskerTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(PiiMaskerTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  target_link_libraries(PiiMaskerTests PRIVATE shell32 crypt32)
+  add_test(NAME PiiMaskerTests COMMAND PiiMaskerTests)
 endif()
