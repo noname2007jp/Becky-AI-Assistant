@@ -19,7 +19,7 @@ namespace GeminiAsync
         HWND target = nullptr;
         WPARAM tag = 0;
         std::wstring apiKey;
-        std::function<GeminiGenerateResult(const std::wstring&)> operation;
+        std::function<GeminiGenerateResult(const std::wstring&, const std::atomic<int>&)> operation;
         GeminiGenerateResult result{};
         HANDLE threadHandle = nullptr;
         std::atomic<int> state{ 0 }; // 0=running, 1=cancel requested, 2=finished
@@ -31,7 +31,7 @@ namespace GeminiAsync
         try
         {
             if (work->state.load(std::memory_order_acquire) == 0)
-                work->result = work->operation(work->apiKey);
+                work->result = work->operation(work->apiKey, work->state);
         }
         catch (...)
         {
