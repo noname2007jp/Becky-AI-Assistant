@@ -186,7 +186,7 @@ void ParseModels(const std::string& json, std::vector<GeminiModelOption>& models
         std::wstring thinking;
         if (SupportsThinking(object))
             thinking = name.rfind("gemini-2.5-", 0) == 0 ? L"ON" : L"MEDIUM";
-        std::wstring label = Wide(display) + (freeTier ? L"（無料枠対象）" : L"（有料・料金要確認）");
+        std::wstring label = Wide(display) + (freeTier ? L"（無料枠対象）" : L"（料金未分類・有料を含む）");
         models.push_back({ label, Wide(name), thinking, freeTier });
     }
 }
