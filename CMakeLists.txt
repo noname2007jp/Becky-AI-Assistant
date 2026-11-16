@@ -46,3 +46,17 @@ target_compile_options(BeckyAIAssistant PRIVATE
 )
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winhttp comctl32)
 set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-${PROJECT_VERSION_MINOR}" PREFIX "")
+
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(MimeTextExtractorTests
+    tests/MimeTextExtractorTests.cpp
+    src/mail/MimeTextExtractor.cpp
+  )
+  target_include_directories(MimeTextExtractorTests PRIVATE src)
+  target_compile_features(MimeTextExtractorTests PRIVATE cxx_std_17)
+  target_compile_definitions(MimeTextExtractorTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(MimeTextExtractorTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME MimeTextExtractorTests COMMAND MimeTextExtractorTests)
+endif()
