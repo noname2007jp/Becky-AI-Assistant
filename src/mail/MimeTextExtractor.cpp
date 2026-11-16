@@ -282,7 +282,7 @@ std::wstring DecodeHtmlEntities(const std::wstring& input)
         else if (entity == L"lt") cp = L'<';
         else if (entity == L"gt") cp = L'>';
         else if (entity == L"quot") cp = L'"';
-        else if (entity == L"apos") cp = L'\\'';
+        else if (entity == L"apos") cp = L'\'';
         else if (entity == L"nbsp") cp = 0x00a0;
         else if (entity == L"copy") cp = 0x00a9;
         else if (entity == L"reg") cp = 0x00ae;
