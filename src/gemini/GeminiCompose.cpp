@@ -81,7 +81,7 @@ bool ExtractText(const std::string& json, std::wstring& output)
 GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
     const std::wstring& modelId, const std::wstring& thinkingLevel,
     const std::wstring& toneInstruction, const std::wstring& purpose,
-    const std::wstring& requirements)
+    const std::wstring& requirements, PiiMasker* externalMasker)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
     if (apiKey.empty()) { result.error = L"APIキーが設定されていません。"; return result; }
@@ -101,7 +101,8 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
         L"【メールの目的】\n" + purpose +
         L"\n\n【補足・含めたい内容・条件】\n" + requirements;
 
-    PiiMasker masker;
+    PiiMasker localMasker;
+    PiiMasker& masker = externalMasker ? *externalMasker : localMasker;
     if (!masker.IsReady()) { result.error = masker.Error(); return result; }
     const std::wstring maskedPrompt = masker.Mask(prompt);
     std::string generationConfig = "\"maxOutputTokens\":4096";
