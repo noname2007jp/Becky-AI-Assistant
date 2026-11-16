@@ -101,6 +101,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         std::wstring key, error;
         SetDlgItemTextW(dialog, IDC_GEMINI_APIKEY_LINK,
             L"<a href=\"https://aistudio.google.com/api-keys\">Google AI StudioでAPIキーを取得</a>");
+        SetDlgItemTextW(dialog, IDC_SETTINGS_PRICING_LINK,
+            L"<a href=\"https://aistudio.google.com/docs/pricing\">Google公式料金ページを開く</a>");
         if (!LoadGeminiApiKey(key, error))
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, error.c_str());
         else if (!key.empty())
