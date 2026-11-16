@@ -16,6 +16,7 @@ namespace GeminiAsync
     struct WorkItem
     {
         HWND target = nullptr;
+        WPARAM tag = 0;
         std::wstring apiKey;
         std::function<GeminiGenerateResult(const std::wstring&)> operation;
         GeminiGenerateResult result{};
@@ -42,7 +43,7 @@ namespace GeminiAsync
 
         // The dialog remains open while busy. If posting nevertheless fails,
         // release the payload here rather than leaking it.
-        if (!PostMessageW(work->target, WM_GENERATION_COMPLETE, 0,
+        if (!PostMessageW(work->target, WM_GENERATION_COMPLETE, work->tag,
                           reinterpret_cast<LPARAM>(work)))
             delete work;
         return 0;
@@ -51,7 +52,8 @@ namespace GeminiAsync
     inline bool Start(
         HWND target,
         std::wstring apiKey,
-        std::function<GeminiGenerateResult(const std::wstring&)> operation)
+        std::function<GeminiGenerateResult(const std::wstring&)> operation,
+        WPARAM tag = 0)
     {
         if (!IsWindow(target) || !operation) return false;
 
@@ -61,6 +63,7 @@ namespace GeminiAsync
         try
         {
             work->target = target;
+            work->tag = tag;
             work->apiKey = std::move(apiKey);
             work->operation = std::move(operation);
         }
