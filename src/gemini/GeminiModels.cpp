@@ -128,73 +128,60 @@ bool ReadFreeTierFromSection(const std::string& page, const std::string& modelId
     bool& known, bool& freeTier)
 {
     known = false; freeTier = false;
-    const std::string anchor = "id=\"" + modelId + "\"";
-    size_t begin = page.find(anchor);
-    if (begin == std::string::npos)
-        begin = page.find("{% id=\"" + modelId + "\" %}");
-    if (begin == std::string::npos)
+    // Google currently publishes this page as a documentation/Markdown-like
+    // response as well as HTML. Locate the model's explicit anchor first.
+    const std::string anchors[] = {
+        "{% id=\"" + modelId + "\" %}",
+        "id=\"" + modelId + "\"",
+        "id='" + modelId + "'"
+    };
+    size_t begin = std::string::npos;
+    for (const auto& anchor : anchors)
     {
-        const std::string alt = "id='" + modelId + "'";
-        begin = page.find(alt);
+        begin = page.find(anchor);
+        if (begin != std::string::npos) break;
     }
     if (begin == std::string::npos) return false;
-    size_t end = page.find("id=\"gemini-", begin + anchor.size());
-    const size_t gemmaEnd = page.find("id=\"gemma-", begin + anchor.size());
-    const size_t markdownGeminiEnd = page.find("{% id=\"gemini-", begin + anchor.size());
-    const size_t markdownGemmaEnd = page.find("{% id=\"gemma-", begin + anchor.size());
-    if (end == std::string::npos || (markdownGeminiEnd != std::string::npos && markdownGeminiEnd < end)) end = markdownGeminiEnd;
-    if (end == std::string::npos || (gemmaEnd != std::string::npos && gemmaEnd < end)) end = gemmaEnd;
-    if (end == std::string::npos || (markdownGemmaEnd != std::string::npos && markdownGemmaEnd < end)) end = markdownGemmaEnd;
-    if (end == std::string::npos || (gemmaEnd != std::string::npos && gemmaEnd < end)) end = gemmaEnd;
-    if (end == std::string::npos) end = page.size();
-    const std::string section = page.substr(begin, end - begin);
 
-    // The Standard tier's Input price row is the relevant classification for this plugin.
-    size_t standard = section.find("Standard");
+    size_t end = page.size();
+    const std::string prefixes[] = { "{% id=\"gemini-", "{% id=\"gemma-", "id=\"gemini-", "id=\"gemma-" };
+    for (const auto& prefix : prefixes)
+    {
+        size_t next = page.find(prefix, begin + 1);
+        if (next != std::string::npos && next < end) end = next;
+    }
+    std::string section = page.substr(begin, end - begin);
+    std::string normalized = Lower(StripHtml(section));
+
+    // Use only the Standard tab. Other tabs can have different pricing rules.
+    size_t standard = normalized.find("title=\"standard\"");
+    if (standard == std::string::npos) standard = normalized.find("standard");
     if (standard == std::string::npos) return false;
-    size_t input = section.find("Input price", standard);
-    if (input == std::string::npos) input = section.find("入力料金", standard);
+    size_t input = normalized.find("input price", standard);
+    if (input == std::string::npos) input = normalized.find("入力料金", standard);
     if (input == std::string::npos) return false;
 
-    // HTML tables: the cell immediately after the Input price cell is the Free Tier value.
-    size_t closeCell = section.find("</td>", input);
-    if (closeCell != std::string::npos)
-    {
-        size_t nextCell = section.find("<td", closeCell + 5);
-        if (nextCell != std::string::npos)
-        {
-            size_t cellEnd = section.find("</td>", nextCell);
-            if (cellEnd != std::string::npos)
-            {
-                const std::string value = Lower(StripHtml(section.substr(nextCell, cellEnd - nextCell)));
-                if (value.find("free of charge") != std::string::npos ||
-                    value.find("無料") != std::string::npos)
-                { known = true; freeTier = true; return true; }
-                if (value.find("not available") != std::string::npos ||
-                    value.find("利用不可") != std::string::npos ||
-                    value.find("$") != std::string::npos ||
-                    value.find("€") != std::string::npos)
-                { known = true; freeTier = false; return true; }
-            }
-        }
-    }
+    // In Google's documentation source the table is represented as rows:
+    // "* Input price", "* Free of charge", "* $x.xx". In HTML, the same
+    // information may be rendered as adjacent cells. Inspect only this row,
+    // ending before the Output price row to avoid matching unrelated prices.
+    size_t rowEnd = normalized.find("output price", input + 1);
+    if (rowEnd == std::string::npos) rowEnd = normalized.find("出力料金", input + 1);
+    if (rowEnd == std::string::npos || rowEnd - input > 2500)
+        rowEnd = (std::min)(normalized.size(), input + 2500);
+    const std::string row = normalized.substr(input, rowEnd - input);
 
-    // Text/Markdown fallback for documentation responses without HTML table cells.
-    size_t lineEnd = section.find('\n', input);
-    if (lineEnd != std::string::npos)
+    if (row.find("free of charge") != std::string::npos ||
+        row.find("無料") != std::string::npos)
     {
-        size_t next = section.find_first_not_of(" \r\n\t*-", lineEnd);
-        if (next != std::string::npos)
-        {
-            size_t valueEnd = section.find_first_of("\r\n", next);
-            const std::string value = Lower(section.substr(next,
-                valueEnd == std::string::npos ? std::string::npos : valueEnd - next));
-            if (value.find("free of charge") != std::string::npos || value.find("無料") != std::string::npos)
-            { known = true; freeTier = true; return true; }
-            if (value.find("not available") != std::string::npos || value.find("利用不可") != std::string::npos ||
-                value.find("$") != std::string::npos)
-            { known = true; freeTier = false; return true; }
-        }
+        known = true; freeTier = true; return true;
+    }
+    if (row.find("not available") != std::string::npos ||
+        row.find("利用不可") != std::string::npos ||
+        row.find("$") != std::string::npos ||
+        row.find("€") != std::string::npos)
+    {
+        known = true; freeTier = false; return true;
     }
     return false;
 }
