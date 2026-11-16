@@ -82,7 +82,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
     const std::wstring& apiKey, const std::wstring& modelId,
     const std::wstring& thinkingLevel, const std::wstring& toneInstruction,
     const std::wstring& subject, const std::wstring& from, const std::wstring& body,
-    const std::wstring& consultationTranscript)
+    const std::wstring& consultationTranscript, PiiMasker* externalMasker)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
     if (apiKey.empty()) { result.error = L"APIキーが設定されていません。"; return result; }
@@ -108,7 +108,8 @@ GeminiGenerateResult GenerateMailReplyDraft(
             L"【相談記録】\n" + consultationTranscript;
     }
 
-    PiiMasker masker;
+    PiiMasker localMasker;
+    PiiMasker& masker = externalMasker ? *externalMasker : localMasker;
     if (!masker.IsReady()) { result.error = masker.Error(); return result; }
     prompt = masker.Mask(prompt);
     std::string generationConfig = "\"maxOutputTokens\":2048";
