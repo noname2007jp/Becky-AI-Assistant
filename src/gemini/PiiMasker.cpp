@@ -50,6 +50,7 @@ std::wstring PiiMasker::ApplyPattern(const std::wstring& value,
 
 std::wstring PiiMasker::Mask(const std::wstring& value)
 {
+    if (!options_.enabled) return value;
     std::wstring output = value;
     if (options_.email) output = ApplyPattern(output,
         L"[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}", L"EMAIL");
@@ -102,7 +103,7 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
 
 bool PiiMasker::MaskSelected(std::wstring& preview, size_t start, size_t length)
 {
-    if (length == 0 || start > preview.size() || length > preview.size() - start) return false;
+    if (!options_.enabled || length == 0 || start > preview.size() || length > preview.size() - start) return false;
     const std::wstring selected = preview.substr(start, length);
     if (selected.size() < 2 || selected.find(L"[MANUAL_") != std::wstring::npos) return false;
     if (std::find(manualTerms_.begin(), manualTerms_.end(), selected) != manualTerms_.end()) return false;
