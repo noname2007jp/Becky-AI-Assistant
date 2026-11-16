@@ -86,6 +86,17 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
             position += token.size();
         }
     }
+    for (const auto& term : manualTerms_)
+    {
+        if (term.size() < 2) continue;
+        size_t position = 0;
+        while ((position = output.find(term, position)) != std::wstring::npos)
+        {
+            const std::wstring token = AddReplacement(term, L"MANUAL");
+            output.replace(position, term.size(), token);
+            position += token.size();
+        }
+    }
     return output;
 }
 
@@ -93,9 +104,16 @@ bool PiiMasker::MaskSelected(std::wstring& preview, size_t start, size_t length)
 {
     if (length == 0 || start > preview.size() || length > preview.size() - start) return false;
     const std::wstring selected = preview.substr(start, length);
-    if (selected.empty() || selected.find(L"[MANUAL_") != std::wstring::npos) return false;
+    if (selected.size() < 2 || selected.find(L"[MANUAL_") != std::wstring::npos) return false;
+    if (std::find(manualTerms_.begin(), manualTerms_.end(), selected) != manualTerms_.end()) return false;
+    manualTerms_.push_back(selected);
+    size_t position = 0;
     const std::wstring token = AddReplacement(selected, L"MANUAL");
-    preview.replace(start, length, token);
+    while ((position = preview.find(selected, position)) != std::wstring::npos)
+    {
+        preview.replace(position, selected.size(), token);
+        position += token.size();
+    }
     return true;
 }
 
