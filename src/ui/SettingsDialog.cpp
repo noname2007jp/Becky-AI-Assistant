@@ -73,6 +73,21 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         }
         else if (!maskError.empty())
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, maskError.c_str());
+        PiiMaskOptions maskOptions;
+        std::wstring optionsError;
+        if (LoadPiiMaskOptions(maskOptions, optionsError))
+        {
+            CheckDlgButton(dialog, IDC_MASK_EMAIL, maskOptions.email ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_PHONE, maskOptions.phone ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_POSTAL, maskOptions.postal ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_IP, maskOptions.ip ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_COMPANY, maskOptions.company ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_PERSON, maskOptions.person ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_ADDRESS, maskOptions.address ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_ACCOUNT, maskOptions.account ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_MASK_CUSTOM, maskOptions.custom ? BST_CHECKED : BST_UNCHECKED);
+        }
+        else SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, optionsError.c_str());
         return TRUE;
     }
 
@@ -166,8 +181,19 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 while (lineStart < raw.size() && (raw[lineStart] == L'\r' || raw[lineStart] == L'\n')) ++lineStart;
             }
             const bool termsSaved = SavePiiMaskTerms(terms, error);
+            PiiMaskOptions maskOptions;
+            maskOptions.email = IsDlgButtonChecked(dialog, IDC_MASK_EMAIL) == BST_CHECKED;
+            maskOptions.phone = IsDlgButtonChecked(dialog, IDC_MASK_PHONE) == BST_CHECKED;
+            maskOptions.postal = IsDlgButtonChecked(dialog, IDC_MASK_POSTAL) == BST_CHECKED;
+            maskOptions.ip = IsDlgButtonChecked(dialog, IDC_MASK_IP) == BST_CHECKED;
+            maskOptions.company = IsDlgButtonChecked(dialog, IDC_MASK_COMPANY) == BST_CHECKED;
+            maskOptions.person = IsDlgButtonChecked(dialog, IDC_MASK_PERSON) == BST_CHECKED;
+            maskOptions.address = IsDlgButtonChecked(dialog, IDC_MASK_ADDRESS) == BST_CHECKED;
+            maskOptions.account = IsDlgButtonChecked(dialog, IDC_MASK_ACCOUNT) == BST_CHECKED;
+            maskOptions.custom = IsDlgButtonChecked(dialog, IDC_MASK_CUSTOM) == BST_CHECKED;
+            const bool optionsSaved = SavePiiMaskOptions(maskOptions, error);
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
-                keySaved && termsSaved ? L"設定を暗号化して保存しました。"
+                keySaved && termsSaved && optionsSaved ? L"設定を暗号化して保存しました。"
                     : (error.empty() ? L"設定を保存できませんでした。" : error.c_str()));
             return TRUE;
         }
