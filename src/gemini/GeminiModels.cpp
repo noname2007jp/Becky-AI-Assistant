@@ -189,7 +189,7 @@ bool DownloadPricingPage(std::string& response, std::wstring& error)
         if (connection) WinHttpCloseHandle(connection);
         WinHttpCloseHandle(session); error = L"Google公式料金ページへ接続できません。"; return false;
     }
-    const wchar_t* headers = L"Accept: text/html, text/plain;q=0.9, */*;q=0.8\r\n";
+    const wchar_t* headers = L"Accept: text/markdown, text/plain;q=0.9, text/html;q=0.8, */*;q=0.7\r\n";
     BOOL sent = WinHttpSendRequest(request, headers, (DWORD)-1L,
         WINHTTP_NO_REQUEST_DATA, 0, 0, 0);
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
