@@ -7,7 +7,8 @@
 
 #include <string>
 #include <vector>
-#include <utility>\n#include <memory>
+#include <utility>
+#include <memory>
 #include <commctrl.h>
 #include <shellapi.h>
 
