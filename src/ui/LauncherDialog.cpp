@@ -157,7 +157,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
-                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 const auto& result = work->result;
