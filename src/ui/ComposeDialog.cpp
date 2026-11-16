@@ -87,7 +87,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         {
             SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_ADDSTRING, 0,
                 reinterpret_cast<LPARAM>(c->models[i].label.c_str()));
-            if (c->models[i].id == L"gemini-3.8-flash") defaultIndex = static_cast<int>(i);
+            if (c->models[i].id == L"gemini-3.5-flash-lite") defaultIndex = static_cast<int>(i);
         }
         SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_SETCURSEL, defaultIndex, 0);
         SendMessageW(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TBM_SETRANGE, TRUE, MAKELONG(1, 10));
