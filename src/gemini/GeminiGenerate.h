@@ -9,6 +9,7 @@ struct GeminiGenerateResult
     unsigned long httpStatus;
     std::wstring text;
     std::wstring error;
+    bool cancelled = false;
 };
 
 GeminiGenerateResult GenerateMailSummary(
