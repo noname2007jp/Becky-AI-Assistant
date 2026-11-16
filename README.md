@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.37.0）
+## 現在の機能（0.38.0）
 
 - 対象: Win32 (x86)、Visual Studio 2022、C++17、MBCS
 - メール一覧・本文表示の右クリックメニューから起動
@@ -51,7 +51,10 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 ## 応答待ち・エラー処理
 
 - Gemini APIの接続・送信・応答待ちにタイムアウトを設定（応答待ち30秒）
-- 404はモデル一覧更新、429は利用制限確認、5xxはモデル変更または時間をおいた再試行を案内
+- 400 / 401 / 403 / 404 / 408 / 413 / 429 / 5xxを原因別に案内
+- 408 / 429 / 5xx / 通信タイムアウト時は、設定ONなら料金確認済みの無料Flashモデルへ1回だけ自動切り替え（403 / 404 / 認証・設定エラーは切り替え対象外）
+- 有料・料金未確認モデルへの自動切り替えは行わず、切り替え後は画面に使用モデルを通知
+- 自動切り替えは設定画面でON/OFF可能（初期値ON）
 - モデル更新と接続テストはバックグラウンドで実行
 - 要約・返信・相談・新規メール作成の生成処理はキャンセルを要求可能。処理終了後に画面を閉じる
 
@@ -62,6 +65,7 @@ Gemini APIキーと追加マスキング語句、マスキング対象設定は�
 - APIキー: `%APPDATA%\\Becky-AI-Assistant\\gemini-key.dat`
 - マスキング語句: `%APPDATA%\\Becky-AI-Assistant\\pii-mask.dat`
 - マスキング対象: `%APPDATA%\\Becky-AI-Assistant\\pii-options.dat`
+- 安定性設定: `%APPDATA%\\Becky-AI-Assistant\\reliability-options.dat`
 
 別のWindowsユーザーでは復号できません。平文のAPIキー・追加マスキング語句・マスキング設定は保存しません。
 
@@ -78,4 +82,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-37.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-38.dll`
