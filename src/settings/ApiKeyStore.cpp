@@ -325,12 +325,13 @@ bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstrin
     if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
         CRYPTPROTECT_UI_FORBIDDEN, &output))
     { error = L"安定性設定を復号できません。"; return false; }
-    if (output.cbData != 1)
+    if (output.cbData != 1 && output.cbData != 2)
     {
         SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
         error = L"安定性設定の形式が不正です。"; return false;
     }
     options.automaticModelFallback = output.pbData[0] != 0;
+    options.debugLogging = output.cbData >= 2 && output.pbData[1] != 0;
     SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
     return true;
 }
@@ -338,8 +339,9 @@ bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstrin
 bool SaveGeminiReliabilityOptions(const GeminiReliabilityOptions& options, std::wstring& error)
 {
     error.clear();
-    BYTE value = static_cast<BYTE>(options.automaticModelFallback);
-    DATA_BLOB input{ 1, &value };
+    BYTE values[2] = { static_cast<BYTE>(options.automaticModelFallback),
+        static_cast<BYTE>(options.debugLogging) };
+    DATA_BLOB input{ sizeof(values), values };
     DATA_BLOB encrypted{};
     if (!CryptProtectData(&input, L"Becky AI Assistant reliability options",
         nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &encrypted))

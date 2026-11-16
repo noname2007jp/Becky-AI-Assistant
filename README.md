@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.39.0）
+## 現在の機能（0.40.0）
 
 - 対象: Win32 (x86)、Visual Studio 2022、C++17、MBCS
 - メール一覧・本文表示の右クリックメニューから起動
@@ -58,9 +58,23 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 - モデル更新と接続テストはバックグラウンドで実行
 - 要約・返信・相談・新規メール作成の生成処理はキャンセルを要求可能。処理終了後に画面を閉じる
 
+## デバッグログ
+
+設定画面の「詳細デバッグログ」を明示的にONにすると、Gemini API送信内容と応答の診断情報を記録します。
+
+- 保存先: `%APPDATA%\\Becky-AI-Assistant\\debug.log`
+- 記録項目: 操作種別、モデルID、マスキング状態、置換語句数、送信データサイズ、HTTPステータス、エラー
+- マスキングがONの場合のみ、APIへ送信する直前のJSONペイロードを記録
+- マスキングがOFFの場合は本文・プロンプトを記録せず、メタデータのみ記録
+- ログは最大約2MBでローテーションし、旧ログを `debug.log.1` に保存
+- ログにはマスキング後の送信文章が残ります。マスキングは匿名化を保証せず、未検出情報が残る可能性があるため、ログの取り扱いに注意し、検証後は削除してください
+- APIキー、認証ヘッダー、Geminiからの回答本文は記録しません
+
+デバッグログは初期状態でOFFです。
+
 ## APIキー・マスキング設定の保存
 
-Gemini APIキー、追加マスキング語句、マスキング対象設定、安定性設定は、Windows DPAPI（現在のWindowsユーザーに紐づく暗号化）で保存します。
+Gemini APIキー、追加マスキング語句、マスキング対象設定、安定性設定（デバッグログの有効・無効を含む）は、Windows DPAPI（現在のWindowsユーザーに紐づく暗号化）で保存します。
 
 - APIキー: `%APPDATA%\\Becky-AI-Assistant\\gemini-key.dat`
 - マスキング語句: `%APPDATA%\\Becky-AI-Assistant\\pii-mask.dat`
@@ -82,4 +96,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-38.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-40.dll`

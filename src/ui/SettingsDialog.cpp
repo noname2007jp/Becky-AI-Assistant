@@ -138,8 +138,12 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         GeminiReliabilityOptions reliability;
         std::wstring reliabilityError;
         if (LoadGeminiReliabilityOptions(reliability, reliabilityError))
+        {
             CheckDlgButton(dialog, IDC_SETTINGS_AUTO_FALLBACK,
                 reliability.automaticModelFallback ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_SETTINGS_DEBUG_LOG,
+                reliability.debugLogging ? BST_CHECKED : BST_UNCHECKED);
+        }
         else
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, reliabilityError.c_str());
         std::vector<GeminiModelOption> cachedModels;
@@ -285,6 +289,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             GeminiReliabilityOptions reliability;
             reliability.automaticModelFallback =
                 IsDlgButtonChecked(dialog, IDC_SETTINGS_AUTO_FALLBACK) == BST_CHECKED;
+            reliability.debugLogging =
+                IsDlgButtonChecked(dialog, IDC_SETTINGS_DEBUG_LOG) == BST_CHECKED;
             const bool reliabilitySaved = SaveGeminiReliabilityOptions(reliability, error);
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
                 keySaved && termsSaved && optionsSaved && reliabilitySaved

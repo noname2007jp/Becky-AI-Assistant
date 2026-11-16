@@ -3,6 +3,7 @@
 #include <winhttp.h>
 #include "GeminiError.h"
 #include "PiiMasker.h"
+#include "GeminiDebugLog.h"
 #include <string>
 
 namespace
@@ -117,6 +118,7 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
     const std::string payload =
         "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"" +
         JsonEscape(Utf8(maskedPrompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
+    LogGeminiRequest(L"compose", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
     HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.21",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
@@ -196,5 +198,6 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
     WinHttpCloseHandle(session);
+    LogGeminiResponse(L"compose", modelId, result.httpStatus, result.success, result.error);
     return result;
 }

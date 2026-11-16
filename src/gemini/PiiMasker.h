@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstddef>
 #include <utility>
 #include <vector>
 #include "settings/ApiKeyStore.h"
@@ -14,6 +15,7 @@ public:
     std::wstring Restore(const std::wstring& value) const;
     bool IsReady() const { return error_.empty(); }
     bool IsEnabled() const { return options_.enabled; }
+    std::size_t ReplacementCount() const { return replacements_.size(); }
     const std::wstring& Error() const { return error_; }
 
 private:
