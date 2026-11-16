@@ -11,6 +11,13 @@ PiiMasker::PiiMasker()
         [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
 }
 
+PiiMasker::PiiMasker(const PiiMaskOptions& options, std::vector<std::wstring> customTerms)
+    : customTerms_(std::move(customTerms)), options_(options)
+{
+    std::sort(customTerms_.begin(), customTerms_.end(),
+        [](const std::wstring& a, const std::wstring& b) { return a.size() > b.size(); });
+}
+
 std::wstring PiiMasker::AddReplacement(const std::wstring& value, const wchar_t* label)
 {
     if (value.empty()) return value;
@@ -64,7 +71,7 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
         L"[一-龠々ぁ-んァ-ヶ]{2,8}(?:\\s+[一-龠々ぁ-んァ-ヶ]{1,8})?(?:様|さん|氏)",
         L"PERSON");
     if (options_.address) output = ApplyPattern(output,
-        L"(?:住所|所在地|送付先)\\s*[:：]\\s*[^\\r\\n]+",
+        L"(?:住所|所在地|送付先|Address)\\s*[:：]\\s*[^\\r\\n]+",
         L"ADDRESS");
     if (options_.account) output = ApplyPattern(output,
         L"(?:口座番号|カード番号|顧客番号|社員番号)\\s*[:：]\\s*[0-9０-９ -]{4,24}",
