@@ -54,7 +54,7 @@ if(BUILD_TESTING)
     tests/MimeTextExtractorTests.cpp
     src/mail/MimeTextExtractor.cpp
   )
-  target_include_directories(MimeTextExtractorTests PRIVATE src)
+  target_include_directories(MimeTextExtractorTests PRIVATE src src/mail)
   target_compile_features(MimeTextExtractorTests PRIVATE cxx_std_17)
   target_compile_definitions(MimeTextExtractorTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
   target_compile_options(MimeTextExtractorTests PRIVATE /W4 /permissive- /EHsc /utf-8)
