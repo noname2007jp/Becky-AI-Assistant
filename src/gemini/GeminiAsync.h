@@ -22,7 +22,7 @@ namespace GeminiAsync
         std::function<GeminiGenerateResult(const std::wstring&)> operation;
         GeminiGenerateResult result{};
         HANDLE threadHandle = nullptr;
-        std::atomic<bool> cancelRequested{ false };
+        std::atomic<int> state{ 0 }; // 0=running, 1=cancel requested, 2=finished
     };
 
     inline DWORD WINAPI ThreadProc(LPVOID parameter)
@@ -40,7 +40,10 @@ namespace GeminiAsync
             work->result.error = L"バックグラウンド処理中に予期しないエラーが発生しました。";
         }
 
-        if (work->cancelRequested.load(std::memory_order_acquire)) {
+        int expectedState = 0;
+        const bool completedNormally = work->state.compare_exchange_strong(
+            expectedState, 2, std::memory_order_acq_rel);
+        if (!completedNormally && expectedState == 1) {
             work->result.success = false;
             work->result.cancelled = true;
             work->result.text.clear();
@@ -65,8 +68,10 @@ namespace GeminiAsync
     inline void RequestCancel(WorkItem* work)
     {
         if (!work) return;
-        work->cancelRequested.store(true, std::memory_order_release);
-        if (work->threadHandle) CancelSynchronousIo(work->threadHandle);
+        int expectedState = 0;
+        if (work->state.compare_exchange_strong(expectedState, 1, std::memory_order_acq_rel)
+            && work->threadHandle)
+            CancelSynchronousIo(work->threadHandle);
     }
 
     inline void Destroy(WorkItem* work)
