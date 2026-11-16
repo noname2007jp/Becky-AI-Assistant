@@ -136,7 +136,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         case IDC_NEWMAIL_GENERATE:
         {
             auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));
-            if (!c) return TRUE;
+            if (!c || c->busy) return TRUE;
             const std::wstring purpose = GetText(dlg, IDC_NEWMAIL_PURPOSE);
             const std::wstring requirements = GetText(dlg, IDC_NEWMAIL_REQUIREMENTS);
             if (purpose.empty()) { MessageBoxW(dlg, L"メールの目的を入力してください。", L"AIメール作成", MB_OK | MB_ICONWARNING); return TRUE; }
