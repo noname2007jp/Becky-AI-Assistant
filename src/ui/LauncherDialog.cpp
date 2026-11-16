@@ -102,6 +102,12 @@ namespace
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             InitializeModelCombo(dialog, context);
             InitializeReplyToneTrackbar(dialog);
+            PiiMaskOptions maskOptions;
+            std::wstring maskError;
+            if (LoadPiiMaskOptions(maskOptions, maskError))
+                CheckDlgButton(dialog, IDC_MASK_ENABLED, maskOptions.enabled ? BST_CHECKED : BST_UNCHECKED);
+            else
+                SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, maskError.c_str());
             ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
             const auto* mail = context ? context->mail : nullptr;
             if (mail != nullptr)
@@ -139,6 +145,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"生成処理をキャンセルしました。");
                     GeminiAsync::Destroy(work);
@@ -150,6 +157,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 const auto& result = work->result;
@@ -175,6 +183,27 @@ namespace
         case WM_COMMAND:
             switch (LOWORD(wParam))
             {
+            case IDC_MASK_ENABLED:
+            {
+                if (HIWORD(wParam) != BN_CLICKED) return TRUE;
+                PiiMaskOptions options;
+                std::wstring error;
+                if (!LoadPiiMaskOptions(options, error))
+                {
+                    CheckDlgButton(dialog, IDC_MASK_ENABLED, BST_UNCHECKED);
+                    MessageBoxW(dialog, error.c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const bool previous = options.enabled;
+                options.enabled = IsDlgButtonChecked(dialog, IDC_MASK_ENABLED) == BST_CHECKED;
+                if (!SavePiiMaskOptions(options, error))
+                {
+                    CheckDlgButton(dialog, IDC_MASK_ENABLED, previous ? BST_CHECKED : BST_UNCHECKED);
+                    MessageBoxW(dialog, error.c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
+                }
+                return TRUE;
+            }
+
             case IDC_AI_SUMMARY:
             {
                 auto* context = reinterpret_cast<DialogContext*>(
@@ -222,6 +251,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
                     [modelId, thinking, subject, from, body, masker](const std::wstring& key) mutable {
@@ -234,6 +264,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
@@ -293,6 +324,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
                     [modelId, thinking, tone, subject, from, body, masker](const std::wstring& key) mutable {
@@ -303,6 +335,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);

@@ -2,9 +2,9 @@ name: Windows x86 build
 
 on:
   push:
-    branches: [main, feature/v0.34-cancel-generation]
+    branches: [main, feature/v0.35-main-mask-toggle]
   pull_request:
-    branches: [main, feature/v0.33-async-generation]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Becky-AI-Assistant-34-win32
-          path: build/Release/Becky-AI-Assistant-34.dll
+          name: Becky-AI-Assistant-35-win32
+          path: build/Release/Becky-AI-Assistant-35.dll
           if-no-files-found: error
           retention-days: 14
