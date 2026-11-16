@@ -30,7 +30,8 @@ namespace GeminiAsync
         WorkItem* work = static_cast<WorkItem*>(parameter);
         try
         {
-            work->result = work->operation(work->apiKey);
+            if (work->state.load(std::memory_order_acquire) == 0)
+                work->result = work->operation(work->apiKey);
         }
         catch (...)
         {
