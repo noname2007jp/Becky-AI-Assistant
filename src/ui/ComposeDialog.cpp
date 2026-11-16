@@ -132,7 +132,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 L"\r\n\r\n【補足・含めたい内容・条件】\r\n" + requirements;
             const std::wstring maskedPreview = masker.Mask(previewRaw);
             if (!ShowPiiMaskPreviewDialog(dlg, c->instance,
-                L"新規メール作成：Gemini送信内容の確認", maskedPreview)) return TRUE;
+                L"新規メール作成：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
             std::wstring key, error;
             if (!LoadGeminiApiKey(key, error) || key.empty()) {
                 MessageBoxW(dlg, error.empty() ? L"先に設定画面でGemini APIキーを保存してください。" : error.c_str(),
