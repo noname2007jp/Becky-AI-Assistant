@@ -222,12 +222,12 @@ namespace
                 context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
                     [modelId, thinking, models, autoFallback, subject, from, body, history, question, masker]
-                    (const std::wstring& key) mutable {
+                    (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailConsultation(key, candidateId, candidateThinking,
                                     subject, from, body, history, question, &masker);
-                            });
+                            }, &cancelState);
                     }, 1, &context->work)) {
                     context->busy = false;
                     context->work = nullptr;
@@ -330,7 +330,7 @@ namespace
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone,
                                     subject, from, body, transcript, &masker);
-                            });
+                            }, &cancelState);
                     }, 2, &context->work)) {
                     context->busy = false;
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
