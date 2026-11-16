@@ -137,7 +137,7 @@ namespace
                     L"【件名】\r\n" + mail.subject + L"\r\n\r\n【差出人】\r\n" +
                     mail.from + L"\r\n\r\n【本文】\r\n" + mail.body;
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
-                if (!ShowPiiMaskPreviewDialog(dialog, context->instance,
+                if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"要約：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
 
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
@@ -207,7 +207,7 @@ namespace
                     L"【件名】\r\n" + mail.subject + L"\r\n\r\n【差出人】\r\n" +
                     mail.from + L"\r\n\r\n【本文】\r\n" + mail.body;
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
-                if (!ShowPiiMaskPreviewDialog(dialog, context->instance,
+                if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
 
                 std::wstring apiKey, error;
