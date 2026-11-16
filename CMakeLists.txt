@@ -19,6 +19,7 @@ add_library(BeckyAIAssistant SHARED
   src/gemini/GeminiCompose.cpp
   src/gemini/PiiMasker.cpp
   src/ui/SettingsDialog.cpp
+  src/ui/PiiMaskPreviewDialog.cpp
   src/ui/LauncherDialog.cpp
   src/ui/ConsultDialog.cpp
   src/ui/ComposeDialog.cpp
