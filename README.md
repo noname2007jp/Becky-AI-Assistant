@@ -2,12 +2,13 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.35.0）
+## 現在の機能（0.36.0）
 
 - 対象: Win32 (x86)、Visual Studio 2022、C++17、MBCS
 - メール一覧・本文表示の右クリックメニューから起動
 - 対象メールは1通。複数選択時は警告して処理を中止
 - MIMEテキストを抽出して要約、複数回のAI相談、返信文案の作成が可能
+- HTMLメールは段落・改行・箇条書きの構造を保持し、HTML文字参照をデコード
 - 相談履歴を踏まえた返信文案の作成と、Becky!の通常返信・全員返信画面への挿入に対応
 - 新規メールの目的・補足条件から件名と本文を作成し、編集後にBecky!の作成画面へ反映
 - 生成文案は編集可能。送信・送信操作は行わない
@@ -64,6 +65,10 @@ Gemini APIキーと追加マスキング語句、マスキング対象設定は�
 
 別のWindowsユーザーでは復号できません。平文のAPIキー・追加マスキング語句・マスキング設定は保存しません。
 
+## テスト
+
+Win32 Releaseビルド時にMIME本文抽出の回帰テストを実行します。プレーンテキスト、Base64、Quoted-Printable、multipart/alternative、HTML文字参照・段落改行、添付ファイル除外、空メールを確認します。
+
 ## ビルド
 
 Visual Studio 2022 の「x86 Native Tools Command Prompt」から実行します。
@@ -73,4 +78,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-35.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-36.dll`

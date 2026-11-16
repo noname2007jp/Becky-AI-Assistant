@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.35.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.36.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -46,3 +46,17 @@ target_compile_options(BeckyAIAssistant PRIVATE
 )
 target_link_libraries(BeckyAIAssistant PRIVATE user32 gdi32 shell32 crypt32 winhttp comctl32)
 set_target_properties(BeckyAIAssistant PROPERTIES OUTPUT_NAME "Becky-AI-Assistant-${PROJECT_VERSION_MINOR}" PREFIX "")
+
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(MimeTextExtractorTests
+    tests/MimeTextExtractorTests.cpp
+    src/mail/MimeTextExtractor.cpp
+  )
+  target_include_directories(MimeTextExtractorTests PRIVATE src src/mail)
+  target_compile_features(MimeTextExtractorTests PRIVATE cxx_std_17)
+  target_compile_definitions(MimeTextExtractorTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(MimeTextExtractorTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME MimeTextExtractorTests COMMAND MimeTextExtractorTests)
+endif()
