@@ -160,7 +160,7 @@ namespace
             {
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
-                if (context == nullptr || context->mail == nullptr) return TRUE;
+                if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
                 const MailContext& mail = *context->mail;
                 PiiMasker masker;
                 if (!masker.IsReady())
@@ -222,7 +222,7 @@ namespace
             {
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
-                if (context == nullptr || context->mail == nullptr) return TRUE;
+                if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
                 const MailContext& mail = *context->mail;
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
                 if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
