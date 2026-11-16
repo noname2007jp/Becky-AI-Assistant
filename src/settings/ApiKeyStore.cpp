@@ -214,3 +214,85 @@ bool SavePiiMaskTerms(const std::vector<std::wstring>& terms, std::wstring& erro
     }
     return true;
 }
+
+bool LoadPiiMaskOptions(PiiMaskOptions& options, std::wstring& error)
+{
+    options = PiiMaskOptions{};
+    error.clear();
+    wchar_t appData[MAX_PATH] = {};
+    if (SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE,
+        nullptr, SHGFP_TYPE_CURRENT, appData) != S_OK)
+    { error = L"マスキング設定の保存先を取得できません。"; return false; }
+    const std::wstring path = std::wstring(appData) + L"\\Becky-AI-Assistant\\pii-options.dat";
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return true;
+    file.seekg(0, std::ios::end);
+    const auto size = file.tellg();
+    if (size <= 0 || size > 1024 * 1024)
+    { error = L"マスキング対象設定のサイズが不正です。"; return false; }
+    file.seekg(0, std::ios::beg);
+    std::vector<BYTE> encrypted(static_cast<size_t>(size));
+    if (!file.read(reinterpret_cast<char*>(encrypted.data()), size))
+    { error = L"マスキング対象設定を読み込めません。"; return false; }
+    DATA_BLOB input{ static_cast<DWORD>(encrypted.size()), encrypted.data() };
+    DATA_BLOB output{};
+    if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
+        CRYPTPROTECT_UI_FORBIDDEN, &output))
+    { error = L"マスキング対象設定を復号できません。"; return false; }
+    if (output.cbData != 9)
+    {
+        SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
+        error = L"マスキング対象設定の形式が不正です。"; return false;
+    }
+    const BYTE* p = output.pbData;
+    options.email = p[0] != 0; options.phone = p[1] != 0;
+    options.postal = p[2] != 0; options.ip = p[3] != 0;
+    options.company = p[4] != 0; options.person = p[5] != 0;
+    options.address = p[6] != 0; options.account = p[7] != 0;
+    options.custom = p[8] != 0;
+    SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
+    return true;
+}
+
+bool SavePiiMaskOptions(const PiiMaskOptions& options, std::wstring& error)
+{
+    error.clear();
+    BYTE flags[9] = {
+        static_cast<BYTE>(options.email), static_cast<BYTE>(options.phone),
+        static_cast<BYTE>(options.postal), static_cast<BYTE>(options.ip),
+        static_cast<BYTE>(options.company), static_cast<BYTE>(options.person),
+        static_cast<BYTE>(options.address), static_cast<BYTE>(options.account),
+        static_cast<BYTE>(options.custom)
+    };
+    DATA_BLOB input{ sizeof(flags), flags };
+    DATA_BLOB encrypted{};
+    if (!CryptProtectData(&input, L"Becky AI Assistant PII mask options",
+        nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &encrypted))
+    { error = L"マスキング対象設定の暗号化に失敗しました。"; return false; }
+    wchar_t appData[MAX_PATH] = {};
+    if (SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE,
+        nullptr, SHGFP_TYPE_CURRENT, appData) != S_OK)
+    {
+        SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+        error = L"マスキング設定の保存先を取得できません。"; return false;
+    }
+    const std::wstring directory = std::wstring(appData) + L"\\Becky-AI-Assistant";
+    if (!CreateDirectoryW(directory.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS)
+    {
+        SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+        error = L"マスキング設定の保存先を作成できません。"; return false;
+    }
+    const std::wstring path = directory + L"\\pii-options.dat";
+    const std::wstring temp = path + L".tmp";
+    std::ofstream file(temp, std::ios::binary | std::ios::trunc);
+    const bool written = file && static_cast<bool>(file.write(
+        reinterpret_cast<const char*>(encrypted.pbData), encrypted.cbData));
+    file.close();
+    SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+    if (!written || !MoveFileExW(temp.c_str(), path.c_str(),
+        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    {
+        DeleteFileW(temp.c_str()); error = L"マスキング対象設定を保存できません。"; return false;
+    }
+    return true;
+}
