@@ -10,6 +10,7 @@
 #include "gemini/GeminiAsync.h"
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiModels.h"
+#include "gemini/GeminiFallback.h"
 #include <utility>
 #include <commctrl.h>
 
@@ -164,6 +165,8 @@ namespace
                 if (!result.success) {
                     MessageBoxW(dialog, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
                 } else if (wParam == 1) {
+                    if (!result.notice.empty())
+                        SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, result.notice.c_str());
                     ShowResultDialog(dialog, context->instance, result.text);
                 } else if (wParam == 2) {
                     std::wstring edited;
@@ -241,6 +244,13 @@ namespace
                 }
                 const auto& model = context->models[static_cast<size_t>(selected)];
                 const std::wstring modelId = model.id, thinking = model.thinking;
+                const auto models = context->models;
+                GeminiReliabilityOptions reliability;
+                if (!LoadGeminiReliabilityOptions(reliability, error)) {
+                    MessageBoxW(dialog, error.c_str(), L"設定エラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const bool autoFallback = reliability.automaticModelFallback;
                 const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
                 context->busy = true;
                 ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
@@ -254,8 +264,11 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
-                    [modelId, thinking, subject, from, body, masker](const std::wstring& key) mutable {
-                        return GenerateMailSummary(key, modelId, thinking, subject, from, body, &masker);
+                    [modelId, thinking, models, autoFallback, subject, from, body, masker](const std::wstring& key) mutable {
+                        return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
+                            [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
+                                return GenerateMailSummary(key, candidateId, candidateThinking, subject, from, body, &masker);
+                            });
                     }, 1, &context->work)) {
                     context->busy = false;
                     context->work = nullptr;
@@ -327,8 +340,11 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
-                    [modelId, thinking, tone, subject, from, body, masker](const std::wstring& key) mutable {
-                        return GenerateMailReplyDraft(key, modelId, thinking, tone, subject, from, body, L"", &masker);
+                    [modelId, thinking, models, autoFallback, tone, subject, from, body, masker](const std::wstring& key) mutable {
+                        return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
+                            [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
+                                return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone, subject, from, body, L"", &masker);
+                            });
                     }, 2, &context->work)) {
                     context->busy = false;
                     EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
