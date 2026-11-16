@@ -58,7 +58,11 @@ namespace GeminiAsync
         if (!IsWindow(target) || !operation) return false;
 
         WorkItem* work = new (std::nothrow) WorkItem;
-        if (!work) return false;
+        if (!work)
+        {
+            if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
+            return false;
+        }
 
         try
         {
