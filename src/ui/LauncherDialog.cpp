@@ -83,7 +83,7 @@ namespace
         for (size_t i = 0; i < context->models.size(); ++i)
         {
             SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(context->models[i].label.c_str()));
-            if (context->models[i].id == L"gemini-3.8-flash") defaultIndex = static_cast<int>(i);
+            if (context->models[i].id == L"gemini-3.5-flash-lite") defaultIndex = static_cast<int>(i);
         }
         SendMessageW(combo, CB_SETCURSEL, defaultIndex, 0);
     }
