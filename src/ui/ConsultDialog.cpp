@@ -7,6 +7,8 @@
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiGenerate.h"
 #include "gemini/GeminiAsync.h"
+#include "gemini/GeminiModels.h"
+#include "gemini/GeminiFallback.h"
 #include "settings/ApiKeyStore.h"
 
 #include <richedit.h>
@@ -30,6 +32,8 @@ namespace
         bool closeAfterCancel = false;
         GeminiAsync::WorkItem* work = nullptr;
         std::wstring pendingQuestion;
+        std::vector<GeminiModelOption> models;
+        bool autoFallback = true;
     };
 
     bool CopyConsultText(HWND owner, const std::wstring& value)
@@ -119,7 +123,9 @@ namespace
                         L"【質問】\r\n" + question + L"\r\n\r\n【回答】\r\n" + result.text;
                     SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript.c_str());
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_QUESTION, L"");
-                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"回答が完了しました。前の会話を踏まえて追加質問できます。");
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, result.notice.empty()
+                        ? L"回答が完了しました。前の会話を踏まえて追加質問できます。"
+                        : result.notice.c_str());
                 } else if (wParam == 2) {
                     std::wstring edited;
                     bool replyAll = false;
@@ -199,6 +205,8 @@ namespace
                 const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
                 const auto history = context->history;
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
+                const auto models = context->models;
+                const bool autoFallback = context->autoFallback;
                 context->pendingQuestion = question;
                 context->busy = true;
                 ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_SHOW);
@@ -211,10 +219,13 @@ namespace
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
-                    [modelId, thinking, subject, from, body, history, question, masker]
+                    [modelId, thinking, models, autoFallback, subject, from, body, history, question, masker]
                     (const std::wstring& key) mutable {
-                        return GenerateMailConsultation(key, modelId, thinking,
-                            subject, from, body, history, question, &masker);
+                        return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
+                            [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
+                                return GenerateMailConsultation(key, candidateId, candidateThinking,
+                                    subject, from, body, history, question, &masker);
+                            });
                     }, 1, &context->work)) {
                     context->busy = false;
                     context->work = nullptr;
@@ -302,6 +313,8 @@ namespace
                 const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
                 const std::wstring transcript = context->transcript;
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
+                const auto models = context->models;
+                const bool autoFallback = context->autoFallback;
                 const std::wstring tone = context->toneInstruction;
                 context->busy = true;
                 ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_SHOW);
@@ -309,10 +322,13 @@ namespace
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
-                    [modelId, thinking, tone, subject, from, body, transcript, masker]
+                    [modelId, thinking, models, autoFallback, tone, subject, from, body, transcript, masker]
                     (const std::wstring& key) mutable {
-                        return GenerateMailReplyDraft(key, modelId, thinking, tone,
-                            subject, from, body, transcript, &masker);
+                        return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
+                            [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
+                                return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone,
+                                    subject, from, body, transcript, &masker);
+                            });
                     }, 2, &context->work)) {
                     context->busy = false;
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
@@ -358,6 +374,12 @@ INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
     const std::wstring& toneInstruction)
 {
     ConsultContext context{ &mail, instance, modelId, thinkingLevel, toneInstruction, {} };
+    std::wstring modelError;
+    if (!LoadGeminiModelCatalog(context.models, modelError) || context.models.empty())
+        context.models = DefaultGeminiModels();
+    GeminiReliabilityOptions reliability;
+    if (LoadGeminiReliabilityOptions(reliability, modelError))
+        context.autoFallback = reliability.automaticModelFallback;
     LoadLibraryW(L"Msftedit.dll");
     const INT_PTR result = DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_CONSULT),
         owner, ConsultDialogProc, reinterpret_cast<LPARAM>(&context));
