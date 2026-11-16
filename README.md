@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.33.0）
+## 現在の機能（0.34.0）
 
 - 対象: Win32 (x86)、Visual Studio 2022、C++17、MBCS
 - メール一覧・本文表示の右クリックメニューから起動
@@ -51,6 +51,7 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 - Gemini APIの接続・送信・応答待ちにタイムアウトを設定（応答待ち30秒）
 - 404はモデル一覧更新、429は利用制限確認、5xxはモデル変更または時間をおいた再試行を案内
 - モデル更新と接続テストはバックグラウンドで実行
+- 要約・返信・相談・新規メール作成の生成処理はキャンセルを要求可能。処理終了後に画面を閉じる
 
 ## APIキー・マスキング設定の保存
 
@@ -71,4 +72,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-33.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-34.dll`
