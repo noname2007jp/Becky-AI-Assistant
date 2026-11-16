@@ -267,7 +267,11 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), (DWORD)headers.size(),
         (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
-    if (!received) result.error = L"通信に失敗しました。ネットワークやプロキシ設定を確認してください。";
+    if (!received) {
+        const DWORD networkError = GetLastError();
+        result.error = FormatWinHttpError(networkError);
+        result.retryable = networkError == ERROR_WINHTTP_TIMEOUT;
+    }
     else
     {
         DWORD code = 0, size = sizeof(code);
@@ -290,7 +294,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
         {
             result.success = ExtractText(response, result.text);
             if (result.success) result.text = masker.Restore(result.text);
-            else result.error = L"応答から文章を取得できませんでした。";
+            else { result.error = L"応答から文章を取得できませんでした。"; result.retryable = true; }
         }
         else {
             result.error = FormatGeminiHttpError(code);
