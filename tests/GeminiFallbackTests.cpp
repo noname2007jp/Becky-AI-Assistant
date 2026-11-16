@@ -85,5 +85,24 @@ int main()
     Check(calls == 1 && !noPaidFallback.success,
         "paid or unverified models are never selected automatically");
 
+    std::atomic<int> cancelled{ 1 };
+    calls = 0;
+    auto cancelledResult = GenerateWithModelFallback(
+        L"gemini-primary", L"MEDIUM", models, true,
+        [&](const std::wstring&, const std::wstring&) {
+            ++calls; return Failure(503, true);
+        }, &cancelled);
+    Check(calls == 1 && !cancelledResult.success,
+        "cancellation prevents starting an alternate model");
+
+    calls = 0;
+    auto noFreeCandidate = GenerateWithModelFallback(
+        L"gemini-primary", L"MEDIUM", unverified, true,
+        [&](const std::wstring&, const std::wstring&) {
+            ++calls; return Failure(503, true);
+        });
+    Check(calls == 1 && noFreeCandidate.error.find(L"モデル一覧を更新") != std::wstring::npos,
+        "missing verified free models produces an actionable message");
+
     return failures == 0 ? 0 : 1;
 }
