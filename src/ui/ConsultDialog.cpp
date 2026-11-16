@@ -27,6 +27,8 @@ namespace
         std::wstring transcript;
         unsigned int roundCount = 0;
         bool busy = false;
+        bool closeAfterCancel = false;
+        GeminiAsync::WorkItem* work = nullptr;
         std::wstring pendingQuestion;
     };
 
@@ -72,6 +74,21 @@ namespace
             if (!work) return TRUE;
             if (context) {
                 context->busy = false;
+                context->work = nullptr;
+                ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
+                if (work->result.cancelled) {
+                    const bool closeNow = context->closeAfterCancel;
+                    context->closeAfterCancel = false;
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"生成処理をキャンセルしました。");
+                    GeminiAsync::Destroy(work);
+                    if (closeNow) EndDialog(dialog, IDCANCEL);
+                    return TRUE;
+                }
+                context->closeAfterCancel = false;
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
@@ -116,7 +133,7 @@ namespace
                     }
                 }
             }
-            delete work;
+            GeminiAsync::Destroy(work);
             return TRUE;
         }
         case WM_INITDIALOG:
@@ -126,6 +143,7 @@ namespace
             SendDlgItemMessageW(dialog, IDC_AI_CONSULT_QUESTION, EM_SETLIMITTEXT, 10000, 0);
             SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
                 L"質問を入力して「質問する」を押してください。");
+            ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
             return TRUE;
         }
         case WM_COMMAND:
@@ -183,6 +201,8 @@ namespace
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
                 context->pendingQuestion = question;
                 context->busy = true;
+                ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_SHOW);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
@@ -195,8 +215,10 @@ namespace
                     (const std::wstring& key) mutable {
                         return GenerateMailConsultation(key, modelId, thinking,
                             subject, from, body, history, question, &masker);
-                    }, 1)) {
+                    }, 1, &context->work)) {
                     context->busy = false;
+                    context->work = nullptr;
+                    ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
@@ -282,6 +304,8 @@ namespace
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
                 const std::wstring tone = context->toneInstruction;
                 context->busy = true;
+                ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_SHOW);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), TRUE);
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
@@ -289,7 +313,7 @@ namespace
                     (const std::wstring& key) mutable {
                         return GenerateMailReplyDraft(key, modelId, thinking, tone,
                             subject, from, body, transcript, &masker);
-                    }, 2)) {
+                    }, 2, &context->work)) {
                     context->busy = false;
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
@@ -300,17 +324,27 @@ namespace
                 }
                 return TRUE;
             }
+            case IDC_AI_CONSULT_CANCEL:
+            {
+                auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context && context->busy && context->work) {
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), FALSE);
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"キャンセルしています...");
+                    GeminiAsync::RequestCancel(context->work);
+                }
+                return TRUE;
+            }
             case IDC_AI_CONSULT_CLOSE:
             case IDCANCEL:
             case IDOK:
-                if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) return TRUE;
+                if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) { context->closeAfterCancel = true; if (context->work) GeminiAsync::RequestCancel(context->work); SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"キャンセルして終了しています..."); return TRUE; }
                 EndDialog(dialog, IDCANCEL);
                 return TRUE;
             default: break;
             }
             break;
         case WM_CLOSE:
-            if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) return TRUE;
+            if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) { context->closeAfterCancel = true; if (context->work) GeminiAsync::RequestCancel(context->work); SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"キャンセルして終了しています..."); return TRUE; }
             EndDialog(dialog, IDCANCEL);
             return TRUE;
         default: break;

@@ -72,6 +72,8 @@ namespace
         HINSTANCE instance;
         std::vector<GeminiModelOption> models;
         bool busy = false;
+        bool closeAfterCancel = false;
+        GeminiAsync::WorkItem* work = nullptr;
     };
 
     void InitializeModelCombo(HWND dialog, DialogContext* context)
@@ -100,6 +102,7 @@ namespace
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             InitializeModelCombo(dialog, context);
             InitializeReplyToneTrackbar(dialog);
+            ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
             const auto* mail = context ? context->mail : nullptr;
             if (mail != nullptr)
             {
@@ -127,6 +130,22 @@ namespace
             if (!work) return TRUE;
             if (context) {
                 context->busy = false;
+                context->work = nullptr;
+                ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
+                if (work->result.cancelled) {
+                    const bool closeNow = context->closeAfterCancel;
+                    context->closeAfterCancel = false;
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                    SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"生成処理をキャンセルしました。");
+                    GeminiAsync::Destroy(work);
+                    if (closeNow) EndDialog(dialog, IDCANCEL);
+                    return TRUE;
+                }
+                context->closeAfterCancel = false;
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
@@ -149,7 +168,7 @@ namespace
                     }
                 }
             }
-            delete work;
+            GeminiAsync::Destroy(work);
             return TRUE;
         }
 
@@ -195,6 +214,8 @@ namespace
                 const std::wstring modelId = model.id, thinking = model.thinking;
                 const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
                 context->busy = true;
+                ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), TRUE);
                 ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで要約中です。しばらくお待ちください...");
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
@@ -205,8 +226,10 @@ namespace
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
                     [modelId, thinking, subject, from, body, masker](const std::wstring& key) mutable {
                         return GenerateMailSummary(key, modelId, thinking, subject, from, body, &masker);
-                    }, 1)) {
+                    }, 1, &context->work)) {
                     context->busy = false;
+                    context->work = nullptr;
+                    ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
@@ -274,7 +297,7 @@ namespace
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
                     [modelId, thinking, tone, subject, from, body, masker](const std::wstring& key) mutable {
                         return GenerateMailReplyDraft(key, modelId, thinking, tone, subject, from, body, L"", &masker);
-                    }, 2)) {
+                    }, 2, &context->work)) {
                     context->busy = false;
                     EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
@@ -283,6 +306,17 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                }
+                return TRUE;
+            }
+
+            case IDC_AI_CANCEL_GENERATION:
+            {
+                auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context && context->busy && context->work) {
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), FALSE);
+                    SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"キャンセルしています...");
+                    GeminiAsync::RequestCancel(context->work);
                 }
                 return TRUE;
             }
@@ -310,7 +344,7 @@ namespace
 
             case IDCANCEL:
             case IDOK:
-                if (auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) return TRUE;
+                if (auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) { context->closeAfterCancel = true; if (context->work) GeminiAsync::RequestCancel(context->work); SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"キャンセルして終了しています..."); return TRUE; }
                 EndDialog(dialog, LOWORD(wParam));
                 return TRUE;
 
@@ -320,7 +354,7 @@ namespace
             break;
 
         case WM_CLOSE:
-            if (auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) return TRUE;
+            if (auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) { context->closeAfterCancel = true; if (context->work) GeminiAsync::RequestCancel(context->work); SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"キャンセルして終了しています..."); return TRUE; }
             EndDialog(dialog, IDCANCEL);
             return TRUE;
 
