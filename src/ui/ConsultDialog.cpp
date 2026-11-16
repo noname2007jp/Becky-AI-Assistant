@@ -129,6 +129,8 @@ namespace
                 } else if (wParam == 2) {
                     std::wstring edited;
                     bool replyAll = false;
+                    if (!result.notice.empty())
+                        SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, result.notice.c_str());
                     if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll)) {
                         context->mail->replyDraft = std::move(edited);
                         context->mail->insertReplyRequested = true;
@@ -380,6 +382,8 @@ INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
     GeminiReliabilityOptions reliability;
     if (LoadGeminiReliabilityOptions(reliability, modelError))
         context.autoFallback = reliability.automaticModelFallback;
+    else
+        context.autoFallback = false;
     LoadLibraryW(L"Msftedit.dll");
     const INT_PTR result = DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_CONSULT),
         owner, ConsultDialogProc, reinterpret_cast<LPARAM>(&context));
