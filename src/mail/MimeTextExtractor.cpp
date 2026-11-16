@@ -203,18 +203,116 @@ std::wstring ToWide(const std::string& bytes, const std::string& charset)
     return result;
 }
 
+void AppendHtmlLineBreak(std::string& out)
+{
+    while (!out.empty() && (out.back() == ' ' || out.back() == '\\t')) out.pop_back();
+    if (!out.empty() && out.back() != '\\r' && out.back() != '\\n') out += "\\r\\n";
+}
+
 void StripHtml(std::string& text)
 {
     std::string out;
     out.reserve(text.size());
-    bool inTag = false;
-    for (char c : text)
+    for (size_t i = 0; i < text.size();)
     {
-        if (c == '<') { inTag = true; continue; }
-        if (c == '>') { inTag = false; out.push_back(' '); continue; }
-        if (!inTag) out.push_back(c);
+        if (text[i] == '<')
+        {
+            const size_t end = text.find('>', i + 1);
+            if (end == std::string::npos) { ++i; continue; }
+            std::string tag = Lower(Trim(text.substr(i + 1, end - i - 1)));
+            const bool closing = !tag.empty() && tag[0] == '/';
+            if (closing) tag.erase(tag.begin());
+            const size_t nameEnd = tag.find_first_of(" \\t/\\r\\n");
+            if (nameEnd != std::string::npos) tag.resize(nameEnd);
+            if (tag == "br" || tag == "hr" || (closing &&
+                (tag == "p" || tag == "div" || tag == "li" || tag == "tr" ||
+                 tag == "h1" || tag == "h2" || tag == "h3" || tag == "h4" ||
+                 tag == "h5" || tag == "h6" || tag == "blockquote")))
+                AppendHtmlLineBreak(out);
+            else if (!closing && tag == "li")
+            {
+                AppendHtmlLineBreak(out);
+                out += "・";
+            }
+            else if (!closing && (tag == "td" || tag == "th"))
+            {
+                if (!out.empty() && out.back() != ' ' && out.back() != '\\n') out += " ";
+            }
+            i = end + 1;
+            continue;
+        }
+        out.push_back(text[i++]);
     }
     text.swap(out);
+}
+
+std::wstring DecodeHtmlEntities(const std::wstring& input)
+{
+    std::wstring out;
+    out.reserve(input.size());
+    auto appendCodePoint = [&out](unsigned long cp)
+    {
+        if (cp == 0 || cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) return;
+        if (cp <= 0xffff) out.push_back(static_cast<wchar_t>(cp));
+        else
+        {
+            cp -= 0x10000;
+            out.push_back(static_cast<wchar_t>(0xd800 + (cp >> 10)));
+            out.push_back(static_cast<wchar_t>(0xdc00 + (cp & 0x3ff)));
+        }
+    };
+
+    for (size_t i = 0; i < input.size();)
+    {
+        if (input[i] != L'&')
+        {
+            out.push_back(input[i++]);
+            continue;
+        }
+        const size_t semi = input.find(L';', i + 1);
+        if (semi == std::wstring::npos || semi - i > 12)
+        {
+            out.push_back(input[i++]);
+            continue;
+        }
+        const std::wstring entity = input.substr(i + 1, semi - i - 1);
+        unsigned long cp = 0;
+        bool decoded = true;
+        if (entity == L"amp") cp = L'&';
+        else if (entity == L"lt") cp = L'<';
+        else if (entity == L"gt") cp = L'>';
+        else if (entity == L"quot") cp = L'"';
+        else if (entity == L"apos") cp = L'\\'';
+        else if (entity == L"nbsp") cp = 0x00a0;
+        else if (entity == L"copy") cp = 0x00a9;
+        else if (entity == L"reg") cp = 0x00ae;
+        else if (entity == L"yen") cp = 0x00a5;
+        else if (entity.size() > 1 && entity[0] == L'#')
+        {
+            size_t pos = 1;
+            int base = 10;
+            if (pos < entity.size() && (entity[pos] == L'x' || entity[pos] == L'X')) { base = 16; ++pos; }
+            if (pos == entity.size()) decoded = false;
+            for (; decoded && pos < entity.size(); ++pos)
+            {
+                const wchar_t c = entity[pos];
+                int digit = (c >= L'0' && c <= L'9') ? c - L'0' :
+                    (base == 16 && c >= L'a' && c <= L'f') ? c - L'a' + 10 :
+                    (base == 16 && c >= L'A' && c <= L'F') ? c - L'A' + 10 : -1;
+                if (digit < 0 || digit >= base || cp > (0x10ffffUL - digit) / base) { decoded = false; break; }
+                cp = cp * base + static_cast<unsigned long>(digit);
+            }
+        }
+        else decoded = false;
+
+        if (decoded)
+        {
+            appendCodePoint(cp);
+            i = semi + 1;
+        }
+        else out.append(input, i, semi - i + 1), i = semi + 1;
+    }
+    return out;
 }
 
 bool ExtractPart(std::string_view raw, std::wstring& result, bool& htmlFound, std::wstring& htmlText, int depth)
@@ -262,7 +360,7 @@ bool ExtractPart(std::string_view raw, std::wstring& result, bool& htmlFound, st
     if (part.contentType == "text/html")
     {
         StripHtml(decoded);
-        htmlText = ToWide(decoded, part.charset);
+        htmlText = DecodeHtmlEntities(ToWide(decoded, part.charset));
         htmlFound = true;
     }
     return false;
