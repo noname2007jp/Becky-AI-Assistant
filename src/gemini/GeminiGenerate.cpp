@@ -186,7 +186,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
         }
         else {
             result.error = FormatGeminiHttpError(code);
-            result.retryable = code == 408 || code == 429 || (code >= 500 && code <= 599);
+            result.retryable = code == 404 || code == 408 || code == 429 || (code >= 500 && code <= 599);
         }
     }
     WinHttpCloseHandle(request);
@@ -341,7 +341,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
         }
         else {
             result.error = FormatGeminiHttpError(code);
-            result.retryable = code == 408 || code == 429 || (code >= 500 && code <= 599);
+            result.retryable = code == 404 || code == 408 || code == 429 || (code >= 500 && code <= 599);
         }
     }
     WinHttpCloseHandle(request);
