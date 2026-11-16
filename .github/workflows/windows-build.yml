@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, feature/v0.35-main-mask-toggle]
   pull_request:
-    branches: [main, main]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
