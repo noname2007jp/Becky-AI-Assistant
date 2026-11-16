@@ -3,6 +3,8 @@
 #include "ConsultDialog.h"
 #include "resource.h"
 #include "ProgressIndicator.h"
+#include "PiiMaskPreviewDialog.h"
+#include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
 #include "gemini/GeminiReply.h"
@@ -147,17 +149,18 @@ namespace
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr) return TRUE;
                 const MailContext& mail = *context->mail;
-                const int consent = MessageBoxW(dialog,
-                    L"次の情報をGoogle Gemini APIへ送信して要約します。\n\n"
-                    L"・メールの件名\n・差出人\n・メール本文\n"
-                    L"メールアドレス・電話番号などは送信前にマスキングします。設定登録語句も対象です。\n"
-                    L"氏名・会社名などは自動検出できない場合があるため、設定画面への登録を推奨します。\n\n"
-                    L"メール本文には機密情報が含まれる可能性があります。"
-                    L"送信先と内容を確認し、許可する場合のみ「はい」を選択してください。"
-                    L"キャンセルすると外部送信しません。",
-                    L"メール本文の外部送信確認",
-                    MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
-                if (consent != IDYES) return TRUE;
+                PiiMasker masker;
+                if (!masker.IsReady())
+                {
+                    MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const std::wstring previewRaw =
+                    L"【件名】\r\n" + mail.subject + L"\r\n\r\n【差出人】\r\n" +
+                    mail.from + L"\r\n\r\n【本文】\r\n" + mail.body;
+                const std::wstring maskedPreview = masker.Mask(previewRaw);
+                if (!ShowPiiMaskPreviewDialog(dialog, context->instance,
+                    L"要約：Gemini送信内容の確認", maskedPreview)) return TRUE;
 
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
                 if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
@@ -182,7 +185,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
                 const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailSummary(
-                    apiKey, model.modelId, model.thinking, mail.subject, mail.from, mail.body);
+                    apiKey, model.modelId, model.thinking, mail.subject, mail.from, mail.body, &masker);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
@@ -216,17 +219,18 @@ namespace
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                const int consent = MessageBoxW(dialog,
-                    L"次の情報をGoogle Gemini APIへ送信して返信文案を作成します。\n\n"
-                    L"・メールの件名\n・差出人\n・メール本文\n"
-                    L"メールアドレス・電話番号などは送信前にマスキングします。設定登録語句も対象です。\n"
-                    L"氏名・会社名などは自動検出できない場合があるため、設定画面への登録を推奨します。\n\n"
-                    L"メール本文には機密情報が含まれる可能性があります。"
-                    L"送信内容を確認し、許可する場合のみ「はい」を選択してください。"
-                    L"キャンセルすると外部送信しません。",
-                    L"返信文案作成 - 外部送信確認",
-                    MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
-                if (consent != IDYES) return TRUE;
+                PiiMasker masker;
+                if (!masker.IsReady())
+                {
+                    MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const std::wstring previewRaw =
+                    L"【件名】\r\n" + mail.subject + L"\r\n\r\n【差出人】\r\n" +
+                    mail.from + L"\r\n\r\n【本文】\r\n" + mail.body;
+                const std::wstring maskedPreview = masker.Mask(previewRaw);
+                if (!ShowPiiMaskPreviewDialog(dialog, context->instance,
+                    L"返信文案：Gemini送信内容の確認", maskedPreview)) return TRUE;
 
                 std::wstring apiKey, error;
                 if (!LoadGeminiApiKey(apiKey, error) || apiKey.empty())
@@ -243,7 +247,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
                 const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailReplyDraft(
-                    apiKey, model.modelId, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body);
+                    apiKey, model.modelId, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body, L\"\", &masker);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
