@@ -144,7 +144,11 @@ GeminiGenerateResult GenerateMailReplyDraft(
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), (DWORD)headers.size(),
         (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
-    if (!received) result.error = FormatWinHttpError(GetLastError());
+    if (!received) {
+        const DWORD networkError = GetLastError();
+        result.error = FormatWinHttpError(networkError);
+        result.retryable = networkError == ERROR_WINHTTP_TIMEOUT;
+    }
     else
     {
         DWORD code = 0, size = sizeof(code);
@@ -167,9 +171,13 @@ GeminiGenerateResult GenerateMailReplyDraft(
         {
             result.success = ExtractText(response, result.text);
             if (result.success) result.text = masker.Restore(result.text);
-            else result.error = L"応答から返信文案を取得できませんでした。";
+            else { result.error = L"応答から返信文案を取得できませんでした。"; result.retryable = true; }
         }
-        else result.error = FormatGeminiHttpError(code);
+        else {
+            result.error = FormatGeminiHttpError(code);
+            result.retryable = code == 408 || code == 429 || code == 500 ||
+                code == 502 || code == 503 || code == 504;
+        }
     }
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
