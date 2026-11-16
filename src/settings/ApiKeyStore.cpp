@@ -299,3 +299,75 @@ bool SavePiiMaskOptions(const PiiMaskOptions& options, std::wstring& error)
     }
     return true;
 }
+
+
+bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstring& error)
+{
+    options = GeminiReliabilityOptions{};
+    error.clear();
+    wchar_t appData[MAX_PATH] = {};
+    if (SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE,
+        nullptr, SHGFP_TYPE_CURRENT, appData) != S_OK)
+    { error = L"安定性設定の保存先を取得できません。"; return false; }
+    const std::wstring path = std::wstring(appData) + L"\\Becky-AI-Assistant\\reliability-options.dat";
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return true;
+    file.seekg(0, std::ios::end);
+    const auto size = file.tellg();
+    if (size <= 0 || size > 1024)
+    { error = L"安定性設定ファイルのサイズが不正です。"; return false; }
+    file.seekg(0, std::ios::beg);
+    std::vector<BYTE> encrypted(static_cast<size_t>(size));
+    if (!file.read(reinterpret_cast<char*>(encrypted.data()), size))
+    { error = L"安定性設定を読み込めません。"; return false; }
+    DATA_BLOB input{ static_cast<DWORD>(encrypted.size()), encrypted.data() };
+    DATA_BLOB output{};
+    if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
+        CRYPTPROTECT_UI_FORBIDDEN, &output))
+    { error = L"安定性設定を復号できません。"; return false; }
+    if (output.cbData != 1)
+    {
+        SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
+        error = L"安定性設定の形式が不正です。"; return false;
+    }
+    options.automaticModelFallback = output.pbData[0] != 0;
+    SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
+    return true;
+}
+
+bool SaveGeminiReliabilityOptions(const GeminiReliabilityOptions& options, std::wstring& error)
+{
+    error.clear();
+    BYTE value = static_cast<BYTE>(options.automaticModelFallback);
+    DATA_BLOB input{ 1, &value };
+    DATA_BLOB encrypted{};
+    if (!CryptProtectData(&input, L"Becky AI Assistant reliability options",
+        nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &encrypted))
+    { error = L"安定性設定の暗号化に失敗しました。"; return false; }
+    wchar_t appData[MAX_PATH] = {};
+    if (SHGetFolderPathW(nullptr, CSIDL_APPDATA | CSIDL_FLAG_CREATE,
+        nullptr, SHGFP_TYPE_CURRENT, appData) != S_OK)
+    {
+        SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+        error = L"安定性設定の保存先を取得できません。"; return false;
+    }
+    const std::wstring directory = std::wstring(appData) + L"\\Becky-AI-Assistant";
+    if (!CreateDirectoryW(directory.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS)
+    {
+        SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+        error = L"安定性設定の保存先を作成できません。"; return false;
+    }
+    const std::wstring path = directory + L"\\reliability-options.dat";
+    const std::wstring temp = path + L".tmp";
+    std::ofstream file(temp, std::ios::binary | std::ios::trunc);
+    const bool written = file && static_cast<bool>(file.write(
+        reinterpret_cast<const char*>(encrypted.pbData), encrypted.cbData));
+    file.close();
+    SecureZeroMemory(encrypted.pbData, encrypted.cbData); LocalFree(encrypted.pbData);
+    if (!written || !MoveFileExW(temp.c_str(), path.c_str(),
+        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+    {
+        DeleteFileW(temp.c_str()); error = L"安定性設定を保存できません。"; return false;
+    }
+    return true;
+}
