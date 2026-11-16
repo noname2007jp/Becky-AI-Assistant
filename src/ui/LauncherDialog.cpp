@@ -328,6 +328,13 @@ namespace
                 }
                 const auto& model = context->models[static_cast<size_t>(selected)];
                 const std::wstring modelId = model.id, thinking = model.thinking;
+                const auto models = context->models;
+                GeminiReliabilityOptions reliability;
+                if (!LoadGeminiReliabilityOptions(reliability, error)) {
+                    MessageBoxW(dialog, error.c_str(), L"設定エラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                const bool autoFallback = reliability.automaticModelFallback;
                 const std::wstring tone = GetReplyToneInstruction(static_cast<int>(toneSelected));
                 const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
                 context->busy = true;
