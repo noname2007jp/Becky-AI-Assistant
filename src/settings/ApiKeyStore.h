@@ -9,6 +9,7 @@ bool SavePiiMaskTerms(const std::vector<std::wstring>& terms, std::wstring& erro
 
 struct PiiMaskOptions
 {
+    bool enabled = false;
     bool email = true;
     bool phone = true;
     bool postal = true;
