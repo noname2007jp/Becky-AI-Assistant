@@ -117,7 +117,7 @@ namespace
                     previewRaw += L"【今回の質問】\r\n" + question;
                 }
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
-                if (!ShowPiiMaskPreviewDialog(dialog, context->instance,
+                if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"AI相談：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
 
                 ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
@@ -219,7 +219,7 @@ namespace
                     L"\r\n\r\n【メール本文】\r\n" + context->mail->body +
                     L"\r\n\r\n【相談履歴】\r\n" + context->transcript;
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
-                if (!ShowPiiMaskPreviewDialog(dialog, context->instance,
+                if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"相談から返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
 
                 if (context->apiKey.empty())
