@@ -27,7 +27,7 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         (cancelState && cancelState->load(std::memory_order_acquire) != 0))
         return result;
 
-    // Only fall back to models explicitly identified as free by the latest
+    // Only fall back to models explicitly identified as having a free tier by the latest
     // official pricing refresh. Never silently switch to an unknown/paid model.
     std::vector<const GeminiModelOption*> candidates;
     for (const auto& model : models)
@@ -47,7 +47,7 @@ inline GeminiGenerateResult GenerateWithModelFallback(
 
     if (candidates.empty())
     {
-        result.error += L"\n料金確認済みの無料Flash代替モデルがありません。設定画面でモデル一覧を更新してください。";
+        result.error += L"\n無料枠ありと料金確認済みのFlash代替モデルがありません。設定画面でモデル一覧を更新してください。";
         return result;
     }
 
