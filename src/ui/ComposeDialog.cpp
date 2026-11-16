@@ -14,7 +14,7 @@
 
 namespace
 {
-struct Context { HWND compose; HINSTANCE instance; CBeckyAPI* api; std::vector<GeminiModelOption> models; bool busy = false; };
+struct Context { HWND compose; HINSTANCE instance; CBeckyAPI* api; std::vector<GeminiModelOption> models; bool busy = false; bool closeAfterCancel = false; GeminiAsync::WorkItem* work = nullptr; };
 
 std::wstring GetText(HWND dlg, int id)
 {
@@ -78,6 +78,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
     {
         auto* c = reinterpret_cast<Context*>(lp);
         SetWindowLongPtrW(dlg, DWLP_USER, (LONG_PTR)c);
+        ShowWindow(GetDlgItem(dlg, IDC_NEWMAIL_CANCEL), SW_HIDE);
         SendDlgItemMessageW(dlg, IDC_NEWMAIL_PURPOSE, EM_SETLIMITTEXT, 10000, 0);
         SendDlgItemMessageW(dlg, IDC_NEWMAIL_REQUIREMENTS, EM_SETLIMITTEXT, 30000, 0);
         std::wstring modelError;
@@ -103,6 +104,8 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         if (!work) return TRUE;
         if (c) {
             c->busy = false;
+            c->work = nullptr;
+            ShowWindow(GetDlgItem(dlg, IDC_NEWMAIL_CANCEL), SW_HIDE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), TRUE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), TRUE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_PURPOSE), TRUE);
@@ -110,6 +113,15 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_MODEL), TRUE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TRUE);
             const GeminiGenerateResult& result = work->result;
+            if (result.cancelled) {
+                SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"生成処理をキャンセルしました。");
+                const bool closeNow = c->closeAfterCancel;
+                c->closeAfterCancel = false;
+                GeminiAsync::Destroy(work);
+                if (closeNow) EndDialog(dlg, IDCANCEL);
+                return TRUE;
+            }
+            c->closeAfterCancel = false;
             if (!result.success) {
                 SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"文案の作成に失敗しました。");
                 MessageBoxW(dlg, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
@@ -126,7 +138,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 }
             }
         }
-        delete work;
+        GeminiAsync::Destroy(work);
         return TRUE;
     }
     if (msg == WM_COMMAND)
@@ -177,6 +189,8 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             const std::wstring thinking = model.thinking;
             const std::wstring toneInstruction = toneText[(tone < 1 || tone > 10) ? 4 : tone - 1];
             c->busy = true;
+            ShowWindow(GetDlgItem(dlg, IDC_NEWMAIL_CANCEL), SW_SHOW);
+            EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_CANCEL), TRUE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), FALSE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), FALSE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_PURPOSE), FALSE);
@@ -192,6 +206,8 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 });
             if (!started) {
                 c->busy = false;
+                c->work = nullptr;
+                ShowWindow(GetDlgItem(dlg, IDC_NEWMAIL_CANCEL), SW_HIDE);
                 EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), TRUE);
                 EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), TRUE);
                 EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_PURPOSE), TRUE);
@@ -201,6 +217,16 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"バックグラウンド処理を開始できませんでした。");
                 MessageBoxW(dlg, L"非同期処理を開始できませんでした。もう一度お試しください。",
                     L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+            }
+            return TRUE;
+        }
+        case IDC_NEWMAIL_CANCEL:
+        {
+            auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));
+            if (c && c->busy && c->work) {
+                EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_CANCEL), FALSE);
+                SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"キャンセルしています...");
+                GeminiAsync::RequestCancel(c->work);
             }
             return TRUE;
         }
@@ -245,12 +271,13 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         }
         case IDCANCEL:
         case IDOK:
+            if (auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER)); c && c->busy) { c->closeAfterCancel = true; if (c->work) GeminiAsync::RequestCancel(c->work); SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"キャンセルして終了しています..."); return TRUE; }
             EndDialog(dlg, LOWORD(wp)); return TRUE;
         }
     }
     if (msg == WM_CLOSE) {
         auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));
-        if (c && c->busy) return TRUE;
+        if (c && c->busy) { c->closeAfterCancel = true; if (c->work) GeminiAsync::RequestCancel(c->work); SetDlgItemTextW(dlg, IDC_NEWMAIL_STATUS, L"キャンセルして終了しています..."); return TRUE; }
         EndDialog(dlg, IDCANCEL); return TRUE;
     }
     return FALSE;
