@@ -6,6 +6,7 @@
 #include <atomic>
 #include <functional>
 #include <vector>
+#include <utility>
 
 inline bool IsRetryableGeminiStatus(unsigned long status)
 {
@@ -60,7 +61,7 @@ inline GeminiGenerateResult GenerateWithModelFallback(
 
     if (candidates.empty())
     {
-        result.error += L"\\n利用可能性と無料枠を確認できた新しいFlash代替モデルがありません。設定画面でモデル一覧を更新してください。";
+        result.error += L"\n利用可能性と無料枠を確認できた新しいFlash代替モデルがありません。設定画面でモデル一覧を更新してください。";
         return result;
     }
 
@@ -77,7 +78,7 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         alternate.modelUsed = fallback.id;
         if (alternate.success)
         {
-            alternate.notice = L"選択モデル「" + result.modelUsed +
+            alternate.notice = L"選択モデル「" + selectedModelId +
                 L"」でエラーが発生したため、別モデル「" + fallback.label +
                 L"」に切り替えて生成しました。";
             if (!attempted.empty())
@@ -92,14 +93,14 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         // Transient failures can also justify trying the next free-tier candidate.
         if (alternate.httpStatus != 404 && !alternate.retryable)
         {
-            alternate.error += L"\\n最初のモデルのエラー: " + initialError +
-                L"\\n代替モデル「" + fallback.label + L"」でも解決できませんでした。";
+            alternate.error += L"\n最初のモデルのエラー: " + initialError +
+                L"\n代替モデル「" + fallback.label + L"」でも解決できませんでした。";
             return alternate;
         }
         result = std::move(alternate);
     }
 
-    result.error += L"\\n最初のモデルのエラー: " + initialError;
-    result.error += L"\\n代替モデルを試しましたが、利用可能な応答を取得できませんでした: " + attempted;
+    result.error += L"\n最初のモデルのエラー: " + initialError;
+    result.error += L"\n代替モデルを試しましたが、利用可能な応答を取得できませんでした: " + attempted;
     return result;
 }
