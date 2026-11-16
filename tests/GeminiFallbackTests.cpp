@@ -35,13 +35,14 @@ int main()
         IsRetryableGeminiStatus(504) && IsRetryableGeminiStatus(599),
         "transient HTTP statuses are retryable");
     Check(!IsRetryableGeminiStatus(400) && !IsRetryableGeminiStatus(401) &&
-        !IsRetryableGeminiStatus(403) && !IsRetryableGeminiStatus(404) &&
+        !IsRetryableGeminiStatus(403) && IsRetryableGeminiStatus(404) &&
         !IsRetryableGeminiStatus(413),
-        "configuration and request errors are not retryable");
+        "403 is not retryable while 404 can trigger an alternate model");
 
     const std::vector<GeminiModelOption> models = {
-        { L"Free Flash", L"gemini-free-flash", L"MEDIUM", true, true },
-        { L"Free Flash-Lite", L"gemini-free-flash-lite", L"LOW", true, true },
+        { L"Gemini 2.5 Flash-Lite", L"gemini-2.5-flash-lite", L"MEDIUM", true, true },
+        { L"Gemini 3.5 Flash-Lite", L"gemini-3.5-flash-lite", L"MEDIUM", true, true },
+        { L"Gemini 3.8 Flash", L"gemini-3.8-flash", L"MEDIUM", true, true },
         { L"Unknown Flash", L"gemini-unknown-flash", L"MEDIUM", false, false },
         { L"Paid Flash", L"gemini-paid-flash", L"MEDIUM", false, true }
     };
@@ -54,8 +55,29 @@ int main()
             return id == L"gemini-primary" ? Failure(503, true) : Success(L"recovered");
         });
     Check(calls == 2 && recovered.success, "temporary failure retries with one alternate model");
-    Check(recovered.modelUsed == L"gemini-free-flash-lite" && !recovered.notice.empty(),
-        "fallback prefers a verified free Flash-Lite model and reports the switch");
+    Check(recovered.modelUsed == L"gemini-3.8-flash" && !recovered.notice.empty(),
+        "fallback prefers current 3.8 Flash and reports the switch");
+
+    calls = 0;
+    std::vector<std::wstring> tried;
+    auto skipLegacy404 = GenerateWithModelFallback(
+        L"gemini-primary", L"MEDIUM", models, true,
+        [&](const std::wstring& id, const std::wstring&) {
+            ++calls; tried.push_back(id);
+            if (id == L"gemini-primary") return Failure(503, true);
+            if (id == L"gemini-3.8-flash") return Failure(404, false);
+            return Success(L"recovered on second candidate");
+        });
+    Check(calls == 3 && skipLegacy404.success &&
+        skipLegacy404.modelUsed == L"gemini-3.5-flash-lite",
+        "404 from first fallback skips to next current free-tier model");
+    Check(!skipLegacy404.notice.empty() &&
+        skipLegacy404.notice.find(L"Gemini 2.5") == std::wstring::npos,
+        "successful fallback notice identifies the actual selected model");
+
+    Check(GeminiFallbackPriority(L"gemini-2.5-flash-lite") < 0 &&
+        GeminiFallbackPriority(L"gemini-3.8-flash") > GeminiFallbackPriority(L"gemini-3.5-flash-lite"),
+        "legacy 2.5 models are excluded and current models are prioritized");
 
     calls = 0;
     auto disabled = GenerateWithModelFallback(
