@@ -1,6 +1,8 @@
 #include "ComposeDialog.h"
 #include "resource.h"
 #include "ProgressIndicator.h"
+#include "PiiMaskPreviewDialog.h"
+#include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiCompose.h"
 #include "BeckyAPI.h"
@@ -117,13 +119,18 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 L"必要な要点を優先し、回りくどい表現を避けて短くしてください。",
                 L"必要な内容だけを最短で伝え、失礼のない敬語を維持してください。"
             };
-            const int consent = MessageBoxW(dlg,
-                L"入力した目的・補足条件をGoogle Gemini APIへ送信して文案を作成します。\n\n"
-                L"入力内容に機密情報が含まれる場合があります。メールアドレス・電話番号などは送信前にマスキングします。"
-                 L"氏名・会社名などは自動検出できない場合があるため、設定画面への登録を推奨します。"
-                 L"送信を許可しますか？",
-                L"AI新規メール作成 - 外部送信確認", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
-            if (consent != IDYES) return TRUE;
+            PiiMasker masker;
+            if (!masker.IsReady())
+            {
+                MessageBoxW(dlg, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
+                return TRUE;
+            }
+            const std::wstring previewRaw =
+                L"【メールの目的】\r\n" + purpose +
+                L"\r\n\r\n【補足・含めたい内容・条件】\r\n" + requirements;
+            const std::wstring maskedPreview = masker.Mask(previewRaw);
+            if (!ShowPiiMaskPreviewDialog(dlg, c->instance,
+                L"新規メール作成：Gemini送信内容の確認", maskedPreview)) return TRUE;
             std::wstring key, error;
             if (!LoadGeminiApiKey(key, error) || key.empty()) {
                 MessageBoxW(dlg, error.empty() ? L"先に設定画面でGemini APIキーを保存してください。" : error.c_str(),
@@ -134,7 +141,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             ShowApiProcessingStatus(dlg, IDC_NEWMAIL_STATUS, L"Geminiで文案を作成しています...");
             const auto& model = kModels[selected];
             GeminiGenerateResult result = GenerateNewMailDraft(key, model.id, model.thinking,
-                toneText[(tone < 1 || tone > 10) ? 4 : tone - 1], purpose, requirements);
+                toneText[(tone < 1 || tone > 10) ? 4 : tone - 1], purpose, requirements, &masker);
             SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t)); key.clear();
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_GENERATE), TRUE);
             EnableWindow(GetDlgItem(dlg, IDC_NEWMAIL_APPLY), TRUE);
