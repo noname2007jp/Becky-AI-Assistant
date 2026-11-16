@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <shlobj.h>
 #include <string>
+#include <cwchar>
 
 namespace
 {
@@ -78,7 +79,7 @@ void LogGeminiRequest(const std::wstring& operation, const std::wstring& modelId
         " payload_bytes=" + std::to_string(payload.size()) + "\r\n";
     if (maskingEnabled)
     {
-        entry += "----- MASKED REQUEST PAYLOAD BEGIN -----\r\n";
+        entry += "----- REQUEST PAYLOAD (MASKING ENABLED) BEGIN -----\r\n";
         entry += payload;
         entry += "\r\n----- MASKED REQUEST PAYLOAD END -----\r\n";
     }
