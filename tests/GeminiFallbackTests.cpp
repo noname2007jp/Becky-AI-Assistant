@@ -80,6 +80,20 @@ int main()
         "legacy 2.5 models are excluded and current models are prioritized");
 
     calls = 0;
+    auto primary404 = GenerateWithModelFallback(
+        L"gemini-2.5-flash-lite", L"MEDIUM", models, true,
+        [&](const std::wstring& id, const std::wstring&) {
+            ++calls;
+            if (id == L"gemini-2.5-flash-lite") return Failure(404, true);
+            return Success(L"modern model response");
+        });
+    Check(calls == 2 && primary404.success &&
+        primary404.modelUsed == L"gemini-3.8-flash",
+        "primary model 404 falls back to a current model");
+    Check(primary404.notice.find(L"gemini-2.5-flash-lite") != std::wstring::npos,
+        "success notice names the original model that failed");
+
+    calls = 0;
     auto disabled = GenerateWithModelFallback(
         L"gemini-primary", L"MEDIUM", models, false,
         [&](const std::wstring&, const std::wstring&) {
