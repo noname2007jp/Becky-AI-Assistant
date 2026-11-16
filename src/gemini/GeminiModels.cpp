@@ -6,6 +6,8 @@
 #include <fstream>
 #include <set>
 #include <cctype>
+#include <cstring>
+#include <utility>
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -129,6 +131,8 @@ bool ReadFreeTierFromSection(const std::string& page, const std::string& modelId
     const std::string anchor = "id=\"" + modelId + "\"";
     size_t begin = page.find(anchor);
     if (begin == std::string::npos)
+        begin = page.find("{% id=\"" + modelId + "\" %}");
+    if (begin == std::string::npos)
     {
         const std::string alt = "id='" + modelId + "'";
         begin = page.find(alt);
@@ -136,6 +140,11 @@ bool ReadFreeTierFromSection(const std::string& page, const std::string& modelId
     if (begin == std::string::npos) return false;
     size_t end = page.find("id=\"gemini-", begin + anchor.size());
     const size_t gemmaEnd = page.find("id=\"gemma-", begin + anchor.size());
+    const size_t markdownGeminiEnd = page.find("{% id=\"gemini-", begin + anchor.size());
+    const size_t markdownGemmaEnd = page.find("{% id=\"gemma-", begin + anchor.size());
+    if (end == std::string::npos || (markdownGeminiEnd != std::string::npos && markdownGeminiEnd < end)) end = markdownGeminiEnd;
+    if (end == std::string::npos || (gemmaEnd != std::string::npos && gemmaEnd < end)) end = gemmaEnd;
+    if (end == std::string::npos || (markdownGemmaEnd != std::string::npos && markdownGemmaEnd < end)) end = markdownGemmaEnd;
     if (end == std::string::npos || (gemmaEnd != std::string::npos && gemmaEnd < end)) end = gemmaEnd;
     if (end == std::string::npos) end = page.size();
     const std::string section = page.substr(begin, end - begin);
@@ -239,7 +248,7 @@ bool DownloadPricingPage(std::string& response, std::wstring& error)
 }
 bool DownloadModelPage(const std::wstring& apiKey, const std::wstring& path, std::string& response, std::wstring& error)
 {
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.29",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.30",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { error = L"モデル一覧の通信を開始できません。"; return false; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
