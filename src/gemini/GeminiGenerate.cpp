@@ -3,6 +3,7 @@
 #include <winhttp.h>
 #include "GeminiError.h"
 #include "PiiMasker.h"
+#include "GeminiDebugLog.h"
 #include <string>
 
 #pragma comment(lib, "winhttp.lib")
@@ -112,6 +113,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
     const std::string payload =
         "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"" +
         JsonEscape(Utf8(prompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
+    LogGeminiRequest(L"summary", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
     HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.6",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
@@ -192,6 +194,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
     WinHttpCloseHandle(session);
+    LogGeminiResponse(L"summary", modelId, result.httpStatus, result.success, result.error);
     return result;
 }
 
@@ -267,6 +270,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     }
 
     const std::string payload = "{" + contents + ",\"generationConfig\":{" + generationConfig + "}}";
+    LogGeminiRequest(L"consultation", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
     HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.19",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
@@ -347,5 +351,6 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
     WinHttpCloseHandle(session);
+    LogGeminiResponse(L"consultation", modelId, result.httpStatus, result.success, result.error);
     return result;
 }
