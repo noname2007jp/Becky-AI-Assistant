@@ -6,10 +6,10 @@ class PiiMasker;
 struct GeminiGenerateResult
 {
     bool success;
-    bool cancelled = false;
     unsigned long httpStatus;
     std::wstring text;
     std::wstring error;
+    bool cancelled = false;
 };
 
 GeminiGenerateResult GenerateMailSummary(
