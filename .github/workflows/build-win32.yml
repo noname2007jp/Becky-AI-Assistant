@@ -2,9 +2,9 @@ name: Build Becky AI Assistant (Win32)
 
 on:
   push:
-    branches: [main, feature/v0.33-async-generation]
+    branches: [main, feature/v0.34-cancel-generation]
   pull_request:
-    branches: [main]
+    branches: [main, feature/v0.33-async-generation]
   workflow_dispatch:
 
 jobs:
@@ -30,12 +30,12 @@ jobs:
           New-Item -ItemType Directory -Force -Path package | Out-Null
           Copy-Item $dll package/
           Copy-Item README.md package/
-          Compress-Archive -Path package/* -DestinationPath Becky-AI-Assistant-33-win32.zip -Force
+          Compress-Archive -Path package/* -DestinationPath Becky-AI-Assistant-34-win32.zip -Force
 
       - name: Upload Win32 ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Becky-AI-Assistant-33-win32
-          path: Becky-AI-Assistant-33-win32.zip
+          name: Becky-AI-Assistant-34-win32
+          path: Becky-AI-Assistant-34-win32.zip
           if-no-files-found: error
           retention-days: 14
