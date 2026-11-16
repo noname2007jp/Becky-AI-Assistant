@@ -330,7 +330,8 @@ bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstrin
         SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
         error = L"安定性設定の形式が不正です。"; return false;
     }
-    options.automaticModelFallback = output.pbData[0] != 0;\n    options.debugLogging = output.cbData >= 2 && output.pbData[1] != 0;
+    options.automaticModelFallback = output.pbData[0] != 0;
+    options.debugLogging = output.cbData >= 2 && output.pbData[1] != 0;
     SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
     return true;
 }
