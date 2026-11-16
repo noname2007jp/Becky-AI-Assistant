@@ -60,7 +60,7 @@ DWORD WINAPI ModelUpdateThread(void* parameter)
                 result->success = false;
         }
         result->message = result->success
-            ? L"モデル一覧を更新しました（" + std::to_wstring(result->models.size()) + L"件）。"
+            ? L"Google公式料金ページを照合し、モデル一覧を更新しました（" + std::to_wstring(result->models.size()) + L"件）。"
             : error;
     }
     if (!PostMessageW(args->dialog, WM_MODEL_UPDATE_FINISHED, 0, reinterpret_cast<LPARAM>(result)))
@@ -136,13 +136,20 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         std::wstring modelError;
         if (LoadGeminiModelCatalog(cachedModels, modelError))
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
-                (L"利用モデル：" + std::to_wstring(cachedModels.size()) + L"件").c_str());
+                (L"利用モデル：" + std::to_wstring(cachedModels.size()) + L"件（料金情報は最終更新時点）").c_str());
         return TRUE;
     }
 
     case WM_NOTIFY:
     {
         const auto* notification = reinterpret_cast<const NMHDR*>(lParam);
+        if (notification != nullptr &&
+            notification->idFrom == IDC_SETTINGS_PRICING_LINK &&
+            (notification->code == NM_CLICK || notification->code == NM_RETURN))
+        {
+            ShellExecuteW(dialog, L"open", L"https://aistudio.google.com/docs/pricing", nullptr, nullptr, SW_SHOWNORMAL);
+            return TRUE;
+        }
         if (notification != nullptr &&
             notification->idFrom == IDC_GEMINI_APIKEY_LINK &&
             (notification->code == NM_CLICK || notification->code == NM_RETURN))
@@ -272,7 +279,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             if (!state || state->modelUpdateRunning || state->testRunning) return TRUE;
             state->modelUpdateRunning = true;
             const bool includePaid = IsDlgButtonChecked(dialog, IDC_SETTINGS_INCLUDE_PAID) == BST_CHECKED;
-            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"Googleからモデル一覧を取得しています...");
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"Googleのモデル一覧と公式料金ページを照合しています...");
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), FALSE);
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), FALSE);
             EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), FALSE);
