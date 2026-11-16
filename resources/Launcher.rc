@@ -56,7 +56,7 @@ BEGIN
     LTEXT           "追加でマスキングする語句（1行に1件）", -1, 12, 212, 336, 12
     EDITTEXT        IDC_SETTINGS_MASK_TERMS, 12, 228, 336, 68, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL | WS_TABSTOP | WS_BORDER
     LTEXT           "氏名・会社名などは自動検出できない場合があります。", -1, 12, 300, 336, 12
-    CONTROL         "一時的なエラー時に別の無料Flashモデルへ自動切り替え", IDC_SETTINGS_AUTO_FALLBACK, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 322, 336, 16
+    CONTROL         "一時的なエラー時に無料枠ありのFlashモデルへ自動切り替え", IDC_SETTINGS_AUTO_FALLBACK, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 322, 336, 16
     CONTROL         "有料モデル・料金未確認モデルも含める", IDC_SETTINGS_INCLUDE_PAID, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 342, 336, 16
     CONTROL         "", IDC_SETTINGS_PRICING_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD, 12, 362, 336, 16
     PUSHBUTTON      "APIモデルを更新", IDC_SETTINGS_UPDATE_MODELS, 12, 382, 104, 22
