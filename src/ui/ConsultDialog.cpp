@@ -325,7 +325,7 @@ namespace
                 context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
                     [modelId, thinking, models, autoFallback, tone, subject, from, body, transcript, masker]
-                    (const std::wstring& key) mutable {
+                    (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone,
