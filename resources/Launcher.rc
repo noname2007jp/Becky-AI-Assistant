@@ -118,8 +118,7 @@ BEGIN
     LTEXT           "堅め", -1, 300, 184, 45, 12
     LTEXT           "簡潔", -1, 405, 184, 45, 12, SS_RIGHT
     PUSHBUTTON      "文案を作成", IDC_NEWMAIL_GENERATE, 458, 158, 90, 26
-    LTEXT           "", IDC_NEWMAIL_STATUS, 12, 196, 438, 16
-    PUSHBUTTON      "キャンセル", IDC_NEWMAIL_CANCEL, 458, 193, 90, 22
+    LTEXT           "", IDC_NEWMAIL_STATUS, 12, 196, 536, 16
     LTEXT           "件名（編集可）", -1, 12, 222, 180, 12
     EDITTEXT        IDC_NEWMAIL_SUBJECT, 12, 238, 536, 24, ES_AUTOHSCROLL | WS_TABSTOP | WS_BORDER
     LTEXT           "本文（編集可）", -1, 12, 270, 180, 12
