@@ -239,17 +239,20 @@ bool LoadPiiMaskOptions(PiiMaskOptions& options, std::wstring& error)
     if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
         CRYPTPROTECT_UI_FORBIDDEN, &output))
     { error = L"マスキング対象設定を復号できません。"; return false; }
-    if (output.cbData != 9)
+    if (output.cbData != 9 && output.cbData != 10)
     {
         SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
         error = L"マスキング対象設定の形式が不正です。"; return false;
     }
     const BYTE* p = output.pbData;
-    options.email = p[0] != 0; options.phone = p[1] != 0;
-    options.postal = p[2] != 0; options.ip = p[3] != 0;
-    options.company = p[4] != 0; options.person = p[5] != 0;
-    options.address = p[6] != 0; options.account = p[7] != 0;
-    options.custom = p[8] != 0;
+    // Legacy 9-byte settings remain compatible; global masking defaults OFF.
+    options.enabled = output.cbData == 10 ? p[0] != 0 : false;
+    const size_t offset = output.cbData == 10 ? 1 : 0;
+    options.email = p[offset + 0] != 0; options.phone = p[offset + 1] != 0;
+    options.postal = p[offset + 2] != 0; options.ip = p[offset + 3] != 0;
+    options.company = p[offset + 4] != 0; options.person = p[offset + 5] != 0;
+    options.address = p[offset + 6] != 0; options.account = p[offset + 7] != 0;
+    options.custom = p[offset + 8] != 0;
     SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
     return true;
 }
@@ -257,12 +260,12 @@ bool LoadPiiMaskOptions(PiiMaskOptions& options, std::wstring& error)
 bool SavePiiMaskOptions(const PiiMaskOptions& options, std::wstring& error)
 {
     error.clear();
-    BYTE flags[9] = {
-        static_cast<BYTE>(options.email), static_cast<BYTE>(options.phone),
-        static_cast<BYTE>(options.postal), static_cast<BYTE>(options.ip),
-        static_cast<BYTE>(options.company), static_cast<BYTE>(options.person),
-        static_cast<BYTE>(options.address), static_cast<BYTE>(options.account),
-        static_cast<BYTE>(options.custom)
+    BYTE flags[10] = {
+        static_cast<BYTE>(options.enabled), static_cast<BYTE>(options.email),
+        static_cast<BYTE>(options.phone), static_cast<BYTE>(options.postal),
+        static_cast<BYTE>(options.ip), static_cast<BYTE>(options.company),
+        static_cast<BYTE>(options.person), static_cast<BYTE>(options.address),
+        static_cast<BYTE>(options.account), static_cast<BYTE>(options.custom)
     };
     DATA_BLOB input{ sizeof(flags), flags };
     DATA_BLOB encrypted{};
