@@ -42,7 +42,7 @@ BEGIN
     CONTROL         "", IDC_GEMINI_APIKEY_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD, 12, 51, 336, 16
     LTEXT           "キーはWindows DPAPIで暗号化して保存します。", -1, 12, 72, 336, 12
     CONTROL         "Gemini送信前にマスキングする（初期値OFF）", IDC_MASK_ENABLED, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 94, 336, 16
-    LTEXT           "マスキング対象（種類ごとに選択）", -1, 12, 134, 336, 12
+    LTEXT           "マスキング対象（種類ごとに選択）", -1, 12, 114, 336, 12
     CONTROL         "メールアドレス", IDC_MASK_EMAIL, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 130, 150, 16
     CONTROL         "電話番号", IDC_MASK_PHONE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 150, 150, 16
     CONTROL         "郵便番号", IDC_MASK_POSTAL, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 170, 150, 16
