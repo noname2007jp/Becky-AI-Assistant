@@ -135,7 +135,7 @@ namespace
             {
                 auto* context = reinterpret_cast<ConsultContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
-                if (!context || !context->mail) return TRUE;
+                if (!context || !context->mail || context->busy) return TRUE;
                 const std::wstring question = GetControlText(dialog, IDC_AI_CONSULT_QUESTION);
                 if (question.empty())
                 {
@@ -236,7 +236,7 @@ namespace
             {
                 auto* context = reinterpret_cast<ConsultContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
-                if (!context || !context->mail) return TRUE;
+                if (!context || !context->mail || context->busy) return TRUE;
                 if (context->transcript.empty())
                 {
                     MessageBoxW(dialog, L"先にAIへの相談と回答を行ってください。", L"返信文案の作成", MB_OK | MB_ICONINFORMATION);
