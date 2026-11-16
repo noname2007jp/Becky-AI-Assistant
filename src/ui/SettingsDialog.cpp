@@ -3,27 +3,67 @@
 #include "ProgressIndicator.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiConnection.h"
+#include "gemini/GeminiModels.h"
 
 #include <string>
 #include <vector>
-#include <utility>
+#include <utility>\n#include <memory>
 #include <commctrl.h>
 #include <shellapi.h>
 
 namespace
 {
-constexpr UINT WM_GEMINI_TEST_FINISHED = WM_APP + 41;
+constexpr UINT WM_GEMINI_TEST_FINISHED = WM_APP + 41;\nconstexpr UINT WM_MODEL_UPDATE_FINISHED = WM_APP + 42;
 
 struct SettingsState
 {
     bool testRunning = false;
-    bool apiKeyVisible = false;
+    bool apiKeyVisible = false;\n    bool modelUpdateRunning = false;
 };
 
 struct TestResult
 {
     GeminiConnectionResult result;
 };
+struct ModelUpdateResult
+{
+    bool success = false;
+    std::wstring message;
+    std::vector<GeminiModelOption> models;
+};
+
+struct ModelUpdateArgs
+{
+    HWND dialog;
+    bool includePaid;
+};
+
+DWORD WINAPI ModelUpdateThread(void* parameter)
+{
+    std::unique_ptr<ModelUpdateArgs> args(static_cast<ModelUpdateArgs*>(parameter));
+    auto* result = new ModelUpdateResult{};
+    std::wstring key, error;
+    if (!LoadGeminiApiKey(key, error) || key.empty())
+    {
+        result->message = error.empty() ? L"先にGemini APIキーを保存してください。" : error;
+    }
+    else
+    {
+        result->success = FetchGeminiModelCatalog(key, args->includePaid, result->models, error);
+        SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
+        if (result->success)
+        {
+            if (!SaveGeminiModelCatalog(result->models, error))
+                result->success = false;
+        }
+        result->message = result->success
+            ? L"モデル一覧を更新しました（" + std::to_wstring(result->models.size()) + L"件）。"
+            : error;
+    }
+    if (!PostMessageW(args->dialog, WM_MODEL_UPDATE_FINISHED, 0, reinterpret_cast<LPARAM>(result)))
+        delete result;
+    return 0;
+}
 
 DWORD WINAPI GeminiTestThread(void* parameter)
 {
@@ -88,6 +128,12 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             CheckDlgButton(dialog, IDC_MASK_CUSTOM, maskOptions.custom ? BST_CHECKED : BST_UNCHECKED);
         }
         else SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, optionsError.c_str());
+        CheckDlgButton(dialog, IDC_SETTINGS_INCLUDE_PAID, BST_UNCHECKED);
+        std::vector<GeminiModelOption> cachedModels;
+        std::wstring modelError;
+        if (LoadGeminiModelCatalog(cachedModels, modelError))
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
+                (L"利用モデル：" + std::to_wstring(cachedModels.size()) + L"件").c_str());
         return TRUE;
     }
 
@@ -104,6 +150,23 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             return TRUE;
         }
         break;
+    }
+
+    case WM_MODEL_UPDATE_FINISHED:
+    {
+        auto* state = reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER));
+        auto* result = reinterpret_cast<ModelUpdateResult*>(lParam);
+        if (result)
+        {
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, result->message.c_str());
+            delete result;
+        }
+        if (state) state->modelUpdateRunning = false;
+        EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDCANCEL), TRUE);
+        return TRUE;
     }
 
     case WM_GEMINI_TEST_FINISHED:
@@ -198,11 +261,38 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             return TRUE;
         }
 
+        case IDC_SETTINGS_UPDATE_MODELS:
+        {
+            auto* state = reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER));
+            if (!state || state->modelUpdateRunning || state->testRunning) return TRUE;
+            state->modelUpdateRunning = true;
+            const bool includePaid = IsDlgButtonChecked(dialog, IDC_SETTINGS_INCLUDE_PAID) == BST_CHECKED;
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"Googleからモデル一覧を取得しています...");
+            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), FALSE);\n            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDCANCEL), FALSE);
+            auto* args = new ModelUpdateArgs{ dialog, includePaid };
+            HANDLE thread = CreateThread(nullptr, 0, ModelUpdateThread, args, 0, nullptr);
+            if (!thread)
+            {
+                delete args;
+                state->modelUpdateRunning = false;
+                EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_UPDATE_MODELS), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_TEST), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDCANCEL), TRUE);
+                SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"モデル一覧の更新を開始できませんでした。");
+            }
+            else CloseHandle(thread);
+            return TRUE;
+        }
+
         case IDC_SETTINGS_TEST:
         {
             auto* state = reinterpret_cast<SettingsState*>(
                 GetWindowLongPtrW(dialog, DWLP_USER));
-            if (state == nullptr || state->testRunning) return TRUE;
+            if (state == nullptr || state->testRunning || state->modelUpdateRunning) return TRUE;
 
             state->testRunning = true;
             ShowApiProcessingStatus(dialog, IDC_SETTINGS_STATUS,
@@ -233,7 +323,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         {
             auto* state = reinterpret_cast<SettingsState*>(
                 GetWindowLongPtrW(dialog, DWLP_USER));
-            if (state != nullptr && state->testRunning) return TRUE;
+            if (state != nullptr && (state->testRunning || state->modelUpdateRunning)) return TRUE;
             EndDialog(dialog, LOWORD(wParam));
             return TRUE;
         }
@@ -244,7 +334,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
     {
         auto* state = reinterpret_cast<SettingsState*>(
             GetWindowLongPtrW(dialog, DWLP_USER));
-        if (state != nullptr && state->testRunning) return TRUE;
+        if (state != nullptr && (state->testRunning || state->modelUpdateRunning)) return TRUE;
         EndDialog(dialog, IDCANCEL);
         return TRUE;
     }
