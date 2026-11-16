@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.29.0）
+## 現在の機能（0.31.0）
 
 - 対象: Win32 (x86)、Visual Studio 2022、C++17、MBCS
 - メール一覧・本文表示の右クリックメニューから起動
@@ -23,6 +23,7 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 - 追加登録語句も個別にON/OFF可能。会社名・氏名・部署名などを1行に1件ずつ登録
 - 追加登録語句とマスキング種類の設定はWindows DPAPIで暗号化して保存
 - 要約・返信・相談・新規メール作成の実行前に、マスキング後の送信対象情報をプレビュー表示
+- プレビュー上でマウス選択した語句を手動マスキングでき、同じ語句が送信内容内に複数ある場合はすべてマスク
 - プレビューで「この内容で送信」を選んだ場合だけGemini APIへ送信
 - Geminiから返った文案は、表示前にローカルで元の語句へ戻す
 - マスキング設定を復号できない場合は、外部送信を中止
@@ -35,8 +36,9 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 
 - `generateContent` 対応のGemini/Gemmaテキスト生成モデルを抽出
 - 音声・画像生成・埋め込み・Live・動画などの専用モデルは除外
-- 「有料モデルも含める」をOFFにすると、Googleの料金表に基づく無料枠対象モデルの既知リストだけを表示
+- 「有料モデルも含める」をOFFにすると、Google公式料金ページのStandard表にあるInput priceのFree Tier列で無料と確認できたモデルだけを表示
 - ONにすると、APIキーのモデル一覧に返された他のテキスト生成モデルも含める。料金区分が未分類のモデルはラベルで明示
+- 料金ページはMarkdown形式を優先して取得し、StandardのInput price行を解析
 - 更新結果は `%APPDATA%\\Becky-AI-Assistant\\models-catalog.txt` に保存
 - 要約・返信・相談・新規メール作成は、同じ保存済みモデル一覧を使用
 
@@ -67,4 +69,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-29.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-31.dll`
