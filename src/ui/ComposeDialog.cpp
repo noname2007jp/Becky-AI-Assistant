@@ -203,7 +203,7 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
                 (const std::wstring& workerKey) mutable {
                     return GenerateNewMailDraft(workerKey, modelId, thinking,
                         toneInstruction, purpose, requirements, &masker);
-                });
+                }, 0, &c->work);
             if (!started) {
                 c->busy = false;
                 c->work = nullptr;
