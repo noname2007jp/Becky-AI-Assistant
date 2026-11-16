@@ -81,7 +81,7 @@ void LogGeminiRequest(const std::wstring& operation, const std::wstring& modelId
     {
         entry += "----- REQUEST PAYLOAD (MASKING ENABLED) BEGIN -----\r\n";
         entry += payload;
-        entry += "\r\n----- MASKED REQUEST PAYLOAD END -----\r\n";
+        entry += "\r\n----- REQUEST PAYLOAD END -----\r\n";
     }
     else entry += "payload_omitted=masking_disabled\r\n";
     Append(entry);
