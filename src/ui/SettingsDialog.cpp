@@ -122,6 +122,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         std::wstring optionsError;
         if (LoadPiiMaskOptions(maskOptions, optionsError))
         {
+            CheckDlgButton(dialog, IDC_MASK_ENABLED, maskOptions.enabled ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(dialog, IDC_MASK_EMAIL, maskOptions.email ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(dialog, IDC_MASK_PHONE, maskOptions.phone ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(dialog, IDC_MASK_POSTAL, maskOptions.postal ? BST_CHECKED : BST_UNCHECKED);
@@ -259,6 +260,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             }
             const bool termsSaved = SavePiiMaskTerms(terms, error);
             PiiMaskOptions maskOptions;
+            maskOptions.enabled = IsDlgButtonChecked(dialog, IDC_MASK_ENABLED) == BST_CHECKED;
             maskOptions.email = IsDlgButtonChecked(dialog, IDC_MASK_EMAIL) == BST_CHECKED;
             maskOptions.phone = IsDlgButtonChecked(dialog, IDC_MASK_PHONE) == BST_CHECKED;
             maskOptions.postal = IsDlgButtonChecked(dialog, IDC_MASK_POSTAL) == BST_CHECKED;
