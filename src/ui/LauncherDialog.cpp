@@ -247,7 +247,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
                 const auto& model = kModels[selected];
                 GeminiGenerateResult result = GenerateMailReplyDraft(
-                    apiKey, model.modelId, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body, L\"\", &masker);
+                    apiKey, model.modelId, model.thinking, GetReplyToneInstruction(static_cast<int>(toneSelected)), mail.subject, mail.from, mail.body, L"", &masker);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
