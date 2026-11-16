@@ -205,8 +205,8 @@ std::wstring ToWide(const std::string& bytes, const std::string& charset)
 
 void AppendHtmlLineBreak(std::string& out)
 {
-    while (!out.empty() && (out.back() == ' ' || out.back() == '\\t')) out.pop_back();
-    if (!out.empty() && out.back() != '\\r' && out.back() != '\\n') out += "\\r\\n";
+    while (!out.empty() && (out.back() == ' ' || out.back() == '\t')) out.pop_back();
+    if (!out.empty() && out.back() != '\r' && out.back() != '\n') out += "\r\n";
 }
 
 void StripHtml(std::string& text)
@@ -222,7 +222,7 @@ void StripHtml(std::string& text)
             std::string tag = Lower(Trim(text.substr(i + 1, end - i - 1)));
             const bool closing = !tag.empty() && tag[0] == '/';
             if (closing) tag.erase(tag.begin());
-            const size_t nameEnd = tag.find_first_of(" \\t/\\r\\n");
+            const size_t nameEnd = tag.find_first_of(" \t/\r\n");
             if (nameEnd != std::string::npos) tag.resize(nameEnd);
             if (tag == "br" || tag == "hr" || (closing &&
                 (tag == "p" || tag == "div" || tag == "li" || tag == "tr" ||
@@ -236,7 +236,7 @@ void StripHtml(std::string& text)
             }
             else if (!closing && (tag == "td" || tag == "th"))
             {
-                if (!out.empty() && out.back() != ' ' && out.back() != '\\n') out += " ";
+                if (!out.empty() && out.back() != ' ' && out.back() != '\n') out += " ";
             }
             i = end + 1;
             continue;
@@ -334,7 +334,12 @@ bool ExtractPart(std::string_view raw, std::wstring& result, bool& htmlFound, st
             else if (pos < part.body.size() && part.body[pos] == '\n') ++pos;
             size_t next = part.body.find(marker, pos);
             if (next == std::string::npos) break;
-            std::string_view child(part.body.data() + pos, next - pos);
+            size_t childEnd = next;
+            if (childEnd >= pos + 2 && part.body.compare(childEnd - 2, 2, "\r\n") == 0)
+                childEnd -= 2;
+            else if (childEnd > pos && part.body[childEnd - 1] == '\n')
+                --childEnd;
+            std::string_view child(part.body.data() + pos, childEnd - pos);
             std::wstring childResult;
             if (ExtractPart(child, childResult, htmlFound, htmlCandidate, depth + 1))
             {
