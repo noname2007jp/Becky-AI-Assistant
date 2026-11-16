@@ -55,7 +55,7 @@ BEGIN
     EDITTEXT        IDC_SETTINGS_MASK_TERMS, 12, 228, 336, 68, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL | WS_TABSTOP | WS_BORDER
     LTEXT           "氏名・会社名などは自動検出できない場合があります。", -1, 12, 300, 336, 12
     CONTROL         "有料モデル・料金未確認モデルも含める", IDC_SETTINGS_INCLUDE_PAID, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 322, 336, 16
-    CONTROL         "<a href=\"https://aistudio.google.com/docs/pricing\">Google公式料金ページを開く</a>", IDC_SETTINGS_PRICING_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD, 12, 342, 336, 16
+    CONTROL         "", IDC_SETTINGS_PRICING_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD, 12, 342, 336, 16
     PUSHBUTTON      "APIモデルを更新", IDC_SETTINGS_UPDATE_MODELS, 12, 362, 104, 22
     LTEXT           "", IDC_SETTINGS_STATUS, 124, 366, 224, 18
     PUSHBUTTON      "接続テスト", IDC_SETTINGS_TEST, 12, 394, 85, 20
