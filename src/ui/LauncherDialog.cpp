@@ -8,6 +8,7 @@
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
 #include "gemini/GeminiReply.h"
+#include "gemini/GeminiModels.h"
 #include <utility>
 #include <commctrl.h>
 
@@ -15,37 +16,6 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
 
 namespace
 {
-    struct ModelOption
-    {
-        const wchar_t* label;
-        const wchar_t* modelId;
-        const wchar_t* thinking;
-    };
-
-    const ModelOption kModels[] = {
-        { L"Gemini 3.8 Flash (Thinking High)", L"gemini-3.8-flash", L"HIGH" },
-        { L"Gemini 3.8 Flash (Thinking Medium)", L"gemini-3.8-flash", L"MEDIUM" },
-        { L"Gemini 3.8 Flash (Thinking Low)", L"gemini-3.8-flash", L"LOW" },
-        { L"Gemini 3.6 Flash (Thinking High)", L"gemini-3.6-flash", L"HIGH" },
-        { L"Gemini 3.6 Flash (Thinking Medium)", L"gemini-3.6-flash", L"MEDIUM" },
-        { L"Gemini 3.6 Flash (Thinking Low)", L"gemini-3.6-flash", L"LOW" },
-        { L"Gemini 3.6 Flash (Thinking Minimal)", L"gemini-3.6-flash", L"MINIMAL" },
-        { L"Gemini 3.5 Flash-Lite (Thinking High)", L"gemini-3.5-flash-lite", L"HIGH" },
-        { L"Gemini 3.5 Flash-Lite (Thinking Medium)", L"gemini-3.5-flash-lite", L"MEDIUM" },
-        { L"Gemini 3.5 Flash-Lite (Thinking Low)", L"gemini-3.5-flash-lite", L"LOW" },
-        { L"Gemini 3.5 Flash-Lite (Thinking Minimal)", L"gemini-3.5-flash-lite", L"MINIMAL" },
-        { L"Gemini 2.5 Pro (Thinking On)", L"gemini-2.5-pro", L"ON" },
-        { L"Gemini 2.5 Flash (Thinking On)", L"gemini-2.5-flash", L"ON" },
-        { L"Gemini 2.5 Flash (Thinking Off)", L"gemini-2.5-flash", L"OFF" },
-        { L"Gemini 2.5 Flash-Lite (Thinking On)", L"gemini-2.5-flash-lite", L"ON" },
-        { L"Gemini 2.5 Flash-Lite (Thinking Off)", L"gemini-2.5-flash-lite", L"OFF" },
-        { L"Gemini 3.1 Pro Preview (Thinking High)", L"gemini-3.1-pro-preview", L"HIGH" },
-        { L"Gemini 3.1 Pro Preview (Thinking Medium)", L"gemini-3.1-pro-preview", L"MEDIUM" },
-        { L"Gemini 3.1 Pro Preview (Thinking Low)", L"gemini-3.1-pro-preview", L"LOW" },
-        { L"Gemma 4 31B (Thinking High)", L"gemma-4-31b-it", L"" },
-        { L"Gemma 4 31B (Thinking Minimal)", L"gemma-4-31b-it", L"" }
-    };
-
     const wchar_t* ReplyToneLabel(int level)
     {
         static const wchar_t* labels[] = {
@@ -99,15 +69,23 @@ namespace
     {
         MailContext* mail;
         HINSTANCE instance;
+        std::vector<GeminiModelOption> models;
     };
 
-    void InitializeModelCombo(HWND dialog)
+    void InitializeModelCombo(HWND dialog, DialogContext* context)
     {
+        if (!context) return;
+        std::wstring error;
+        if (!LoadGeminiModelCatalog(context->models, error) || context->models.empty())
+            context->models = DefaultGeminiModels();
         HWND combo = GetDlgItem(dialog, IDC_GEMINI_MODEL);
-        for (const auto& model : kModels)
-            SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(model.label));
-        // Default to the model that the user has confirmed works in the other system.
-        SendMessageW(combo, CB_SETCURSEL, 8, 0);
+        int defaultIndex = 0;
+        for (size_t i = 0; i < context->models.size(); ++i)
+        {
+            SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(context->models[i].label.c_str()));
+            if (context->models[i].id == L"gemini-3.8-flash") defaultIndex = static_cast<int>(i);
+        }
+        SendMessageW(combo, CB_SETCURSEL, defaultIndex, 0);
     }
 
     INT_PTR CALLBACK LauncherDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
@@ -118,7 +96,7 @@ namespace
         {
             auto* context = reinterpret_cast<DialogContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
-            InitializeModelCombo(dialog);
+            InitializeModelCombo(dialog, context);
             InitializeReplyToneTrackbar(dialog);
             const auto* mail = context ? context->mail : nullptr;
             if (mail != nullptr)
@@ -163,7 +141,7 @@ namespace
                     L"要約：Gemini送信内容の確認", maskedPreview)) return TRUE;
 
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
-                if (selected < 0 || selected >= static_cast<LRESULT>(_countof(kModels)))
+                if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
                 {
                     MessageBoxW(dialog, L"Geminiモデルを選択してください。",
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
@@ -183,9 +161,9 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
-                const auto& model = kModels[selected];
+                const auto& model = context->models[static_cast<size_t>(selected)];
                 GeminiGenerateResult result = GenerateMailSummary(
-                    apiKey, model.modelId, model.thinking, mail.subject, mail.from, mail.body, &masker);
+                    apiKey, model.id, model.thinking, mail.subject, mail.from, mail.body, &masker);
                 if (!apiKey.empty()) SecureZeroMemory(apiKey.data(), apiKey.size() * sizeof(wchar_t));
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
@@ -316,7 +294,7 @@ INT_PTR ShowLauncherDialog(HWND owner, HINSTANCE instance, MailContext& mail)
 {
     INITCOMMONCONTROLSEX controls{ sizeof(controls), ICC_BAR_CLASSES };
     InitCommonControlsEx(&controls);
-    DialogContext context{ &mail, instance };
+    DialogContext context{ &mail, instance, {} };
     return DialogBoxParamW(
         instance,
         MAKEINTRESOURCEW(IDD_AI_LAUNCHER),
