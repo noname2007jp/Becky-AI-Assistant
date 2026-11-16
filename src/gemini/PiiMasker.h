@@ -2,7 +2,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <vector>
+#include "settings/ApiKeyStore.h"
 
 class PiiMasker
 {
@@ -18,6 +18,7 @@ private:
     unsigned int nextId_ = 1;
     std::vector<std::wstring> customTerms_;
     std::wstring error_;
+    PiiMaskOptions options_;
     std::wstring AddReplacement(const std::wstring& value, const wchar_t* label);
     std::wstring ApplyPattern(const std::wstring& value, const std::wstring& pattern,
                               const wchar_t* label);
