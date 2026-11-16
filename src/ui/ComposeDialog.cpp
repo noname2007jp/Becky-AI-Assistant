@@ -248,7 +248,11 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
             EndDialog(dlg, LOWORD(wp)); return TRUE;
         }
     }
-    if (msg == WM_CLOSE) {\n        auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));\n        if (c && c->busy) return TRUE;\n        EndDialog(dlg, IDCANCEL); return TRUE;\n    }
+    if (msg == WM_CLOSE) {
+        auto* c = reinterpret_cast<Context*>(GetWindowLongPtrW(dlg, DWLP_USER));
+        if (c && c->busy) return TRUE;
+        EndDialog(dlg, IDCANCEL); return TRUE;
+    }
     return FALSE;
 }
 }
