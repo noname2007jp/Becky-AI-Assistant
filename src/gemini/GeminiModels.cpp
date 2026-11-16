@@ -318,9 +318,9 @@ std::vector<GeminiModelOption> DefaultGeminiModels()
 {
     // Before the first pricing refresh, expose only conservative defaults as unclassified.
     return {
+        { L"Gemini 3.5 Flash-Lite（料金未確認）", L"gemini-3.5-flash-lite", L"MEDIUM", false, false },
         { L"Gemini 3.8 Flash（料金未確認）", L"gemini-3.8-flash", L"MEDIUM", false, false },
-        { L"Gemini 3.6 Flash（料金未確認）", L"gemini-3.6-flash", L"MEDIUM", false, false },
-        { L"Gemini 3.5 Flash-Lite（料金未確認）", L"gemini-3.5-flash-lite", L"MEDIUM", false, false }
+        { L"Gemini 3.6 Flash（料金未確認）", L"gemini-3.6-flash", L"MEDIUM", false, false }
     };
 }
 
