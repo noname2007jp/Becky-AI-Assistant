@@ -2,7 +2,7 @@ name: Build Becky AI Assistant (Win32)
 
 on:
   push:
-    branches: [main, feature/v0.37-pii-mask-tests]
+    branches: [main, feature/v0.38-model-fallback]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
       - name: Package plugin
         shell: pwsh
         run: |
-          $dll = "build/Release/Becky-AI-Assistant-37.dll"
+          $dll = "build/Release/Becky-AI-Assistant-38.dll"
           if (!(Test-Path $dll)) {
             throw "Expected plugin DLL was not produced: $dll"
           }
