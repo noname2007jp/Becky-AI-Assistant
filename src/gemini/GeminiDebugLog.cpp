@@ -68,7 +68,7 @@ std::string Header(const char* event, const std::wstring& operation, const std::
 }
 }
 void LogGeminiRequest(const std::wstring& operation, const std::wstring& modelId,
-    bool maskingEnabled, size_t maskedTermCount, const std::string& payload)
+    bool maskingEnabled, std::size_t maskedTermCount, const std::string& payload)
 {
     GeminiReliabilityOptions options;
     std::wstring error;
