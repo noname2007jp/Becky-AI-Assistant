@@ -22,3 +22,11 @@ struct PiiMaskOptions
 };
 bool LoadPiiMaskOptions(PiiMaskOptions& options, std::wstring& error);
 bool SavePiiMaskOptions(const PiiMaskOptions& options, std::wstring& error);
+
+
+struct GeminiReliabilityOptions
+{
+    bool automaticModelFallback = true;
+};
+bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstring& error);
+bool SaveGeminiReliabilityOptions(const GeminiReliabilityOptions& options, std::wstring& error);
