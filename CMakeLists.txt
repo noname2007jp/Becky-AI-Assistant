@@ -14,6 +14,7 @@ add_library(BeckyAIAssistant SHARED
   src/mail/MimeTextExtractor.cpp
   src/settings/ApiKeyStore.cpp
   src/gemini/GeminiConnection.cpp
+  src/gemini/GeminiModels.cpp
   src/gemini/GeminiGenerate.cpp
   src/gemini/GeminiReply.cpp
   src/gemini/GeminiCompose.cpp
