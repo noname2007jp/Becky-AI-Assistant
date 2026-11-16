@@ -338,8 +338,9 @@ bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstrin
 bool SaveGeminiReliabilityOptions(const GeminiReliabilityOptions& options, std::wstring& error)
 {
     error.clear();
-    BYTE value = static_cast<BYTE>(options.automaticModelFallback);
-    DATA_BLOB input{ 1, &value };
+    BYTE values[2] = { static_cast<BYTE>(options.automaticModelFallback),
+        static_cast<BYTE>(options.debugLogging) };
+    DATA_BLOB input{ sizeof(values), values };
     DATA_BLOB encrypted{};
     if (!CryptProtectData(&input, L"Becky AI Assistant reliability options",
         nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &encrypted))
