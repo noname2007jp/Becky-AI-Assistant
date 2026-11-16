@@ -89,6 +89,16 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
     return output;
 }
 
+bool PiiMasker::MaskSelected(std::wstring& preview, size_t start, size_t length)
+{
+    if (length == 0 || start > preview.size() || length > preview.size() - start) return false;
+    const std::wstring selected = preview.substr(start, length);
+    if (selected.empty() || selected.find(L"[MANUAL_") != std::wstring::npos) return false;
+    const std::wstring token = AddReplacement(selected, L"MANUAL");
+    preview.replace(start, length, token);
+    return true;
+}
+
 std::wstring PiiMasker::Restore(const std::wstring& value) const
 {
     std::wstring output = value;
