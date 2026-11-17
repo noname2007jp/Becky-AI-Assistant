@@ -199,7 +199,7 @@ namespace
                 {
                     previewRaw = MailPromptContent::BuildEmailContext(
                         context->mail->subject, context->mail->body) +
-                        L"\\r\\n\\r\\n【質問】\\r\\n" + question;
+                        L"\r\n\r\n【質問】\r\n" + question;
                 }
                 else
                 {
