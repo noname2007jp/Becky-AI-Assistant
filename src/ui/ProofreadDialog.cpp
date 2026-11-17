@@ -46,9 +46,9 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             MessageBoxW(d,L"校正する本文がありません。メール本文を入力してから実行してください。",L"メール校正",MB_OK|MB_ICONINFORMATION);
             EndDialog(d,IDCANCEL); return TRUE;
         }
-        SetDlgItemTextW(d,IDC_PROOFREAD_ORIGINAL,c->original.c_str());
         SendDlgItemMessageW(d,IDC_PROOFREAD_ORIGINAL,EM_SETLIMITTEXT,100000,0);
         SendDlgItemMessageW(d,IDC_PROOFREAD_RESULT,EM_SETLIMITTEXT,100000,0);
+        SetDlgItemTextW(d,IDC_PROOFREAD_ORIGINAL,c->original.c_str());
         std::wstring err;
         if(!LoadGeminiModelCatalog(c->models,err)||c->models.empty())c->models=DefaultGeminiModels();
         int def=0;
