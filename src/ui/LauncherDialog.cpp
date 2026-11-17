@@ -7,6 +7,7 @@
 #include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
+#include "mail/MailPromptContent.h"
 #include "gemini/GeminiAsync.h"
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiModels.h"
