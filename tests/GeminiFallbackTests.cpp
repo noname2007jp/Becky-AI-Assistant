@@ -1,4 +1,5 @@
 #include "gemini/GeminiFallback.h"
+#include "gemini/GeminiError.h"
 #include <iostream>
 #include <string>
 #include <vector>
