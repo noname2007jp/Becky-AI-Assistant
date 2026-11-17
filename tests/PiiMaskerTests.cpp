@@ -111,6 +111,24 @@ int main()
     }
 
     {
+        PiiMasker masker(AllEnabled(), {});
+        const std::wstring content =
+            L"Subject: test\\nFrom: person@example.com\\nBody: confidential text";
+        std::wstring preview = masker.Mask(content);
+        Check(masker.MaskSelected(preview, 0, preview.size()),
+            "manual mask can select the complete email content preview");
+        const std::wstring fullPrompt = L"Reply instructions\\n\\n" + content;
+        const std::wstring request = masker.Mask(fullPrompt);
+        Check(request.find(L"Reply instructions") == 0 &&
+              request.find(L"Subject:") == std::wstring::npos &&
+              request.find(L"confidential text") == std::wstring::npos &&
+              request.find(L"[MANUAL_") != std::wstring::npos,
+            "masking all email content preserves instructions but hides the full email");
+        Check(masker.Restore(request) == fullPrompt,
+            "masked email content can be restored after generation");
+    }
+
+    {
         PiiMaskOptions options = AllEnabled();
         options.email = false;
         PiiMasker masker(options, {});
