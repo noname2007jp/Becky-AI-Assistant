@@ -136,7 +136,7 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
     if(m==WM_HSCROLL) {
         if (reinterpret_cast<HWND>(l) == GetDlgItem(d, IDC_PROOFREAD_LEVEL))
             UpdateProofreadLevelDisplay(d);
-        return TRUE;
+        return reinterpret_cast<HWND>(l) == GetDlgItem(d, IDC_PROOFREAD_LEVEL);
     }
     if(m==WM_COMMAND) {
         switch(LOWORD(w)){
