@@ -26,7 +26,9 @@ inline bool IsSignatureSeparator(const std::wstring& raw)
 {
     const std::wstring line = TrimLine(raw);
     if (IsForwardOrQuoteSeparator(line)) return false;
-    if (line == L"--" || line == L"-- ") return true;
+    // RFC 5322 separator includes a required trailing space; do not treat an
+    // arbitrary two-hyphen line as a signature boundary.
+    if (raw == L"-- ") return true;
     if (line.size() < 5) return false;
     for (wchar_t c : line)
         if (c != L'-' && c != L'_' && c != L'=' && c != L'*' &&
@@ -61,6 +63,20 @@ inline std::wstring RemoveObviousSignature(const std::wstring& body)
     {
         if (IsSignatureSeparator(lines[i]))
         {
+            // Decorative rules are common in ordinary messages. Only remove one
+            // when the following tail contains clear signature/contact information.
+            const bool rfcDelimiter = lines[i] == L"-- ";
+            bool signatureEvidence = false;
+            for (size_t j = i + 1; j < lines.size() && j <= i + 10; ++j)
+            {
+                const std::wstring tailLine = TrimLine(lines[j]);
+                if (ContainsAny(tailLine, {L"株式会社", L"有限会社", L"合同会社", L"（株）", L"(株)",
+                    L"営業部", L"総務部", L"開発部", L"サポート部", L"TEL", L"Tel", L"電話",
+                    L"FAX", L"Fax", L"携帯", L"Email", L"E-mail", L"〒", L"住所", L"所在地",
+                    L"http://", L"https://", L"www."}) || tailLine.find(L'@') != std::wstring::npos)
+                { signatureEvidence = true; break; }
+            }
+            if (!rfcDelimiter && !signatureEvidence) continue;
             std::wstring result;
             for (size_t j = 0; j < i; ++j) { if (j) result += L"\n"; result += lines[j]; }
             while (!result.empty() && (result.back() == L'\r' || result.back() == L'\n' ||
