@@ -87,7 +87,11 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         }
 
         if (!attempted.empty()) attempted += L"、";
-        attempted += fallback.label + L"（HTTP " + std::to_wstring(alternate.httpStatus) + L"）";
+        attempted += fallback.label;
+        if (alternate.httpStatus == 200)
+            attempted += L"（応答内容の検証に失敗）";
+        else
+            attempted += L"（HTTP " + std::to_wstring(alternate.httpStatus) + L"）";
 
         // 404 means this project cannot call that model even if models.list exposed it.
         // Transient failures can also justify trying the next free-tier candidate.
