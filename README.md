@@ -2,7 +2,9 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.53.0）
+## 現在の機能（0.54.0）
+
+- メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
 
 - 対象: Win32 (x86)、Visual Studio 2022、C++17、MBCS
@@ -115,4 +117,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-53.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-54.dll`

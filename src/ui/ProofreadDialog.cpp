@@ -9,6 +9,7 @@
 #include "gemini/GeminiFallback.h"
 #include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
+#include <commctrl.h>
 #include <string>
 #include <vector>
 
@@ -47,10 +48,30 @@ std::string ToAnsi(const std::wstring& s) {
     int n=WideCharToMultiByte(CP_ACP,0,s.c_str(),-1,nullptr,0,nullptr,nullptr); if(n<=1)return {};
     std::string a((size_t)n,'\0'); WideCharToMultiByte(CP_ACP,0,s.c_str(),-1,a.data(),n,nullptr,nullptr); a.resize((size_t)n-1); return a;
 }
+void UpdateProofreadLevelDisplay(HWND d) {
+    static const wchar_t* labels[] = {
+        L"誤字・文法のみ", L"最小限", L"控えめ", L"自然に整える", L"標準",
+        L"丁寧に整える", L"柔らかく", L"明瞭に改善", L"積極的に改善", L"洗練"
+    };
+    int level = static_cast<int>(SendDlgItemMessageW(d, IDC_PROOFREAD_LEVEL, TBM_GETPOS, 0, 0));
+    if (level < 1) level = 1;
+    if (level > 10) level = 10;
+    wchar_t text[128] = {};
+    wsprintfW(text, L"%d/10  %s", level, labels[level - 1]);
+    SetDlgItemTextW(d, IDC_PROOFREAD_LEVEL_LABEL, text);
+}
+void InitializeProofreadLevel(HWND d) {
+    HWND slider = GetDlgItem(d, IDC_PROOFREAD_LEVEL);
+    SendMessageW(slider, TBM_SETRANGE, TRUE, MAKELONG(1, 10));
+    SendMessageW(slider, TBM_SETTICFREQ, 1, 0);
+    SendMessageW(slider, TBM_SETPOS, TRUE, 5);
+    UpdateProofreadLevelDisplay(d);
+}
 void SetBusy(HWND d, bool busy) {
     EnableWindow(GetDlgItem(d,IDC_PROOFREAD_RUN),!busy);
     EnableWindow(GetDlgItem(d,IDC_PROOFREAD_MODEL),!busy);
     EnableWindow(GetDlgItem(d,IDC_PROOFREAD_MASK),!busy);
+    EnableWindow(GetDlgItem(d,IDC_PROOFREAD_LEVEL),!busy);
     EnableWindow(GetDlgItem(d,IDC_PROOFREAD_APPLY),!busy);
     ShowWindow(GetDlgItem(d,IDC_PROOFREAD_CANCEL_REQUEST),busy?SW_SHOW:SW_HIDE);
 }
@@ -66,6 +87,7 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
         SendDlgItemMessageW(d,IDC_PROOFREAD_ORIGINAL,EM_SETLIMITTEXT,100000,0);
         SendDlgItemMessageW(d,IDC_PROOFREAD_RESULT,EM_SETLIMITTEXT,100000,0);
         SetDlgItemTextW(d,IDC_PROOFREAD_ORIGINAL,c->original.c_str());
+        InitializeProofreadLevel(d);
         std::wstring err;
         if(!LoadGeminiModelCatalog(c->models,err)||c->models.empty())c->models=DefaultGeminiModels();
         GeminiReliabilityOptions reliability; std::wstring settingsError;
@@ -111,6 +133,11 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
         }
         GeminiAsync::Destroy(work);return TRUE;
     }
+    if(m==WM_HSCROLL) {
+        if (reinterpret_cast<HWND>(l) == GetDlgItem(d, IDC_PROOFREAD_LEVEL))
+            UpdateProofreadLevelDisplay(d);
+        return reinterpret_cast<HWND>(l) == GetDlgItem(d, IDC_PROOFREAD_LEVEL);
+    }
     if(m==WM_COMMAND) {
         switch(LOWORD(w)){
         case IDC_PROOFREAD_RUN:{
@@ -134,11 +161,12 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             GeminiReliabilityOptions rel;std::wstring relError;
             if(!LoadGeminiReliabilityOptions(rel,relError)){MessageBoxW(d,relError.c_str(),L"設定エラー",MB_OK|MB_ICONWARNING);return TRUE;}
             auto model=c->models[(size_t)ix];auto models=c->models;bool fallback=rel.automaticModelFallback;auto original=source;
+            const int proofreadLevel = static_cast<int>(SendDlgItemMessageW(d, IDC_PROOFREAD_LEVEL, TBM_GETPOS, 0, 0));
             c->busy=true;SetBusy(d,true);ShowApiProcessingStatus(d,IDC_PROOFREAD_STATUS,L"Geminiでメール本文を校正しています...");
             bool started=GeminiAsync::Start(d,std::move(key),
-                [model,models,fallback,original,masker](const std::wstring& k,const std::atomic<int>& cancel) mutable {
+                [model,models,fallback,original,masker,proofreadLevel](const std::wstring& k,const std::atomic<int>& cancel) mutable {
                     return GenerateWithModelFallback(model.id,model.thinking,models,fallback,
-                        [&](const std::wstring& id,const std::wstring& thinking){return GenerateEmailProofread(k,id,thinking,original,&masker);},&cancel);
+                        [&](const std::wstring& id,const std::wstring& thinking){return GenerateEmailProofread(k,id,thinking,original,proofreadLevel,&masker);},&cancel);
                 },0,&c->work);
             if(!started){c->busy=false;c->work=nullptr;SetBusy(d,false);SetDlgItemTextW(d,IDC_PROOFREAD_STATUS,L"バックグラウンド処理を開始できませんでした。");}
             return TRUE;
