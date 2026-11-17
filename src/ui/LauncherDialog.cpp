@@ -344,7 +344,7 @@ namespace
                     return TRUE;
                 }
                 const bool autoFallback = reliability.automaticModelFallback;
-                const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
+                const std::wstring subject = mail.subject, body = mail.body;
                 context->busy = true;
                 ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで返信文案を作成中です。しばらくお待ちください...");
