@@ -192,6 +192,19 @@ namespace
         mail.bodyStatus = L"本文を取得しました（添付ファイルは対象外）。";
     }
 
+    bool GetMailById(const std::string& mailId, MailContext& mail)
+    {
+        if (mailId.empty()) return false;
+        std::string normalizedId = mailId;
+        while (!normalizedId.empty() && normalizedId.back() == '\\0')
+            normalizedId.pop_back();
+        if (normalizedId.empty()) return false;
+        mail.mailId = ToWide(normalizedId);
+        ParseMailHeader(g_beckyApi.GetHeader(normalizedId.c_str()), mail);
+        LoadMailBody(normalizedId, mail);
+        return !mail.mailId.empty();
+    }
+
     bool GetSingleSelectedMail(HWND owner, MailContext& mail)
     {
         char firstId[4096] = {};
