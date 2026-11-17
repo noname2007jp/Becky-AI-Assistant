@@ -6,6 +6,7 @@
 #include "PiiMasker.h"
 #include "GeminiDebugLog.h"
 #include "mail/MailSignatureStripper.h"
+#include "mail/MailPromptContent.h"
 #include <string>
 
 namespace
