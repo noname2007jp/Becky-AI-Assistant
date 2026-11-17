@@ -6,7 +6,6 @@
 #include "PiiMasker.h"
 #include "GeminiDebugLog.h"
 #include "mail/MailPromptContent.h"
-#include "mail/MailPromptContent.h"
 #include <string>
 
 #pragma comment(lib, "winhttp.lib")
