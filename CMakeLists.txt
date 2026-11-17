@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.52.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.53.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -75,6 +75,12 @@ if(BUILD_TESTING)
   target_compile_options(PiiMaskerTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   target_link_libraries(PiiMaskerTests PRIVATE shell32 crypt32)
   add_test(NAME PiiMaskerTests COMMAND PiiMaskerTests)
+
+  add_executable(MailSignatureStripperTests tests/MailSignatureStripperTests.cpp)
+  target_include_directories(MailSignatureStripperTests PRIVATE src)
+  target_compile_features(MailSignatureStripperTests PRIVATE cxx_std_17)
+  target_compile_options(MailSignatureStripperTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME MailSignatureStripperTests COMMAND MailSignatureStripperTests)
 
   add_executable(GeminiFallbackTests tests/GeminiFallbackTests.cpp)
   target_include_directories(GeminiFallbackTests PRIVATE src)
