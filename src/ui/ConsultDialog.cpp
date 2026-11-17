@@ -212,7 +212,7 @@ namespace
                     L"AI相談：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
 
                 const MailContext& mail = *context->mail;
-                const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
+                const std::wstring subject = mail.subject, body = mail.body;
                 const auto history = context->history;
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
                 const auto models = context->models;
@@ -229,12 +229,12 @@ namespace
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
-                    [modelId, thinking, models, autoFallback, subject, from, body, history, question, masker]
+                    [modelId, thinking, models, autoFallback, subject, body, history, question, masker]
                     (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailConsultation(key, candidateId, candidateThinking,
-                                    subject, from, body, history, question, &masker);
+                                    subject, body, history, question, &masker);
                             }, &cancelState);
                     }, 1, &context->work)) {
                     context->busy = false;
@@ -293,8 +293,7 @@ namespace
                     return TRUE;
                 }
                 const std::wstring previewRaw = BuildMailReplyContent(
-                    context->mail->subject, context->mail->from,
-                    context->mail->body, context->transcript);
+                    context->mail->subject, context->mail->body, context->transcript);
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"相談から返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
@@ -330,12 +329,12 @@ namespace
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
-                    [modelId, thinking, models, autoFallback, tone, subject, from, body, transcript, masker]
+                    [modelId, thinking, models, autoFallback, tone, subject, body, transcript, masker]
                     (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone,
-                                    subject, from, body, transcript, &masker);
+                                    subject, body, transcript, &masker);
                             }, &cancelState);
                     }, 2, &context->work)) {
                     context->busy = false;
