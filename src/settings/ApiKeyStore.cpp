@@ -4,6 +4,7 @@
 #include <shlobj.h>
 #include <wincrypt.h>
 #include <fstream>
+#include <cstring>
 #include <vector>
 
 #pragma comment(lib, "crypt32.lib")
@@ -325,13 +326,25 @@ bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstrin
     if (!CryptUnprotectData(&input, nullptr, nullptr, nullptr, nullptr,
         CRYPTPROTECT_UI_FORBIDDEN, &output))
     { error = L"安定性設定を復号できません。"; return false; }
-    if (output.cbData != 1 && output.cbData != 2)
+    if (output.cbData != 1 && output.cbData != 2 &&
+        (output.cbData < 2 + 2 * sizeof(wchar_t) ||
+         (output.cbData - 2) % sizeof(wchar_t) != 0))
     {
         SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
         error = L"安定性設定の形式が不正です。"; return false;
     }
     options.automaticModelFallback = output.pbData[0] != 0;
     options.debugLogging = output.cbData >= 2 && output.pbData[1] != 0;
+    options.defaultModel = L"gemini-3.5-flash-lite";
+    if (output.cbData >= 2 + 2 * sizeof(wchar_t))
+    {
+        const wchar_t* model = reinterpret_cast<const wchar_t*>(output.pbData + 2);
+        const size_t chars = (output.cbData - 2) / sizeof(wchar_t);
+        size_t length = 0;
+        while (length < chars && model[length] != L'\0') ++length;
+        if (length > 0 && length <= 128)
+            options.defaultModel.assign(model, length);
+    }
     SecureZeroMemory(output.pbData, output.cbData); LocalFree(output.pbData);
     return true;
 }
@@ -339,9 +352,15 @@ bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstrin
 bool SaveGeminiReliabilityOptions(const GeminiReliabilityOptions& options, std::wstring& error)
 {
     error.clear();
-    BYTE values[2] = { static_cast<BYTE>(options.automaticModelFallback),
-        static_cast<BYTE>(options.debugLogging) };
-    DATA_BLOB input{ sizeof(values), values };
+    const std::wstring model = options.defaultModel.empty()
+        ? L"gemini-3.5-flash-lite" : options.defaultModel;
+    if (model.size() > 128)
+    { error = L"デフォルトモデル名が長すぎます。"; return false; }
+    std::vector<BYTE> values(2 + (model.size() + 1) * sizeof(wchar_t));
+    values[0] = static_cast<BYTE>(options.automaticModelFallback);
+    values[1] = static_cast<BYTE>(options.debugLogging);
+    std::memcpy(values.data() + 2, model.c_str(), (model.size() + 1) * sizeof(wchar_t));
+    DATA_BLOB input{ static_cast<DWORD>(values.size()), values.data() };
     DATA_BLOB encrypted{};
     if (!CryptProtectData(&input, L"Becky AI Assistant reliability options",
         nullptr, nullptr, nullptr, CRYPTPROTECT_UI_FORBIDDEN, &encrypted))

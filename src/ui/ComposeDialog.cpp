@@ -85,13 +85,20 @@ INT_PTR CALLBACK Proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
         std::wstring modelError;
         if (!LoadGeminiModelCatalog(c->models, modelError) || c->models.empty())
             c->models = DefaultGeminiModels();
-        int defaultIndex = 0;
+        GeminiReliabilityOptions reliability;
+        std::wstring settingsError;
+        const std::wstring preferred = LoadGeminiReliabilityOptions(reliability, settingsError)
+            ? reliability.defaultModel : L"gemini-3.5-flash-lite";
+        int defaultIndex = -1;
         for (size_t i = 0; i < c->models.size(); ++i)
         {
             SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_ADDSTRING, 0,
                 reinterpret_cast<LPARAM>(c->models[i].label.c_str()));
-            if (c->models[i].id == L"gemini-3.5-flash-lite") defaultIndex = static_cast<int>(i);
+            if (c->models[i].id == preferred) defaultIndex = static_cast<int>(i);
+            else if (defaultIndex < 0 && c->models[i].id == L"gemini-3.5-flash-lite")
+                defaultIndex = static_cast<int>(i);
         }
+        if (defaultIndex < 0 && !c->models.empty()) defaultIndex = 0;
         SendDlgItemMessageW(dlg, IDC_NEWMAIL_MODEL, CB_SETCURSEL, defaultIndex, 0);
         SendMessageW(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TBM_SETRANGE, TRUE, MAKELONG(1, 10));
         SendMessageW(GetDlgItem(dlg, IDC_NEWMAIL_TONE), TBM_SETPOS, TRUE, 5);

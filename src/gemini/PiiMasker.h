@@ -16,6 +16,7 @@ public:
     bool ContainsAllTokens(const std::wstring& value) const;
     bool IsReady() const { return error_.empty(); }
     bool IsEnabled() const { return options_.enabled; }
+    void SetEnabled(bool enabled) { options_.enabled = enabled; }
     std::size_t ReplacementCount() const { return replacements_.size(); }
     const std::wstring& Error() const { return error_; }
 

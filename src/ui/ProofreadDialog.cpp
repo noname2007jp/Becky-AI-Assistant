@@ -49,6 +49,7 @@ std::string ToAnsi(const std::wstring& s) {
 void SetBusy(HWND d, bool busy) {
     EnableWindow(GetDlgItem(d,IDC_PROOFREAD_RUN),!busy);
     EnableWindow(GetDlgItem(d,IDC_PROOFREAD_MODEL),!busy);
+    EnableWindow(GetDlgItem(d,IDC_PROOFREAD_MASK),!busy);
     EnableWindow(GetDlgItem(d,IDC_PROOFREAD_APPLY),!busy);
     ShowWindow(GetDlgItem(d,IDC_PROOFREAD_CANCEL_REQUEST),busy?SW_SHOW:SW_HIDE);
 }
@@ -66,12 +67,22 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
         SetDlgItemTextW(d,IDC_PROOFREAD_ORIGINAL,c->original.c_str());
         std::wstring err;
         if(!LoadGeminiModelCatalog(c->models,err)||c->models.empty())c->models=DefaultGeminiModels();
-        int def=0;
+        GeminiReliabilityOptions reliability; std::wstring settingsError;
+        const std::wstring preferred = LoadGeminiReliabilityOptions(reliability, settingsError)
+            ? reliability.defaultModel : L"gemini-3.5-flash-lite";
+        int def=-1;
         for(size_t i=0;i<c->models.size();++i){
             SendDlgItemMessageW(d,IDC_PROOFREAD_MODEL,CB_ADDSTRING,0,(LPARAM)c->models[i].label.c_str());
-            if(c->models[i].id==L"gemini-3.5-flash-lite")def=(int)i;
+            if(c->models[i].id==preferred)def=(int)i;
+            else if(def<0&&c->models[i].id==L"gemini-3.5-flash-lite")def=(int)i;
         }
+        if(def<0&&!c->models.empty())def=0;
         SendDlgItemMessageW(d,IDC_PROOFREAD_MODEL,CB_SETCURSEL,def,0);
+        PiiMaskOptions maskOptions; std::wstring maskError;
+        if (LoadPiiMaskOptions(maskOptions, maskError) && maskOptions.enabled)
+            CheckDlgButton(d, IDC_PROOFREAD_MASK, BST_CHECKED);
+        else
+            CheckDlgButton(d, IDC_PROOFREAD_MASK, BST_UNCHECKED);
         SetDlgItemTextW(d,IDC_PROOFREAD_STATUS,L"本文を確認し「校正する」を押してください。");
         ShowWindow(GetDlgItem(d,IDC_PROOFREAD_CANCEL_REQUEST),SW_HIDE);
         return TRUE;
@@ -106,6 +117,7 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             LRESULT ix=SendDlgItemMessageW(d,IDC_PROOFREAD_MODEL,CB_GETCURSEL,0,0);
             if(ix<0||ix>=(LRESULT)c->models.size())return TRUE;
             PiiMasker masker;if(!masker.IsReady()){MessageBoxW(d,masker.Error().c_str(),L"マスキング設定エラー",MB_OK|MB_ICONWARNING);return TRUE;}
+            masker.SetEnabled(IsDlgButtonChecked(d, IDC_PROOFREAD_MASK) == BST_CHECKED);
             // A second pass starts from the previous result (including user edits).
             // The original compose body is never changed until the user explicitly applies.
             std::wstring source = GetText(d, IDC_PROOFREAD_RESULT);

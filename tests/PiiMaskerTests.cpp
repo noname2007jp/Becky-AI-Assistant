@@ -40,6 +40,13 @@ int main()
         const std::wstring source = L"Contact test@example.com or 090-1234-5678";
         Check(masker.IsReady() && !masker.IsEnabled() && masker.Mask(source) == source,
             "masking disabled leaves input unchanged");
+        masker.SetEnabled(true);
+        const std::wstring enabledResult = masker.Mask(source);
+        Check(masker.IsEnabled() && enabledResult.find(L"test@example.com") == std::wstring::npos,
+            "masking can be enabled for an individual operation");
+        masker.SetEnabled(false);
+        Check(!masker.IsEnabled() && masker.Mask(source) == source,
+            "masking can be disabled again without changing saved options");
     }
 
     {
