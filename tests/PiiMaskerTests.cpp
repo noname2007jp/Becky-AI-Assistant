@@ -94,6 +94,23 @@ int main()
     }
 
     {
+        PiiMasker masker(AllEnabled(), {});
+        const std::wstring source =
+            L"Instructions\\nSubject: test\\nFrom: person@example.com\\nBody: confidential text";
+        std::wstring preview = masker.Mask(source);
+        Check(masker.MaskSelected(preview, 0, preview.size()),
+            "manual mask can select the complete automatically masked preview");
+        Check(preview.find(L"[MANUAL_") == 0 &&
+              preview.find(L"Instructions") == std::wstring::npos,
+            "complete preview is represented by one manual token");
+        const std::wstring request = masker.Mask(source);
+        Check(request == preview,
+            "the actual request receives the same whole-selection manual token");
+        Check(masker.Restore(request) == source,
+            "whole-selection manual token restores to original content");
+    }
+
+    {
         PiiMaskOptions options = AllEnabled();
         options.email = false;
         PiiMasker masker(options, {});
