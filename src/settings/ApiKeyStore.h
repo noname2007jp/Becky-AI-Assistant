@@ -28,6 +28,7 @@ struct GeminiReliabilityOptions
 {
     bool automaticModelFallback = true;
     bool debugLogging = false;
+    std::wstring defaultModel = L"gemini-3.5-flash-lite";
 };
 bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstring& error);
 bool SaveGeminiReliabilityOptions(const GeminiReliabilityOptions& options, std::wstring& error);
