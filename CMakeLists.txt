@@ -76,6 +76,12 @@ if(BUILD_TESTING)
   target_link_libraries(PiiMaskerTests PRIVATE shell32 crypt32)
   add_test(NAME PiiMaskerTests COMMAND PiiMaskerTests)
 
+  add_executable(MailPromptContentTests tests/MailPromptContentTests.cpp)
+  target_include_directories(MailPromptContentTests PRIVATE src)
+  target_compile_features(MailPromptContentTests PRIVATE cxx_std_17)
+  target_compile_options(MailPromptContentTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME MailPromptContentTests COMMAND MailPromptContentTests)
+
   add_executable(MailSignatureStripperTests tests/MailSignatureStripperTests.cpp)
   target_include_directories(MailSignatureStripperTests PRIVATE src)
   target_compile_features(MailSignatureStripperTests PRIVATE cxx_std_17)
