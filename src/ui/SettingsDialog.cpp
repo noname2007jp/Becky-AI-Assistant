@@ -22,7 +22,34 @@ struct SettingsState
     bool testRunning = false;
     bool apiKeyVisible = false;
     bool modelUpdateRunning = false;
+    std::vector<GeminiModelOption> models;
 };
+
+void PopulateDefaultModelCombo(HWND dialog, SettingsState* state, const std::wstring& preferred)
+{
+    if (!state) return;
+    state->models.clear();
+    std::wstring error;
+    if (!LoadGeminiModelCatalog(state->models, error) || state->models.empty())
+        state->models = DefaultGeminiModels();
+    HWND combo = GetDlgItem(dialog, IDC_SETTINGS_DEFAULT_MODEL);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    int selected = -1;
+    for (size_t i = 0; i < state->models.size(); ++i)
+    {
+        SendMessageW(combo, CB_ADDSTRING, 0,
+            reinterpret_cast<LPARAM>(state->models[i].label.c_str()));
+        if (state->models[i].id == preferred) selected = static_cast<int>(i);
+    }
+    if (selected < 0)
+    {
+        for (size_t i = 0; i < state->models.size(); ++i)
+            if (state->models[i].id == L"gemini-3.5-flash-lite")
+                selected = static_cast<int>(i);
+    }
+    if (selected < 0 && !state->models.empty()) selected = 0;
+    if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
+}
 
 struct TestResult
 {
@@ -146,11 +173,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         }
         else
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, reliabilityError.c_str());
-        std::vector<GeminiModelOption> cachedModels;
-        std::wstring modelError;
-        if (LoadGeminiModelCatalog(cachedModels, modelError))
-            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
-                (L"利用モデル：" + std::to_wstring(cachedModels.size()) + L"件（料金情報は最終更新時点）").c_str());
+        PopulateDefaultModelCombo(dialog, state, reliability.defaultModel);
         return TRUE;
     }
 
@@ -183,6 +206,14 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         if (result)
         {
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, result->message.c_str());
+            if (result->success && state)
+            {
+                std::wstring preferred = L"gemini-3.5-flash-lite";
+                const LRESULT previous = SendDlgItemMessageW(dialog, IDC_SETTINGS_DEFAULT_MODEL, CB_GETCURSEL, 0, 0);
+                if (previous >= 0 && previous < static_cast<LRESULT>(state->models.size()))
+                    preferred = state->models[static_cast<size_t>(previous)].id;
+                PopulateDefaultModelCombo(dialog, state, preferred);
+            }
             delete result;
         }
         if (state) state->modelUpdateRunning = false;
@@ -291,6 +322,10 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 IsDlgButtonChecked(dialog, IDC_SETTINGS_AUTO_FALLBACK) == BST_CHECKED;
             reliability.debugLogging =
                 IsDlgButtonChecked(dialog, IDC_SETTINGS_DEBUG_LOG) == BST_CHECKED;
+            auto* state = reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER));
+            const LRESULT modelIndex = SendDlgItemMessageW(dialog, IDC_SETTINGS_DEFAULT_MODEL, CB_GETCURSEL, 0, 0);
+            if (state && modelIndex >= 0 && modelIndex < static_cast<LRESULT>(state->models.size()))
+                reliability.defaultModel = state->models[static_cast<size_t>(modelIndex)].id;
             const bool reliabilitySaved = SaveGeminiReliabilityOptions(reliability, error);
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
                 keySaved && termsSaved && optionsSaved && reliabilitySaved
