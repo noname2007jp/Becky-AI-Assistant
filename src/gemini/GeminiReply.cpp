@@ -56,9 +56,8 @@ std::wstring BuildMailReplyContent(
     const std::wstring& consultationTranscript)
 {
     (void)from; // Sender identity is not needed for reply drafting and is never sent to Gemini.
-    const std::wstring replyBody = MailSignature::RemoveObviousSignature(body);
-    std::wstring content =
-        L"件名: " + subject + L"\n受信メール本文:\n" + replyBody;
+    std::wstring content = MailPromptContent::BuildEmailContext(
+        subject, body, L"件名:", L"受信メール本文:");
     if (!consultationTranscript.empty())
     {
         content += L"\n\n以下は、このメールについてユーザーとAIが行った相談の記録です。"
