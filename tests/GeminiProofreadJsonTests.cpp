@@ -46,5 +46,24 @@ int main() {
         check(!ExtractGeminiResponseText(R"({"candidates":[{"content":{"parts":[{"text":123}]}}]})", text) && text.empty(),
               "rejects non-string text and clears output");
     }
+
+    {
+        std::string reason;
+        const std::string json = R"({"candidates":[{"content":{"parts":[{"text":"途中までの回答"}]},"finishReason":"MAX_TOKENS"}]})";
+        check(ExtractGeminiResponseFinishReason(json, reason) && reason == "MAX_TOKENS",
+              "detects MAX_TOKENS finish reason for incomplete consultation answers");
+    }
+    {
+        std::string reason;
+        const std::string json = R"({"candidates":[{"content":{"parts":[{"text":"回答完了"}]},"finishReason":"STOP"}]})";
+        check(ExtractGeminiResponseFinishReason(json, reason) && reason == "STOP",
+              "detects STOP finish reason for completed answers");
+    }
+    {
+        std::string reason = "stale";
+        check(!ExtractGeminiResponseFinishReason(R"({"candidates":[{"content":{"parts":[{"text":"回答"}]}}]})", reason) &&
+              reason.empty(),
+              "reports missing finish reason and clears output");
+    }
     return failures ? 1 : 0;
 }
