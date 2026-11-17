@@ -284,11 +284,9 @@ namespace
                     MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                const std::wstring previewRaw =
-                    L"【件名】\r\n" + context->mail->subject +
-                    L"\r\n\r\n【差出人】\r\n" + context->mail->from +
-                    L"\r\n\r\n【メール本文】\r\n" + context->mail->body +
-                    L"\r\n\r\n【相談履歴】\r\n" + context->transcript;
+                const std::wstring previewRaw = BuildMailReplyContent(
+                    context->mail->subject, context->mail->from,
+                    context->mail->body, context->transcript);
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"相談から返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;

@@ -313,9 +313,9 @@ namespace
                     MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                const std::wstring previewRaw =
-                    L"【件名】\r\n" + mail.subject + L"\r\n\r\n【差出人】\r\n" +
-                    mail.from + L"\r\n\r\n【本文】\r\n" + mail.body;
+                const std::wstring tone = GetReplyToneInstruction(static_cast<int>(toneSelected));
+                const std::wstring previewRaw = BuildMailReplyContent(
+                    mail.subject, mail.from, mail.body, L"");
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
@@ -337,7 +337,6 @@ namespace
                     return TRUE;
                 }
                 const bool autoFallback = reliability.automaticModelFallback;
-                const std::wstring tone = GetReplyToneInstruction(static_cast<int>(toneSelected));
                 const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
                 context->busy = true;
                 ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
