@@ -36,7 +36,7 @@ int main() {
     }
     {
         std::wstring text;
-        const std::string json = R"({"candidates":[{"content":{"parts":[{"text":"quote: \\"hello\\" \\t tab \\b back \\f form \\r carriage \\n line \\u002F slash"}]}}]})";
+        const std::string json = R"({"candidates":[{"content":{"parts":[{"text":"quote: \"hello\" \t tab \b back \f form \r carriage \n line \u002F slash"}]}}]})";
         check(ExtractGeminiResponseText(json, text) &&
               text == L"quote: \"hello\" \t tab \b back \f form \r carriage \n line / slash",
               "decodes all standard JSON string escapes");
