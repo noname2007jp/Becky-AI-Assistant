@@ -90,7 +90,7 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             LRESULT ix=SendDlgItemMessageW(d,IDC_PROOFREAD_MODEL,CB_GETCURSEL,0,0);
             if(ix<0||ix>=(LRESULT)c->models.size())return TRUE;
             PiiMasker masker;if(!masker.IsReady()){MessageBoxW(d,masker.Error().c_str(),L"マスキング設定エラー",MB_OK|MB_ICONWARNING);return TRUE;}
-            const std::wstring preview=L"次のメール本文を校正してください。\r\n原文の意味と事実を変えず、引用された過去メールや署名は可能な限りそのまま保持してください。\r\n\r\n"+c->original;
+            const std::wstring preview=BuildEmailProofreadPrompt(c->original);
             const std::wstring masked=masker.Mask(preview);
             if(masker.IsEnabled()&&!ShowPiiMaskPreviewDialog(d,c->instance,L"メール校正：Gemini送信内容の確認",masked,masker))return TRUE;
             std::wstring key,error;
