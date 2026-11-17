@@ -113,6 +113,12 @@ if(BUILD_TESTING)
   target_compile_options(GeminiResponseJsonTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME GeminiResponseJsonTests COMMAND GeminiResponseJsonTests)
 
+  add_executable(GeminiTextContinuationTests tests/GeminiTextContinuationTests.cpp)
+  target_include_directories(GeminiTextContinuationTests PRIVATE src)
+  target_compile_features(GeminiTextContinuationTests PRIVATE cxx_std_17)
+  target_compile_options(GeminiTextContinuationTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME GeminiTextContinuationTests COMMAND GeminiTextContinuationTests)
+
   add_executable(MarkdownRendererTests tests/MarkdownRendererTests.cpp)
   target_include_directories(MarkdownRendererTests PRIVATE src)
   target_compile_features(MarkdownRendererTests PRIVATE cxx_std_17)
