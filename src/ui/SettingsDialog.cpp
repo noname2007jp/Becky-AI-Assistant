@@ -212,6 +212,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 const LRESULT previous = SendDlgItemMessageW(dialog, IDC_SETTINGS_DEFAULT_MODEL, CB_GETCURSEL, 0, 0);
                 if (previous >= 0 && previous < static_cast<LRESULT>(state->models.size()))
                     preferred = state->models[static_cast<size_t>(previous)].id;
+                state->models = std::move(result->models);
                 PopulateDefaultModelCombo(dialog, state, preferred);
             }
             delete result;
