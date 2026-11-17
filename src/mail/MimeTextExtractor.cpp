@@ -188,18 +188,25 @@ std::wstring ToWide(const std::string& bytes, const std::string& charset)
     else if (cs == "iso-2022-jp") cp = 50220;
     else if (cs == "us-ascii" || cs == "ascii") cp = 20127;
 
-    int count = MultiByteToWideChar(cp, 0, bytes.data(),
-        static_cast<int>(std::min(bytes.size(), kMaxDecodedBytes)), nullptr, 0);
+    const int byteCount = static_cast<int>(std::min(bytes.size(), kMaxDecodedBytes));
+    int count = MultiByteToWideChar(cp, 0, bytes.data(), byteCount, nullptr, 0);
+
+    // Windows installations do not expose the EUC-JP NLS table consistently.
+    // Try the alternate Windows EUC-JP code page before falling back to ACP.
+    if (count <= 0 && cp == 51932)
+    {
+        cp = 20932;
+        count = MultiByteToWideChar(cp, 0, bytes.data(), byteCount, nullptr, 0);
+    }
     if (count <= 0 && cp != CP_ACP)
     {
         cp = CP_ACP;
-        count = MultiByteToWideChar(cp, 0, bytes.data(),
-            static_cast<int>(std::min(bytes.size(), kMaxDecodedBytes)), nullptr, 0);
+        count = MultiByteToWideChar(cp, 0, bytes.data(), byteCount, nullptr, 0);
     }
     if (count <= 0) return L"(本文の文字コードを変換できません)";
     std::wstring result(static_cast<size_t>(count), L'\0');
     MultiByteToWideChar(cp, 0, bytes.data(),
-        static_cast<int>(std::min(bytes.size(), kMaxDecodedBytes)), result.data(), count);
+        byteCount, result.data(), count);
     return result;
 }
 
