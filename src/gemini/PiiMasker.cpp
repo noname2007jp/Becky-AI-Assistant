@@ -160,7 +160,7 @@ std::wstring PiiMasker::Restore(const std::wstring& value) const
         while ((position = output.find(honorific.first, position)) != std::wstring::npos)
         {
             output.replace(position, honorific.first.size(), honorific.second);
-            position += honorific.second.size();
+            // Keep the same position: three or more repeated suffixes overlap.
         }
     }
     return output;
