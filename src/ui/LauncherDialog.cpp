@@ -7,6 +7,7 @@
 #include "gemini/PiiMasker.h"
 #include "settings/ApiKeyStore.h"
 #include "gemini/GeminiGenerate.h"
+#include "mail/MailPromptContent.h"
 #include "gemini/GeminiAsync.h"
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiModels.h"
@@ -228,9 +229,8 @@ namespace
                     MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                const std::wstring previewRaw =
-                    L"【件名】\r\n" + mail.subject + L"\r\n\r\n【差出人】\r\n" +
-                    mail.from + L"\r\n\r\n【本文】\r\n" + mail.body;
+                const std::wstring previewRaw = MailPromptContent::BuildEmailContext(
+                    mail.subject, mail.body, L"件名:", L"本文:");
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"要約：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
@@ -260,7 +260,7 @@ namespace
                     return TRUE;
                 }
                 const bool autoFallback = reliability.automaticModelFallback;
-                const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
+                const std::wstring subject = mail.subject, body = mail.body;
                 context->busy = true;
                 ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), TRUE);
@@ -273,10 +273,10 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
-                    [modelId, thinking, models, autoFallback, subject, from, body, masker](const std::wstring& key, const std::atomic<int>& cancelState) mutable {
+                    [modelId, thinking, models, autoFallback, subject, body, masker](const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
-                                return GenerateMailSummary(key, candidateId, candidateThinking, subject, from, body, &masker);
+                                return GenerateMailSummary(key, candidateId, candidateThinking, subject, body, &masker);
                             }, &cancelState);
                     }, 1, &context->work)) {
                     context->busy = false;
@@ -322,7 +322,7 @@ namespace
                 }
                 const std::wstring tone = GetReplyToneInstruction(static_cast<int>(toneSelected));
                 const std::wstring previewRaw = BuildMailReplyContent(
-                    mail.subject, mail.from, mail.body, L"");
+                    mail.subject, mail.body, L"");
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
@@ -344,7 +344,7 @@ namespace
                     return TRUE;
                 }
                 const bool autoFallback = reliability.automaticModelFallback;
-                const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
+                const std::wstring subject = mail.subject, body = mail.body;
                 context->busy = true;
                 ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで返信文案を作成中です。しばらくお待ちください...");
@@ -355,10 +355,10 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
-                    [modelId, thinking, models, autoFallback, tone, subject, from, body, masker](const std::wstring& key, const std::atomic<int>& cancelState) mutable {
+                    [modelId, thinking, models, autoFallback, tone, subject, body, masker](const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
-                                return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone, subject, from, body, L"", &masker);
+                                return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone, subject, body, L"", &masker);
                             }, &cancelState);
                     }, 2, &context->work)) {
                     context->busy = false;

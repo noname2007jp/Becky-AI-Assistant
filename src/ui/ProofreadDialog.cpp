@@ -3,6 +3,7 @@
 #include "ProgressIndicator.h"
 #include "PiiMaskPreviewDialog.h"
 #include "gemini/GeminiProofread.h"
+#include "mail/MailSignatureStripper.h"
 #include "gemini/GeminiAsync.h"
 #include "gemini/GeminiModels.h"
 #include "gemini/GeminiFallback.h"
@@ -125,7 +126,8 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             source = NormalizeWindowsNewlines(source);
             c->original = source;
             SetDlgItemTextW(d, IDC_PROOFREAD_ORIGINAL, source.c_str());
-            const std::wstring masked = masker.Mask(source);
+            const std::wstring sendableSource = MailSignature::RemoveObviousSignature(source);
+            const std::wstring masked = masker.Mask(sendableSource);
             if(masker.IsEnabled()&&!ShowPiiMaskPreviewDialog(d,c->instance,L"メール校正：Gemini送信内容の確認",masked,masker))return TRUE;
             std::wstring key,error;
             if(!LoadGeminiApiKey(key,error)||key.empty()){MessageBoxW(d,error.empty()?L"先に設定画面でGemini APIキーを保存してください。":error.c_str(),L"Becky AI Assistant",MB_OK|MB_ICONWARNING);return TRUE;}
