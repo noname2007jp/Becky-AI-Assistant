@@ -155,9 +155,24 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
             }
             else
             {
+                std::string finishReason;
+                const bool hasFinishReason = ExtractGeminiResponseFinishReason(response, finishReason);
                 result.success = ExtractGeminiResponseText(response, result.text);
-                if (result.success) result.text = masker.Restore(result.text);
-                else { result.error = L"応答から文章を取得できませんでした。"; result.retryable = true; }
+                if (result.success && hasFinishReason && finishReason == "MAX_TOKENS")
+                {
+                    result.success = false;
+                    result.text.clear();
+                    result.error = L"AI相談の回答が出力上限に達し、途中で終了しました。回答は履歴に追加していません。質問を分けて再度お試しください。";
+                }
+                else if (result.success)
+                {
+                    result.text = masker.Restore(result.text);
+                }
+                else
+                {
+                    result.error = L"応答から文章を取得できませんでした。";
+                    result.retryable = true;
+                }
             }
         }
         else {
@@ -231,7 +246,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     appendTurn("user", history.empty() ? firstPrompt : question);
     contents += "]";
 
-    std::string generationConfig = "\"maxOutputTokens\":2048";
+    std::string generationConfig = "\"maxOutputTokens\":8192";
     if (modelId.find(L"gemini-2.5-") == 0)
     {
         int budget = (thinkingLevel == L"OFF") ? 0 : -1;
