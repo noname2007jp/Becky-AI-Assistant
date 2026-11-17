@@ -226,6 +226,17 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     std::wstring accumulatedText;
     for (int attempt = 0; attempt <= kMaxContinuationAttempts; ++attempt)
     {
+        historyChars = 0;
+        for (const auto& turn : requestTurns)
+        {
+            historyChars += turn.text.size();
+            if (historyChars > 250000)
+            {
+                result.error = L"継続生成の会話履歴が長くなりすぎました。質問を分けて再度お試しください。";
+                return result;
+            }
+        }
+
         std::string contents = "\"contents\":[";
         bool first = true;
         for (const auto& turn : requestTurns)
