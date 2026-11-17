@@ -15,14 +15,6 @@ std::string Utf8(const std::wstring& v) {
     WideCharToMultiByte(CP_UTF8, 0, v.data(), (int)v.size(), s.data(), n, nullptr, nullptr);
     return s;
 }
-std::wstring Wide(const std::string& v) {
-    if (v.empty()) return {};
-    int n = MultiByteToWideChar(CP_UTF8, 0, v.data(), (int)v.size(), nullptr, 0);
-    if (n <= 0) return {};
-    std::wstring s((size_t)n, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, v.data(), (int)v.size(), s.data(), n);
-    return s;
-}
 std::string Escape(const std::string& s) {
     std::string o;
     for (unsigned char c : s) {
@@ -38,7 +30,7 @@ std::string Escape(const std::string& s) {
     return o;
 }
 
-std::wstring BuildEmailProofreadInstruction(const std::wstring& body) {
+std::wstring BuildEmailProofreadInstruction() {
     return
         L"あなたは日本語のビジネスメール校正者です。ユーザーが入力したメール本文を、必要最小限の修正で校正してください。"
         L"誤字脱字、変換ミス、明確な文法誤り、敬語の誤り、不自然で誤解を招く表現だけを修正してください。"
@@ -59,7 +51,7 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
     if (body.empty()) { r.error = L"校正するメール本文がありません。"; return r; }
     if (body.size() > 50000) { r.error = L"本文が長すぎます（50,000文字以内）。"; return r; }
 
-    const std::wstring prompt = BuildEmailProofreadPrompt(body);
+    const std::wstring instruction = BuildEmailProofreadInstruction();
 
     PiiMasker local;
     PiiMasker& masker = externalMasker ? *externalMasker : local;
