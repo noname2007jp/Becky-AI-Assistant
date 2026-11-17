@@ -1,5 +1,6 @@
 #include "GeminiGenerate.h"
 #include "GeminiProofreadJson.h"
+#include "GeminiTextContinuation.h"
 #include <windows.h>
 #include <winhttp.h>
 #include "GeminiError.h"
@@ -223,7 +224,6 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     // 途中回答は最終回答が完成するまでUIの会話履歴へ追加しない。
     constexpr int kMaxContinuationAttempts = 2;
     std::wstring accumulatedText;
-    std::wstring lastChunk;
     for (int attempt = 0; attempt <= kMaxContinuationAttempts; ++attempt)
     {
         std::string contents = "\"contents\":[";
@@ -356,23 +356,8 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
                 return result;
             }
 
-            // Geminiが直前の末尾を少し繰り返す場合に備え、最大1,024文字の重複を除去する。
-            auto appendWithoutOverlap = [](std::wstring& target, const std::wstring& next)
-            {
-                size_t overlap = 0;
-                const size_t limit = (std::min)(target.size(), (std::min)(next.size(), static_cast<size_t>(1024)));
-                for (size_t n = limit; n > 0; --n)
-                {
-                    if (target.compare(target.size() - n, n, next, 0, n) == 0)
-                    {
-                        overlap = n;
-                        break;
-                    }
-                }
-                target.append(next.substr(overlap));
-            };
-            appendWithoutOverlap(accumulatedText, chunk);
-            lastChunk = chunk;
+            // Geminiが直前の末尾を繰り返した場合は重複部分を除いて連結する。
+            AppendGeminiContinuationText(accumulatedText, chunk);
 
             if (attempt == kMaxContinuationAttempts)
             {
@@ -391,21 +376,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
         }
 
         // STOP（またはfinishReasonがない従来形式）なら回答完了として扱う。
-        auto appendWithoutOverlap = [](std::wstring& target, const std::wstring& next)
-        {
-            size_t overlap = 0;
-            const size_t limit = (std::min)(target.size(), (std::min)(next.size(), static_cast<size_t>(1024)));
-            for (size_t n = limit; n > 0; --n)
-            {
-                if (target.compare(target.size() - n, n, next, 0, n) == 0)
-                {
-                    overlap = n;
-                    break;
-                }
-            }
-            target.append(next.substr(overlap));
-        };
-        appendWithoutOverlap(accumulatedText, chunk);
+        AppendGeminiContinuationText(accumulatedText, chunk);
         result.text = masker.Restore(accumulatedText);
         result.success = true;
         result.error.clear();
