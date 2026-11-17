@@ -189,7 +189,8 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     if (question.size() > 10000) { result.error = L"質問が長すぎます（上限10,000文字）。"; return result; }
     if (history.size() > 16) { result.error = L"会話履歴が上限を超えています。"; return result; }
 
-    (void)from; // Sender identity is not needed for consultation and is never sent to Gemini.\n    std::wstring firstPrompt;
+    (void)from; // Sender identity is not needed for consultation and is never sent to Gemini.
+    std::wstring firstPrompt;
     if (history.empty())
     {
         firstPrompt =
