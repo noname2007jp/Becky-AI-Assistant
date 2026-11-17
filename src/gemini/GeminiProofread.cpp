@@ -5,6 +5,7 @@
 #include "PiiMasker.h"
 #include "GeminiDebugLog.h"
 #include "GeminiProofreadJson.h"
+#include "mail/MailSignatureStripper.h"
 
 namespace {
 std::string Utf8(const std::wstring& v) {
@@ -56,7 +57,15 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
     PiiMasker local;
     PiiMasker& masker = externalMasker ? *externalMasker : local;
     if (!masker.IsReady()) { r.error = masker.Error(); return r; }
-    const std::wstring maskedBody = masker.Mask(body);
+    // Keep a clearly identified signature local. Gemini receives only the editable
+    // message text; the original signature is appended unchanged after proofreading.
+    const std::wstring bodyWithoutSignature = MailSignature::RemoveObviousSignature(body);
+    const std::wstring preservedSignature = body.substr(bodyWithoutSignature.size());
+    if (bodyWithoutSignature.empty()) {
+        r.error = L"校正対象の本文がありません（署名以外の本文を確認してください）。";
+        return r;
+    }
+    const std::wstring maskedBody = masker.Mask(bodyWithoutSignature);
 
     std::wstring instruction = BuildEmailProofreadInstruction();
     if (masker.IsEnabled() && masker.ReplacementCount() > 0)
@@ -134,6 +143,7 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
                     r.retryable = true;
                 } else if (r.success) {
                     r.text = masker.Restore(r.text);
+                    r.text += preservedSignature;
                 } else {
                     r.error = L"校正結果を取得できませんでした。";
                     r.retryable = true;
