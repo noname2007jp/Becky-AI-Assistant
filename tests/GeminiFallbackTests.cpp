@@ -139,6 +139,25 @@ int main()
         "HTTP 0 transport failure continues to the next verified fallback model");
 
     calls = 0;
+    auto exhausted = GenerateWithModelFallback(
+        L"gemini-2.5-pro", L"MEDIUM", models, true,
+        [&](const std::wstring& id, const std::wstring&) {
+            ++calls;
+            if (id == L"gemini-2.5-pro") return Failure(404, true);
+            if (id == L"gemini-3.8-flash") {
+                auto networkFailure = Failure(0, true);
+                networkFailure.error = L"接続できません（Windowsエラー 12029）";
+                return networkFailure;
+            }
+            return Failure(503, true);
+        });
+    Check(calls == 3 && exhausted.error.find(L"選択モデル") != std::wstring::npos &&
+        exhausted.error.find(L"HTTP 404") != std::wstring::npos &&
+        exhausted.error.find(L"Windowsエラー 12029") != std::wstring::npos &&
+        exhausted.error.find(L"HTTP 503") != std::wstring::npos,
+        "final error retains the selected model and every fallback failure detail");
+
+    calls = 0;
     auto disabled = GenerateWithModelFallback(
         L"gemini-primary", L"MEDIUM", models, false,
         [&](const std::wstring&, const std::wstring&) {
