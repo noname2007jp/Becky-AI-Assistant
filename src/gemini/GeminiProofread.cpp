@@ -30,6 +30,8 @@ std::string Escape(const std::string& s) {
     return o;
 }
 
+}
+
 std::wstring BuildEmailProofreadInstruction() {
     return
         L"あなたは日本語のビジネスメール校正者です。ユーザーが入力したメール本文を、必要最小限の修正で校正してください。"
