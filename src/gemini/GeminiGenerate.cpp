@@ -7,6 +7,7 @@
 #include "GeminiDebugLog.h"
 #include "mail/MailPromptContent.h"
 #include <string>
+#include <algorithm>
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -204,21 +205,11 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
     PiiMasker localMasker;
     PiiMasker& masker = externalMasker ? *externalMasker : localMasker;
     if (!masker.IsReady()) { result.error = masker.Error(); return result; }
-    std::string contents = "\"contents\":[";
-    bool first = true;
-    auto appendTurn = [&](const char* role, const std::wstring& text)
-    {
-        if (!first) contents += ",";
-        first = false;
-        contents += "{\"role\":\"";
-        contents += role;
-        contents += "\",\"parts\":[{\"text\":\"";
-        contents += JsonEscape(Utf8(masker.Mask(text)));
-        contents += "\"}]}";
-    };
 
+    std::vector<GeminiChatTurn> requestTurns = history;
+    requestTurns.push_back({ false, history.empty() ? firstPrompt : question });
     size_t historyChars = 0;
-    for (const auto& turn : history)
+    for (const auto& turn : requestTurns)
     {
         historyChars += turn.text.size();
         if (historyChars > 250000)
@@ -226,52 +217,74 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
             result.error = L"会話履歴が長すぎます。履歴をクリアして再試行してください。";
             return result;
         }
-        appendTurn(turn.isModel ? "model" : "user", turn.text);
-    }
-    appendTurn("user", history.empty() ? firstPrompt : question);
-    contents += "]";
-
-    std::string generationConfig = "\"maxOutputTokens\":8192";
-    if (modelId.find(L"gemini-2.5-") == 0)
-    {
-        int budget = (thinkingLevel == L"OFF") ? 0 : -1;
-        generationConfig += ",\"thinkingConfig\":{\"thinkingBudget\":" + std::to_string(budget) + "}";
-    }
-    else if (modelId.find(L"gemma-") != 0 && !thinkingLevel.empty())
-    {
-        generationConfig += ",\"thinkingConfig\":{\"thinkingLevel\":\"" + Utf8(thinkingLevel) + "\"}";
     }
 
-    const std::string payload = "{" + contents + ",\"generationConfig\":{" + generationConfig + "}}";
-    LogGeminiRequest(L"consultation", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
-
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.58.0",
-        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
-    WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
-    HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring path = L"/v1beta/models/" + modelId + L":generateContent";
-    HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
-        path.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
-    if (!request)
+    // MAX_TOKENS の場合だけ、最大2回まで続きを要求する。
+    // 途中回答は最終回答が完成するまでUIの会話履歴へ追加しない。
+    constexpr int kMaxContinuationAttempts = 2;
+    std::wstring accumulatedText;
+    std::wstring lastChunk;
+    for (int attempt = 0; attempt <= kMaxContinuationAttempts; ++attempt)
     {
-        if (connection) WinHttpCloseHandle(connection);
-        WinHttpCloseHandle(session);
-        result.error = L"Gemini APIへの接続を開始できません。";
-        return result;
-    }
+        std::string contents = "\"contents\":[";
+        bool first = true;
+        for (const auto& turn : requestTurns)
+        {
+            if (!first) contents += ",";
+            first = false;
+            contents += "{\"role\":\"";
+            contents += turn.isModel ? "model" : "user";
+            contents += "\",\"parts\":[{\"text\":\"";
+            contents += JsonEscape(Utf8(masker.Mask(turn.text)));
+            contents += "\"}]}";
+        }
+        contents += "]";
 
-    const std::wstring headers = L"x-goog-api-key: " + apiKey + L"\r\nContent-Type: application/json; charset=utf-8\r\n";
-    BOOL sent = WinHttpSendRequest(request, headers.c_str(), (DWORD)headers.size(),
-        (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
-    BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
-    if (!received) {
-        const DWORD networkError = GetLastError();
-        result.error = FormatWinHttpError(networkError);
-        result.retryable = IsRetryableWinHttpError(networkError);
-    }
-    else
-    {
+        std::string generationConfig = "\"maxOutputTokens\":8192";
+        if (modelId.find(L"gemini-2.5-") == 0)
+        {
+            int budget = (thinkingLevel == L"OFF") ? 0 : -1;
+            generationConfig += ",\"thinkingConfig\":{\"thinkingBudget\":" + std::to_string(budget) + "}";
+        }
+        else if (modelId.find(L"gemma-") != 0 && !thinkingLevel.empty())
+        {
+            generationConfig += ",\"thinkingConfig\":{\"thinkingLevel\":\"" + Utf8(thinkingLevel) + "\"}";
+        }
+
+        const std::string payload = "{" + contents + ",\"generationConfig\":{" + generationConfig + "}}";
+        LogGeminiRequest(L"consultation", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
+
+        HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.59.0",
+            WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+        if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
+        WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
+        HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+        const std::wstring path = L"/v1beta/models/" + modelId + L":generateContent";
+        HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
+            path.c_str(), nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
+        if (!request)
+        {
+            if (connection) WinHttpCloseHandle(connection);
+            WinHttpCloseHandle(session);
+            result.error = L"Gemini APIへの接続を開始できません。";
+            return result;
+        }
+
+        const std::wstring headers = L"x-goog-api-key: " + apiKey + L"\r\nContent-Type: application/json; charset=utf-8\r\n";
+        BOOL sent = WinHttpSendRequest(request, headers.c_str(), (DWORD)headers.size(),
+            (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
+        BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
+        if (!received)
+        {
+            const DWORD networkError = GetLastError();
+            result.error = FormatWinHttpError(networkError);
+            result.retryable = IsRetryableWinHttpError(networkError);
+            WinHttpCloseHandle(request);
+            WinHttpCloseHandle(connection);
+            WinHttpCloseHandle(session);
+            return result;
+        }
+
         DWORD code = 0, size = sizeof(code);
         WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
             WINHTTP_HEADER_NAME_BY_INDEX, &code, &size, WINHTTP_NO_HEADER_INDEX);
@@ -303,47 +316,105 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
             response.resize(old + read);
             if (!read) break;
         }
-        if (code == 200)
+        WinHttpCloseHandle(request);
+        WinHttpCloseHandle(connection);
+        WinHttpCloseHandle(session);
+
+        if (code != 200)
         {
-            if (responseTooLarge)
-            {
-                result.error = L"Gemini APIの応答データが上限（2MB）を超えました。時間をおいて再試行してください。";
-            }
-            else if (responseReadFailed)
-            {
-                result.error = FormatWinHttpError(responseReadError);
-                result.retryable = IsRetryableWinHttpError(responseReadError);
-            }
-            else
-            {
-                std::string finishReason;
-                const bool hasFinishReason = ExtractGeminiResponseFinishReason(response, finishReason);
-                result.success = ExtractGeminiResponseText(response, result.text);
-                if (result.success && hasFinishReason && finishReason == "MAX_TOKENS")
-                {
-                    result.success = false;
-                    result.text.clear();
-                    result.error = L"AI相談の回答が出力上限に達し、途中で終了しました。回答は履歴に追加していません。質問を分けて再度お試しください。";
-                }
-                else if (result.success)
-                {
-                    result.text = masker.Restore(result.text);
-                }
-                else
-                {
-                    result.error = L"応答から文章を取得できませんでした。";
-                    result.retryable = true;
-                }
-            }
-        }
-        else {
             result.error = FormatGeminiHttpError(code);
             result.retryable = code == 404 || code == 408 || code == 429 || (code >= 500 && code <= 599);
+            return result;
         }
+        if (responseTooLarge)
+        {
+            result.error = L"Gemini APIの応答データが上限（2MB）を超えました。時間をおいて再試行してください。";
+            return result;
+        }
+        if (responseReadFailed)
+        {
+            result.error = FormatWinHttpError(responseReadError);
+            result.retryable = IsRetryableWinHttpError(responseReadError);
+            return result;
+        }
+
+        std::wstring chunk;
+        if (!ExtractGeminiResponseText(response, chunk))
+        {
+            result.error = L"応答から文章を取得できませんでした。";
+            result.retryable = true;
+            return result;
+        }
+
+        std::string finishReason;
+        const bool hasFinishReason = ExtractGeminiResponseFinishReason(response, finishReason);
+        if (hasFinishReason && finishReason == "MAX_TOKENS")
+        {
+            if (chunk.empty())
+            {
+                result.error = L"AI相談の回答が空のまま出力上限に達しました。質問を分けて再度お試しください。";
+                return result;
+            }
+
+            // Geminiが直前の末尾を少し繰り返す場合に備え、最大1,024文字の重複を除去する。
+            auto appendWithoutOverlap = [](std::wstring& target, const std::wstring& next)
+            {
+                size_t overlap = 0;
+                const size_t limit = (std::min)(target.size(), (std::min)(next.size(), static_cast<size_t>(1024)));
+                for (size_t n = limit; n > 0; --n)
+                {
+                    if (target.compare(target.size() - n, n, next, 0, n) == 0)
+                    {
+                        overlap = n;
+                        break;
+                    }
+                }
+                target.append(next.substr(overlap));
+            };
+            appendWithoutOverlap(accumulatedText, chunk);
+            lastChunk = chunk;
+
+            if (attempt == kMaxContinuationAttempts)
+            {
+                result.error = L"AI相談の回答が長文のため、続きを2回生成しましたが完了しませんでした。回答は履歴に追加していません。質問を分けて再度お試しください。";
+                result.text.clear();
+                return result;
+            }
+
+            requestTurns.push_back({ true, chunk });
+            requestTurns.push_back({ false,
+                L"前の回答が出力上限で途中終了しました。直前の回答の続きだけを書いてください。"
+                L"すでに書いた内容を繰り返さず、説明の前置きや要約も追加しないでください。"
+                L"文の途中で切れている場合は、その位置から自然につなげてください。"
+                L"回答全体の構成・Markdown書式・日本語の文体を維持し、元の質問への回答を最後まで完成させてください。" });
+            continue;
+        }
+
+        // STOP（またはfinishReasonがない従来形式）なら回答完了として扱う。
+        auto appendWithoutOverlap = [](std::wstring& target, const std::wstring& next)
+        {
+            size_t overlap = 0;
+            const size_t limit = (std::min)(target.size(), (std::min)(next.size(), static_cast<size_t>(1024)));
+            for (size_t n = limit; n > 0; --n)
+            {
+                if (target.compare(target.size() - n, n, next, 0, n) == 0)
+                {
+                    overlap = n;
+                    break;
+                }
+            }
+            target.append(next.substr(overlap));
+        };
+        appendWithoutOverlap(accumulatedText, chunk);
+        result.text = masker.Restore(accumulatedText);
+        result.success = true;
+        result.error.clear();
+        break;
     }
-    WinHttpCloseHandle(request);
-    WinHttpCloseHandle(connection);
-    WinHttpCloseHandle(session);
+
+    if (!result.success && result.error.empty())
+        result.error = L"AI相談の回答を完了できませんでした。質問を分けて再度お試しください。";
+
     LogGeminiResponse(L"consultation", modelId, result.httpStatus, result.success, result.error);
     return result;
 }
