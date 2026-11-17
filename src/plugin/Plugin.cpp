@@ -196,7 +196,7 @@ namespace
     {
         if (mailId.empty()) return false;
         std::string normalizedId = mailId;
-        while (!normalizedId.empty() && normalizedId.back() == '\\0')
+        while (!normalizedId.empty() && normalizedId.back() == '\0')
             normalizedId.pop_back();
         if (normalizedId.empty()) return false;
         mail.mailId = ToWide(normalizedId);
