@@ -34,5 +34,17 @@ int main() {
         check(!ExtractGeminiResponseText(R"({"candidates":[{"content":{"parts":[{"text":"bad\uD800"}]}}]})", text),
               "rejects invalid surrogate sequences");
     }
+    {
+        std::wstring text;
+        const std::string json = R"({"candidates":[{"content":{"parts":[{"text":"quote: \\"hello\\" \\t tab \\b back \\f form \\r carriage \\n line \\u002F slash"}]}}]})";
+        check(ExtractGeminiResponseText(json, text) &&
+              text == L"quote: \"hello\" \t tab \b back \f form \r carriage \n line / slash",
+              "decodes all standard JSON string escapes");
+    }
+    {
+        std::wstring text = L"stale";
+        check(!ExtractGeminiResponseText(R"({"candidates":[{"content":{"parts":[{"text":123}]}}]})", text) && text.empty(),
+              "rejects non-string text and clears output");
+    }
     return failures ? 1 : 0;
 }
