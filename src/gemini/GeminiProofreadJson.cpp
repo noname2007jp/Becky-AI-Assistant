@@ -104,3 +104,28 @@ bool ExtractGeminiResponseText(const std::string& json, std::wstring& output) {
     }
     return false;
 }
+
+bool ExtractGeminiResponseFinishReason(const std::string& json, std::string& output) {
+    output.clear();
+    size_t p = 0;
+    while (p < json.size()) {
+        if (json[p] != '"') { ++p; continue; }
+        std::string key;
+        if (!ParseString(json, p, key)) return false;
+        size_t afterKey = p;
+        SkipWs(json, afterKey);
+        if (afterKey >= json.size() || json[afterKey] != ':') continue;
+        size_t valuePos = afterKey + 1;
+        SkipWs(json, valuePos);
+        if (key != "finishReason" || valuePos >= json.size() || json[valuePos] != '"') {
+            p = valuePos;
+            continue;
+        }
+        if (!ParseString(json, valuePos, output)) {
+            output.clear();
+            return false;
+        }
+        return true;
+    }
+    return false;
+}
