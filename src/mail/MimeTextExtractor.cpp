@@ -178,21 +178,77 @@ std::string DecodeQuotedPrintable(const std::string& input)
     return out;
 }
 
+bool EucJpToShiftJis(const std::string& input, std::string& output)
+{
+    output.clear();
+    output.reserve(input.size());
+    for (size_t i = 0; i < input.size();)
+    {
+        const unsigned char first = static_cast<unsigned char>(input[i]);
+        if (first <= 0x7f)
+        {
+            output.push_back(static_cast<char>(first));
+            ++i;
+        }
+        else if (first == 0x8e && i + 1 < input.size())
+        {
+            const unsigned char second = static_cast<unsigned char>(input[i + 1]);
+            if (second < 0xa1 || second > 0xdf) return false;
+            output.push_back(static_cast<char>(second));
+            i += 2;
+        }
+        else if (first >= 0xa1 && first <= 0xfe && i + 1 < input.size())
+        {
+            const unsigned char second = static_cast<unsigned char>(input[i + 1]);
+            if (second < 0xa1 || second > 0xfe) return false;
+            const unsigned int row = first - 0x80;
+            const unsigned int cell = second - 0x80;
+            unsigned int lead = ((row - 1) >> 1) + 0x81;
+            if (lead > 0x9f) lead += 0x40;
+            unsigned int trail = (row & 1)
+                ? cell + (cell < 0x60 ? 0x1f : 0x20)
+                : cell + 0x7e;
+            output.push_back(static_cast<char>(lead));
+            output.push_back(static_cast<char>(trail));
+            i += 2;
+        }
+        else
+        {
+            // JIS X 0212 (0x8F) and malformed sequences are left to the
+            // Windows EUC-JP code-page fallback below.
+            return false;
+        }
+    }
+    return true;
+}
+
 std::wstring ToWide(const std::string& bytes, const std::string& charset)
 {
     UINT cp = CP_ACP;
+    std::string converted;
     const std::string cs = Lower(charset);
     if (cs == "utf-8" || cs == "utf8") cp = CP_UTF8;
     else if (cs == "shift_jis" || cs == "shift-jis" || cs == "sjis" || cs == "windows-31j" || cs == "cp932") cp = 932;
-    else if (cs == "euc-jp" || cs == "euc_jp") cp = 51932;
+    else if (cs == "euc-jp" || cs == "euc_jp")
+    {
+        if (EucJpToShiftJis(bytes, converted))
+        {
+            const int size = static_cast<int>(std::min(converted.size(), kMaxDecodedBytes));
+            const int count = MultiByteToWideChar(932, 0, converted.data(), size, nullptr, 0);
+            if (count > 0)
+            {
+                std::wstring result(static_cast<size_t>(count), L'\0');
+                MultiByteToWideChar(932, 0, converted.data(), size, result.data(), count);
+                return result;
+            }
+        }
+        cp = 51932;
+    }
     else if (cs == "iso-2022-jp") cp = 50220;
     else if (cs == "us-ascii" || cs == "ascii") cp = 20127;
 
     const int byteCount = static_cast<int>(std::min(bytes.size(), kMaxDecodedBytes));
     int count = MultiByteToWideChar(cp, 0, bytes.data(), byteCount, nullptr, 0);
-
-    // Windows installations do not expose the EUC-JP NLS table consistently.
-    // Try the alternate Windows EUC-JP code page before falling back to ACP.
     if (count <= 0 && cp == 51932)
     {
         cp = 20932;
@@ -205,8 +261,7 @@ std::wstring ToWide(const std::string& bytes, const std::string& charset)
     }
     if (count <= 0) return L"(本文の文字コードを変換できません)";
     std::wstring result(static_cast<size_t>(count), L'\0');
-    MultiByteToWideChar(cp, 0, bytes.data(),
-        byteCount, result.data(), count);
+    MultiByteToWideChar(cp, 0, bytes.data(), byteCount, result.data(), count);
     return result;
 }
 
