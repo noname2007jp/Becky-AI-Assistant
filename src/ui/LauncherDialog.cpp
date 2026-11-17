@@ -314,8 +314,8 @@ namespace
                     return TRUE;
                 }
                 const std::wstring tone = GetReplyToneInstruction(static_cast<int>(toneSelected));
-                const std::wstring previewRaw = BuildMailReplyPrompt(
-                    tone, mail.subject, mail.from, mail.body, L"");
+                const std::wstring previewRaw = BuildMailReplyContent(
+                    mail.subject, mail.from, mail.body, L"");
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
