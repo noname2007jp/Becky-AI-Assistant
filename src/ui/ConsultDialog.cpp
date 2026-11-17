@@ -1,6 +1,7 @@
 #include "LauncherDialog.h"
 #include "resource.h"
 #include "ProgressIndicator.h"
+#include "MarkdownRenderer.h"
 #include "PiiMaskPreviewDialog.h"
 #include "gemini/PiiMasker.h"
 #include "ResultDialog.h"
@@ -68,6 +69,61 @@ namespace
         return value;
     }
 
+    void SetConsultMarkdownText(HWND control, const std::wstring& markdown)
+    {
+        const auto rendered = MarkdownRenderer::Render(markdown);
+        SetWindowTextW(control, rendered.text.c_str());
+
+        CHARFORMAT2W normal{};
+        normal.cbSize = sizeof(normal);
+        normal.dwMask = CFM_BOLD | CFM_ITALIC | CFM_COLOR | CFM_BACKCOLOR | CFM_FACE | CFM_SIZE;
+        normal.dwEffects = 0;
+        normal.yHeight = 180;
+        normal.crTextColor = GetSysColor(COLOR_WINDOWTEXT);
+        normal.crBackColor = GetSysColor(COLOR_WINDOW);
+        wcscpy_s(normal.szFaceName, LF_FACESIZE, L"Meiryo UI");
+        SendMessageW(control, EM_SETSEL, 0, -1);
+        SendMessageW(control, EM_SETCHARFORMAT, SCF_SELECTION, reinterpret_cast<LPARAM>(&normal));
+
+        CHARFORMAT2W bold{};
+        bold.cbSize = sizeof(bold);
+        bold.dwMask = CFM_BOLD;
+        bold.dwEffects = CFE_BOLD;
+        for (const auto& range : rendered.bold)
+        {
+            SendMessageW(control, EM_SETSEL, static_cast<WPARAM>(range.start),
+                static_cast<LPARAM>(range.start + range.length));
+            SendMessageW(control, EM_SETCHARFORMAT, SCF_SELECTION, reinterpret_cast<LPARAM>(&bold));
+        }
+
+        CHARFORMAT2W heading{};
+        heading.cbSize = sizeof(heading);
+        heading.dwMask = CFM_BOLD | CFM_SIZE;
+        heading.dwEffects = CFE_BOLD;
+        heading.yHeight = 210;
+        for (const auto& range : rendered.headings)
+        {
+            SendMessageW(control, EM_SETSEL, static_cast<WPARAM>(range.start),
+                static_cast<LPARAM>(range.start + range.length));
+            SendMessageW(control, EM_SETCHARFORMAT, SCF_SELECTION, reinterpret_cast<LPARAM>(&heading));
+        }
+
+        CHARFORMAT2W code{};
+        code.cbSize = sizeof(code);
+        code.dwMask = CFM_FACE | CFM_BACKCOLOR;
+        code.dwEffects = 0;
+        code.crBackColor = RGB(245, 245, 245);
+        wcscpy_s(code.szFaceName, LF_FACESIZE, L"Consolas");
+        for (const auto& range : rendered.code)
+        {
+            SendMessageW(control, EM_SETSEL, static_cast<WPARAM>(range.start),
+                static_cast<LPARAM>(range.start + range.length));
+            SendMessageW(control, EM_SETCHARFORMAT, SCF_SELECTION, reinterpret_cast<LPARAM>(&code));
+        }
+        SendMessageW(control, EM_SETSEL, -1, -1);
+        SendMessageW(control, EM_SCROLLCARET, 0, 0);
+    }
+
     INT_PTR CALLBACK ConsultDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
     {
         switch (message)
@@ -130,7 +186,7 @@ namespace
                     ++context->roundCount;
                     context->transcript += L"【第" + std::to_wstring(context->roundCount) + L"回】\r\n"
                         L"【質問】\r\n" + question + L"\r\n\r\n【回答】\r\n" + result.text;
-                    SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript.c_str());
+                    SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_QUESTION, L"");
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, result.notice.empty()
                         ? L"回答が完了しました。前の会話を踏まえて追加質問できます。"
