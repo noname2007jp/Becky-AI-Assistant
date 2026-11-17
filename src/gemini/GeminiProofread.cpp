@@ -53,13 +53,25 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
     if (body.empty()) { r.error = L"校正するメール本文がありません。"; return r; }
     if (body.size() > 50000) { r.error = L"本文が長すぎます（50,000文字以内）。"; return r; }
 
-    const std::wstring instruction = BuildEmailProofreadInstruction();
-
     PiiMasker local;
     PiiMasker& masker = externalMasker ? *externalMasker : local;
     if (!masker.IsReady()) { r.error = masker.Error(); return r; }
     const std::wstring maskedBody = masker.Mask(body);
-    std::string config = "\"maxOutputTokens\":4096";
+
+    std::wstring instruction = BuildEmailProofreadInstruction();
+    if (masker.IsEnabled() && masker.ReplacementCount() > 0)
+    {
+        instruction +=
+            L"\n\n【最重要：マスキング文字列の保持】"
+            L"本文中の角括弧で囲まれたマスキング文字列（例：[EMAIL_1]、[PERSON_1]、[MANUAL_1]）は、"
+            L"個人情報等を安全に復元するための保護されたプレースホルダーです。"
+            L"すべてのプレースホルダーを、英字・数字・アンダースコア・角括弧を含めて一字一句変更せず、"
+            L"必ず校正結果の同じ文脈・同じ順序で残してください。削除、言い換え、翻訳、分割、結合、表記変更は禁止です。"
+            L"プレースホルダーの内部や前後に文字を追加せず、同じものを重複させないでください。"
+            L"プレースホルダーを含む文も省略せず、周辺の日本語だけを必要最小限で校正してください。";
+    }
+    // Proofreading output is close to the input length; allow more room than summary/reply.
+    std::string config = "\"maxOutputTokens\":8192";
     if (model.find(L"gemini-2.5-") == 0) {
         int budget = thinking == L"OFF" ? 0 : -1;
         config += ",\"thinkingConfig\":{\"thinkingBudget\":" + std::to_string(budget) + "}";
@@ -72,10 +84,10 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
         "\"}]}],\"generationConfig\":{" + config + "}}";
     LogGeminiRequest(L"proofread", model, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.48.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.49.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { r.error = L"通信セッションを開始できません。"; return r; }
-    WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
+    WinHttpSetTimeouts(session, 10000, 15000, 30000, 90000);
     HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
     const std::wstring path = L"/v1beta/models/" + model + L":generateContent";
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST", path.c_str(),
@@ -116,7 +128,10 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
                 if (r.success && !masker.ContainsAllTokens(r.text)) {
                     r.success = false;
                     r.text.clear();
-                    r.error = L"マスキングした情報の一部が校正結果から欠落しました。本文の欠落を防ぐため、結果は適用できません。マスキング対象を見直すか、別のモデルで再試行してください。";
+                    r.error = L"マスキングした情報の一部が校正結果から欠落しました。本文の欠落を防ぐため、結果は適用できません。別のモデルで再試行します。";
+                    // Treat placeholder loss as a model-quality failure so automatic
+                    // fallback can try another verified free-tier model.
+                    r.retryable = true;
                 } else if (r.success) {
                     r.text = masker.Restore(r.text);
                 } else {
