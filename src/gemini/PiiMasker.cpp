@@ -3,6 +3,28 @@
 #include <algorithm>
 #include <regex>
 
+namespace
+{
+std::wstring NormalizeLineEndingsToLf(const std::wstring& text)
+{
+    std::wstring normalized;
+    normalized.reserve(text.size());
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        if (text[i] == L'\\r')
+        {
+            normalized += L'\\n';
+            if (i + 1 < text.size() && text[i + 1] == L'\\n') ++i;
+        }
+        else
+        {
+            normalized += text[i];
+        }
+    }
+    return normalized;
+}
+}
+
 PiiMasker::PiiMasker()
 {
     if (!LoadPiiMaskOptions(options_, error_)) return;
@@ -114,7 +136,9 @@ bool PiiMasker::MaskSelected(std::wstring& preview, size_t start, size_t length)
     if (!options_.enabled || length == 0 || start > preview.size() || length > preview.size() - start) return false;
     const std::wstring selected = preview.substr(start, length);
     if (selected.size() < 2 || selected.find(L"[MANUAL_") != std::wstring::npos) return false;
-    const std::wstring originalSelected = Restore(selected);
+    // Preview EDIT controls use CRLF, while the original API prompt may use LF.
+    // Store the selected phrase canonically so manual masking also matches the prompt.
+    const std::wstring originalSelected = NormalizeLineEndingsToLf(Restore(selected));
     if (originalSelected.size() < 2 ||
         std::find(manualTerms_.begin(), manualTerms_.end(), originalSelected) != manualTerms_.end()) return false;
     manualTerms_.push_back(originalSelected);
