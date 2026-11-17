@@ -106,7 +106,8 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         result = std::move(alternate);
     }
 
-    result.error += L"\n最初のモデルのエラー: " + initialError;
-    result.error += L"\n代替モデルを試しましたが、利用可能な応答を取得できませんでした: " + attempted;
+    result.error = L"Gemini APIから利用可能な応答を取得できませんでした。";
+    result.error += L"\n選択モデル「" + selectedModelId + L"」のエラー: " + initialError;
+    result.error += L"\n代替モデルの結果: " + attempted;
     return result;
 }
