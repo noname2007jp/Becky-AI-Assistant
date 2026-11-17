@@ -21,6 +21,21 @@ std::wstring GetText(HWND dlg, int id) {
     HWND h = GetDlgItem(dlg,id); int n=GetWindowTextLengthW(h);
     std::wstring s((size_t)n+1,L'\0'); GetWindowTextW(h,s.data(),n+1); s.resize((size_t)n); return s;
 }
+std::wstring NormalizeWindowsNewlines(const std::wstring& value) {
+    std::wstring out;
+    out.reserve(value.size() + 16);
+    for (size_t i = 0; i < value.size(); ++i) {
+        if (value[i] == L'\r') {
+            out += L"\r\n";
+            if (i + 1 < value.size() && value[i + 1] == L'\n') ++i;
+        } else if (value[i] == L'\n') {
+            out += L"\r\n";
+        } else {
+            out += value[i];
+        }
+    }
+    return out;
+}
 std::wstring FromAnsi(const char* s) {
     if(!s||!*s)return {};
     int n=MultiByteToWideChar(CP_ACP,0,s,-1,nullptr,0); if(n<=1)return {};
@@ -41,7 +56,7 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
     if(m==WM_INITDIALOG) {
         auto* c=reinterpret_cast<Context*>(l); SetWindowLongPtrW(d,DWLP_USER,(LONG_PTR)c);
         char mime[256]{}; LPSTR body=c->api->CompGetText(c->compose,mime,sizeof(mime));
-        if(body){c->original=FromAnsi(body);c->api->Free(body);}
+        if(body){c->original=NormalizeWindowsNewlines(FromAnsi(body));c->api->Free(body);}
         if(c->original.empty()) {
             MessageBoxW(d,L"校正する本文がありません。メール本文を入力してから実行してください。",L"メール校正",MB_OK|MB_ICONINFORMATION);
             EndDialog(d,IDCANCEL); return TRUE;
@@ -77,7 +92,8 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
                 SetDlgItemTextW(d,IDC_PROOFREAD_STATUS,L"校正に失敗しました。");
                 MessageBoxW(d,r.error.c_str(),L"Gemini APIエラー",MB_OK|MB_ICONWARNING);
             } else {
-                SetDlgItemTextW(d,IDC_PROOFREAD_RESULT,r.text.c_str());
+                const std::wstring displayResult=NormalizeWindowsNewlines(r.text);
+                SetDlgItemTextW(d,IDC_PROOFREAD_RESULT,displayResult.c_str());
                 SetDlgItemTextW(d,IDC_PROOFREAD_STATUS,r.notice.empty()?L"校正結果を確認してください。":r.notice.c_str());
             }
         }
@@ -90,14 +106,21 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             LRESULT ix=SendDlgItemMessageW(d,IDC_PROOFREAD_MODEL,CB_GETCURSEL,0,0);
             if(ix<0||ix>=(LRESULT)c->models.size())return TRUE;
             PiiMasker masker;if(!masker.IsReady()){MessageBoxW(d,masker.Error().c_str(),L"マスキング設定エラー",MB_OK|MB_ICONWARNING);return TRUE;}
-            const std::wstring preview=BuildEmailProofreadPrompt(c->original);
-            const std::wstring masked=masker.Mask(preview);
+            // A second pass starts from the previous result (including user edits).
+            // The original compose body is never changed until the user explicitly applies.
+            std::wstring source = GetText(d, IDC_PROOFREAD_RESULT);
+            if (source.empty()) source = c->original;
+            source = NormalizeWindowsNewlines(source);
+            c->original = source;
+            SetDlgItemTextW(d, IDC_PROOFREAD_ORIGINAL, source.c_str());
+            SetDlgItemTextW(d, IDC_PROOFREAD_RESULT, L"");
+            const std::wstring masked = masker.Mask(source);
             if(masker.IsEnabled()&&!ShowPiiMaskPreviewDialog(d,c->instance,L"メール校正：Gemini送信内容の確認",masked,masker))return TRUE;
             std::wstring key,error;
             if(!LoadGeminiApiKey(key,error)||key.empty()){MessageBoxW(d,error.empty()?L"先に設定画面でGemini APIキーを保存してください。":error.c_str(),L"Becky AI Assistant",MB_OK|MB_ICONWARNING);return TRUE;}
             GeminiReliabilityOptions rel;std::wstring relError;
             if(!LoadGeminiReliabilityOptions(rel,relError)){MessageBoxW(d,relError.c_str(),L"設定エラー",MB_OK|MB_ICONWARNING);return TRUE;}
-            auto model=c->models[(size_t)ix];auto models=c->models;bool fallback=rel.automaticModelFallback;auto original=c->original;
+            auto model=c->models[(size_t)ix];auto models=c->models;bool fallback=rel.automaticModelFallback;auto original=source;
             c->busy=true;SetBusy(d,true);ShowApiProcessingStatus(d,IDC_PROOFREAD_STATUS,L"Geminiでメール本文を校正しています...");
             bool started=GeminiAsync::Start(d,std::move(key),
                 [model,models,fallback,original,masker](const std::wstring& k,const std::atomic<int>& cancel) mutable {
@@ -116,7 +139,8 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             const std::wstring corrected=GetText(d,IDC_PROOFREAD_RESULT);
             if(corrected.empty()){MessageBoxW(d,L"校正結果がありません。先に校正を実行してください。",L"メール校正",MB_OK|MB_ICONINFORMATION);return TRUE;}
             if(MessageBoxW(d,L"校正結果で現在のメール本文を置き換えます。\n\n元の本文は自動保存されません。適用しますか？",L"校正結果の適用確認",MB_YESNO|MB_ICONWARNING|MB_DEFBUTTON2)!=IDYES)return TRUE;
-            const std::string a=ToAnsi(corrected);
+            const std::wstring normalized=NormalizeWindowsNewlines(corrected);
+            const std::string a=ToAnsi(normalized);
             if(a.empty()){MessageBoxW(d,L"校正結果をBecky!の文字コードに変換できませんでした。",L"メール校正",MB_OK|MB_ICONWARNING);return TRUE;}
             c->api->CompSetText(c->compose,0,a.c_str());EndDialog(d,IDOK);return TRUE;
         }
