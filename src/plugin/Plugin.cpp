@@ -1,7 +1,7 @@
 #include <windows.h>
 
 #ifndef BECKY_AI_ASSISTANT_VERSION
-#define BECKY_AI_ASSISTANT_VERSION "0.38.0"
+#define BECKY_AI_ASSISTANT_VERSION "0.42.0"
 #endif
 #include <algorithm>
 #include <cctype>
