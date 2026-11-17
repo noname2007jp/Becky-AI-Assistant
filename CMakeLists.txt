@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.46.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.47.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -91,13 +91,13 @@ if(BUILD_TESTING)
   target_link_libraries(GeminiAsyncTests PRIVATE user32)
   add_test(NAME GeminiAsyncTests COMMAND GeminiAsyncTests)
 
-  add_executable(GeminiProofreadJsonTests
+  add_executable(GeminiResponseJsonTests
     tests/GeminiProofreadJsonTests.cpp
     src/gemini/GeminiProofreadJson.cpp
   )
-  target_include_directories(GeminiProofreadJsonTests PRIVATE src)
-  target_compile_features(GeminiProofreadJsonTests PRIVATE cxx_std_17)
-  target_compile_definitions(GeminiProofreadJsonTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
-  target_compile_options(GeminiProofreadJsonTests PRIVATE /W4 /permissive- /EHsc /utf-8)
-  add_test(NAME GeminiProofreadJsonTests COMMAND GeminiProofreadJsonTests)
+  target_include_directories(GeminiResponseJsonTests PRIVATE src)
+  target_compile_features(GeminiResponseJsonTests PRIVATE cxx_std_17)
+  target_compile_definitions(GeminiResponseJsonTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(GeminiResponseJsonTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME GeminiResponseJsonTests COMMAND GeminiResponseJsonTests)
 endif()

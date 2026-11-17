@@ -1,4 +1,5 @@
 #include "GeminiCompose.h"
+#include "GeminiProofreadJson.h"
 #include <windows.h>
 #include <winhttp.h>
 #include "GeminiError.h"
@@ -43,40 +44,7 @@ std::string JsonEscape(const std::string& s)
     }
     return out;
 }
-bool ExtractText(const std::string& json, std::wstring& output)
-{
-    size_t p = json.find("\"text\"");
-    if (p == std::string::npos) return false;
-    p = json.find(':', p);
-    p = json.find('"', p);
-    if (p == std::string::npos) return false;
-    ++p;
-    std::string value;
-    bool escape = false;
-    for (; p < json.size(); ++p)
-    {
-        char c = json[p];
-        if (!escape && c == '"') break;
-        if (!escape && c == '\\') { escape = true; continue; }
-        if (escape)
-        {
-            switch (c)
-            {
-            case '"': value += '"'; break;
-            case '\\': value += '\\'; break;
-            case 'n': value += '\n'; break;
-            case 'r': value += '\r'; break;
-            case 't': value += '\t'; break;
-            default: value += c; break;
-            }
-            escape = false;
-        }
-        else value += c;
-    }
-    if (p >= json.size() || escape) return false;
-    output = Wide(value);
-    return !output.empty();
-}
+
 }
 
 GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
@@ -120,7 +88,7 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
         JsonEscape(Utf8(maskedPrompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
     LogGeminiRequest(L"compose", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.46.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.47.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
@@ -190,7 +158,7 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
             }
             else
             {
-                result.success = ExtractText(response, result.text);
+                result.success = ExtractGeminiResponseText(response, result.text);
                 if (result.success) result.text = masker.Restore(result.text);
                 else { result.error = L"応答からメール文案を取得できませんでした。"; result.retryable = true; }
             }
