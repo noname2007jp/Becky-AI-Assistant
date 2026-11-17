@@ -3,6 +3,31 @@
 
 namespace
 {
+// Win32 multiline EDIT controls require CRLF. API prompt text intentionally
+// keeps its original LF line endings; normalize only the preview copy.
+std::wstring ToEditControlLineEndings(const std::wstring& text)
+{
+    std::wstring normalized;
+    normalized.reserve(text.size() + 16);
+    for (size_t i = 0; i < text.size(); ++i)
+    {
+        if (text[i] == L'\\r')
+        {
+            normalized += L"\\r\\n";
+            if (i + 1 < text.size() && text[i + 1] == L'\\n') ++i;
+        }
+        else if (text[i] == L'\\n')
+        {
+            normalized += L"\\r\\n";
+        }
+        else
+        {
+            normalized += text[i];
+        }
+    }
+    return normalized;
+}
+
 struct PreviewContext
 {
     const std::wstring* title;
@@ -60,7 +85,7 @@ INT_PTR CALLBACK PreviewProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lP
 bool ShowPiiMaskPreviewDialog(HWND owner, HINSTANCE instance,
     const std::wstring& title, const std::wstring& maskedContent, PiiMasker& masker)
 {
-    std::wstring editablePreview = maskedContent;
+    std::wstring editablePreview = ToEditControlLineEndings(maskedContent);
     PreviewContext context{ &title, &editablePreview, &masker };
     return DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_PII_MASK_PREVIEW),
         owner, PreviewProc, reinterpret_cast<LPARAM>(&context)) == IDOK;
