@@ -157,6 +157,50 @@ int main()
         exhausted.error.find(L"HTTP 503") != std::wstring::npos,
         "final error retains the selected model and every fallback failure detail");
 
+
+    const std::vector<GeminiModelOption> verifiedModels = {
+        { L"Gemini 3.8 Flash", L"gemini-3.8-flash", L"MEDIUM", true, true },
+        { L"Gemini 3.6 Flash", L"gemini-3.6-flash", L"MEDIUM", true, true },
+        { L"Gemini 3.5 Flash-Lite", L"gemini-3.5-flash-lite", L"MEDIUM", true, true },
+        { L"Gemini 3.1 Flash-Lite", L"gemini-3.1-flash-lite", L"MEDIUM", true, true },
+        { L"Gemini 3 Flash", L"gemini-3-flash-preview", L"MEDIUM", true, true }
+    };
+    calls = 0;
+    std::vector<std::wstring> fullFallbackOrder;
+    auto recoveredAfterSeveralFailures = GenerateWithModelFallback(
+        L"gemini-2.5-flash-lite", L"MEDIUM", verifiedModels, true,
+        [&](const std::wstring& id, const std::wstring&) {
+            ++calls; fullFallbackOrder.push_back(id);
+            if (id == L"gemini-2.5-flash-lite") return Failure(404, true);
+            if (id == L"gemini-3.8-flash") {
+                auto timeout = Failure(0, true);
+                timeout.error = L"timeout";
+                return timeout;
+            }
+            if (id == L"gemini-3.6-flash") return Failure(503, true);
+            return Success(L"recovered on 3.5");
+        });
+    Check(calls == 4 && recoveredAfterSeveralFailures.success &&
+        recoveredAfterSeveralFailures.modelUsed == L"gemini-3.5-flash-lite",
+        "fallback continues past 3.8 timeout and 3.6 HTTP 503 to working 3.5");
+    Check(fullFallbackOrder.size() == 4 &&
+        fullFallbackOrder[1] == L"gemini-3.8-flash" &&
+        fullFallbackOrder[2] == L"gemini-3.6-flash" &&
+        fullFallbackOrder[3] == L"gemini-3.5-flash-lite",
+        "fallback tries verified models in priority order");
+
+    calls = 0;
+    std::vector<std::wstring> exhaustedOrder;
+    auto exhaustedAll = GenerateWithModelFallback(
+        L"gemini-2.5-flash-lite", L"MEDIUM", verifiedModels, true,
+        [&](const std::wstring& id, const std::wstring&) {
+            ++calls; exhaustedOrder.push_back(id);
+            if (id == L"gemini-2.5-flash-lite") return Failure(404, true);
+            return Failure(503, true);
+        });
+    Check(calls == 6 && exhaustedOrder.back() == L"gemini-3-flash-preview",
+        "fallback checks all five verified models before reporting failure");
+
     calls = 0;
     auto disabled = GenerateWithModelFallback(
         L"gemini-primary", L"MEDIUM", models, false,
