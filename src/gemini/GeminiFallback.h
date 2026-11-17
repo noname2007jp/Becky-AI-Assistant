@@ -39,6 +39,7 @@ inline GeminiGenerateResult GenerateWithModelFallback(
     GeminiGenerateResult result = generate(selectedModelId, selectedThinking);
     result.modelUsed = selectedModelId;
     const std::wstring initialError = result.error;
+    const unsigned long initialStatus = result.httpStatus;
     if (!enabled || result.success || !result.retryable ||
         (cancelState && cancelState->load(std::memory_order_acquire) != 0))
         return result;
