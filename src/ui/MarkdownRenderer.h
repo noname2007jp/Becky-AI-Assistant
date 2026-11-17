@@ -42,6 +42,7 @@ namespace MarkdownRenderer
             return;
         }
         bool bold = false, code = false;
+        wchar_t boldMarker = 0;
         size_t boldStart = 0, codeStart = 0;
         for (size_t i = begin; i < end;)
         {
@@ -51,23 +52,24 @@ namespace MarkdownRenderer
             {
                 const wchar_t marker = line[i];
                 const size_t close = line.find(std::wstring(2, marker), i + 2);
-                if (close != std::wstring::npos && close < end)
+                if ((!bold && close != std::wstring::npos && close < end) || (bold && marker == boldMarker))
                 {
-                    if (!bold) { bold = true; boldStart = result.text.size(); }
+                    if (!bold) { bold = true; boldMarker = marker; boldStart = result.text.size(); }
                     else
                     {
                         if (result.text.size() > boldStart)
                             result.bold.push_back({ boldStart, result.text.size() - boldStart });
                         bold = false;
+                        boldMarker = 0;
                     }
                     i += 2;
                     continue;
                 }
             }
-            if (line[i] == L'\x60')
+            if (line[i] == L'\\x60')
             {
-                const size_t close = line.find(L'\x60', i + 1);
-                if (close != std::wstring::npos && close < end)
+                const size_t close = line.find(L'\\x60', i + 1);
+                if ((!code && close != std::wstring::npos && close < end) || code)
                 {
                     if (!code) { code = true; codeStart = result.text.size(); }
                     else
@@ -120,7 +122,7 @@ namespace MarkdownRenderer
                 if (heading) contentStart += hashes + 1;
 
                 const size_t lineStart = result.text.size();
-                result.text.append(line, 0, contentStart);
+                result.text.append(line, 0, heading ? first : contentStart);
                 if (!heading && contentStart == first && first + 1 < line.size() &&
                     (line[first] == L'*' || line[first] == L'-' || line[first] == L'+') &&
                     line[first + 1] == L' ')
