@@ -18,6 +18,7 @@ add_library(BeckyAIAssistant SHARED
   src/gemini/GeminiGenerate.cpp
   src/gemini/GeminiReply.cpp
   src/gemini/GeminiCompose.cpp
+  src/gemini/GeminiProofread.cpp
   src/gemini/GeminiDebugLog.cpp
   src/gemini/PiiMasker.cpp
   src/ui/SettingsDialog.cpp
@@ -25,6 +26,7 @@ add_library(BeckyAIAssistant SHARED
   src/ui/LauncherDialog.cpp
   src/ui/ConsultDialog.cpp
   src/ui/ComposeDialog.cpp
+  src/ui/ProofreadDialog.cpp
   src/ui/ResultDialog.cpp
   resources/Launcher.rc
   third_party/becky_sdk/BeckyAPI.cpp
