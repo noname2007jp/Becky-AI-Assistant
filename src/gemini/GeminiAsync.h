@@ -114,7 +114,9 @@ namespace GeminiAsync
             return false;
         }
 
-        HANDLE thread = CreateThread(nullptr, 0, ThreadProc, work, 0, nullptr);
+        // Start suspended so ThreadProc cannot observe an unset threadHandle or
+        // free WorkItem before the caller has received its ownership pointer.
+        HANDLE thread = CreateThread(nullptr, 0, ThreadProc, work, CREATE_SUSPENDED, nullptr);
         if (!thread)
         {
             if (!work->apiKey.empty())
@@ -123,6 +125,18 @@ namespace GeminiAsync
             return false;
         }
         work->threadHandle = thread;
+        if (ResumeThread(thread) == static_cast<DWORD>(-1))
+        {
+            // The worker has not run yet; terminating a suspended thread is safe here.
+            TerminateThread(thread, ERROR_CANCELLED);
+            WaitForSingleObject(thread, INFINITE);
+            CloseHandle(thread);
+            work->threadHandle = nullptr;
+            if (!work->apiKey.empty())
+                SecureZeroMemory(work->apiKey.data(), work->apiKey.size() * sizeof(wchar_t));
+            delete work;
+            return false;
+        }
         if (outputWork) *outputWork = work;
         return true;
     }
