@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 #include "ui/ResultDialog.h"
 #include "mail/MimeTextExtractor.h"
@@ -285,7 +286,7 @@ namespace
                 mail = source->second;
             } else {
                 const char* currentId = g_beckyApi.GetCurrentMail();
-                if (currentId != nullptr && currentId[0] != '\\0')
+                if (currentId != nullptr && currentId[0] != '\0')
                     GetMailById(std::string(currentId), mail);
             }
 
@@ -298,11 +299,11 @@ namespace
             ShowLauncherDialog(owner, g_instance, mail);
             if (mail.insertReplyRequested && !mail.replyDraft.empty()) {
                 std::wstring insertion = mail.replyDraft;
-                if (insertion.size() < 2 || insertion.substr(insertion.size() - 2) != L"\\r\\n")
-                    insertion += L"\\r\\n\\r\\n";
+                if (insertion.size() < 2 || insertion.substr(insertion.size() - 2) != L"\r\n")
+                    insertion += L"\r\n\r\n";
                 const int bytes = WideCharToMultiByte(CP_ACP, 0, insertion.c_str(), -1, nullptr, 0, nullptr, nullptr);
                 if (bytes > 1) {
-                    std::string text(static_cast<size_t>(bytes), '\\0');
+                    std::string text(static_cast<size_t>(bytes), '\0');
                     if (WideCharToMultiByte(CP_ACP, 0, insertion.c_str(), -1, text.data(), bytes, nullptr, nullptr))
                         g_beckyApi.CompSetText(owner, -1, text.c_str());
                 }
@@ -544,7 +545,7 @@ extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
         if (mode == COMPOSE_MODE_REPLY1 || mode == COMPOSE_MODE_REPLY2) {
             std::string sourceId;
             const char* currentId = g_beckyApi.GetCurrentMail();
-            if (currentId != nullptr && currentId[0] != '\\0')
+            if (currentId != nullptr && currentId[0] != '\0')
                 sourceId = currentId;
             if (sourceId.empty() && !g_pendingReplyMailId.empty() &&
                 GetTickCount64() - g_pendingReplyTick <= 15000 &&
