@@ -148,7 +148,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
         JsonEscape(Utf8(prompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
     LogGeminiRequest(L"reply", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.14",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.42.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
@@ -181,6 +181,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
         std::string response;
         DWORD available = 0;
         bool responseReadFailed = false;
+        bool responseTooLarge = false;
         DWORD responseReadError = ERROR_SUCCESS;
         for (;;)
         {
@@ -191,7 +192,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
                 break;
             }
             if (!available) break;
-            if (response.size() + available > 2 * 1024 * 1024) break;
+            if (response.size() + available > 2 * 1024 * 1024) { responseTooLarge = true; break; }
             size_t old = response.size();
             response.resize(old + available);
             DWORD read = 0;
@@ -206,7 +207,11 @@ GeminiGenerateResult GenerateMailReplyDraft(
         }
         if (code == 200)
         {
-            if (responseReadFailed)
+            if (responseTooLarge)
+            {
+                result.error = L"Gemini APIの応答データが上限（2MB）を超えました。時間をおいて再試行してください。";
+            }
+            else if (responseReadFailed)
             {
                 result.error = FormatWinHttpError(responseReadError);
                 result.retryable = responseReadError == ERROR_WINHTTP_TIMEOUT;
