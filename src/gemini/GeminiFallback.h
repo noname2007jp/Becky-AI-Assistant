@@ -39,6 +39,7 @@ inline GeminiGenerateResult GenerateWithModelFallback(
     GeminiGenerateResult result = generate(selectedModelId, selectedThinking);
     result.modelUsed = selectedModelId;
     const std::wstring initialError = result.error;
+    const unsigned long initialStatus = result.httpStatus;
     if (!enabled || result.success || !result.retryable ||
         (cancelState && cancelState->load(std::memory_order_acquire) != 0))
         return result;
@@ -89,9 +90,11 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         if (!attempted.empty()) attempted += L"、";
         attempted += fallback.label;
         if (alternate.httpStatus == 200)
-            attempted += L"（応答内容の検証に失敗）";
+            attempted += L"（応答内容の検証に失敗: " + alternate.error + L"）";
+        else if (alternate.httpStatus == 0)
+            attempted += L"（通信エラー: " + alternate.error + L"）";
         else
-            attempted += L"（HTTP " + std::to_wstring(alternate.httpStatus) + L"）";
+            attempted += L"（HTTP " + std::to_wstring(alternate.httpStatus) + L": " + alternate.error + L"）";
 
         // 404 means this project cannot call that model even if models.list exposed it.
         // Transient failures can also justify trying the next free-tier candidate.
@@ -104,7 +107,12 @@ inline GeminiGenerateResult GenerateWithModelFallback(
         result = std::move(alternate);
     }
 
-    result.error += L"\n最初のモデルのエラー: " + initialError;
-    result.error += L"\n代替モデルを試しましたが、利用可能な応答を取得できませんでした: " + attempted;
+    result.error = L"Gemini APIから利用可能な応答を取得できませんでした。";
+    result.error += L"\n選択モデル「" + selectedModelId + L"」";
+    if (initialStatus == 0)
+        result.error += L"（通信エラー）: " + initialError;
+    else
+        result.error += L"（HTTP " + std::to_wstring(initialStatus) + L"）: " + initialError;
+    result.error += L"\n代替モデルの結果: " + attempted;
     return result;
 }

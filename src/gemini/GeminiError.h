@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <winhttp.h>
 #include <string>
 
 inline std::wstring FormatGeminiHttpError(unsigned long code)
@@ -55,4 +56,15 @@ inline std::wstring FormatWinHttpError(DWORD error)
             std::to_wstring(error) +
             L"）。ネットワーク、プロキシ、ファイアウォールを確認してください。";
     }
+}
+
+
+// Retry only transient WinHTTP transport failures. Configuration and TLS errors
+// should be reported directly instead of repeatedly switching models.
+inline bool IsRetryableWinHttpError(DWORD error)
+{
+    return error == ERROR_WINHTTP_TIMEOUT ||
+        error == ERROR_WINHTTP_NAME_NOT_RESOLVED ||
+        error == ERROR_WINHTTP_CANNOT_CONNECT ||
+        error == ERROR_WINHTTP_CONNECTION_ERROR;
 }

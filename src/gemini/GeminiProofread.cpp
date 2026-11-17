@@ -84,10 +84,10 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
         "\"}]}],\"generationConfig\":{" + config + "}}";
     LogGeminiRequest(L"proofread", model, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.49.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.50.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { r.error = L"通信セッションを開始できません。"; return r; }
-    WinHttpSetTimeouts(session, 10000, 15000, 30000, 90000);
+    WinHttpSetTimeouts(session, 10000, 15000, 30000, 45000);
     HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
     const std::wstring path = L"/v1beta/models/" + model + L":generateContent";
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST", path.c_str(),
@@ -103,7 +103,7 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
         (LPVOID)payload.data(), (DWORD)payload.size(), (DWORD)payload.size(), 0);
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
     if (!received) {
-        DWORD e = GetLastError(); r.error = FormatWinHttpError(e); r.retryable = e == ERROR_WINHTTP_TIMEOUT;
+        DWORD e = GetLastError(); r.error = FormatWinHttpError(e); r.retryable = IsRetryableWinHttpError(e);
     } else {
         DWORD code = 0, size = sizeof(code);
         WinHttpQueryHeaders(request, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
@@ -122,7 +122,7 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
         }
         if (code == 200) {
             if (large) r.error = L"Gemini APIの応答が上限（2MB）を超えました。";
-            else if (failed) { r.error = FormatWinHttpError(readError); r.retryable = readError == ERROR_WINHTTP_TIMEOUT; }
+            else if (failed) { r.error = FormatWinHttpError(readError); r.retryable = IsRetryableWinHttpError(readError); }
             else {
                 r.success = ExtractGeminiResponseText(response, r.text);
                 if (r.success && !masker.ContainsAllTokens(r.text)) {
