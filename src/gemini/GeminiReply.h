@@ -3,7 +3,6 @@
 
 std::wstring BuildMailReplyContent(
     const std::wstring& subject,
-    const std::wstring& from,
     const std::wstring& body,
     const std::wstring& consultationTranscript = L"");
 
