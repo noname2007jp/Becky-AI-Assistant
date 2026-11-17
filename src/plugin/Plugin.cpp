@@ -232,7 +232,7 @@ namespace
         // Copy the SDK-owned string before making another Becky! API call.
         const std::string mailId(currentId);
         std::string normalizedId = mailId;
-        while (!normalizedId.empty() && normalizedId.back() == '\\0')
+        while (!normalizedId.empty() && normalizedId.back() == '\0')
             normalizedId.pop_back();
         if (normalizedId.empty()) return false;
         mail.mailId = ToWide(normalizedId);
