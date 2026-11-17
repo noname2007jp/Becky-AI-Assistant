@@ -143,6 +143,24 @@ int main()
             "individual masking categories can be disabled");
     }
 
+    {
+        PiiMaskOptions options = AllEnabled();
+        options.company = true;
+        options.person = true;
+        PiiMasker masker(options, {});
+        const std::wstring source = L"株式会社青空商事\\r\\n山田太郎様\\r\\nいつもお世話になっております。";
+        const std::wstring masked = masker.Mask(source);
+        Check(masked.find(L"株式会社青空商事") == std::wstring::npos &&
+              masked.find(L"山田太郎") == std::wstring::npos,
+            "company and recipient name on adjacent lines are masked");
+        Check(masker.Restore(masked) == source,
+            "company and recipient on adjacent lines restore without loss");
+        const std::wstring duplicatedHonorific = masked + L"様様";
+        const std::wstring restored = masker.Restore(duplicatedHonorific);
+        Check(restored.find(L"様様") == std::wstring::npos,
+            "duplicate Japanese honorifics are collapsed after restoration");
+    }
+
     if (failures != 0)
     {
         std::cerr << failures << " test(s) failed.\n";
