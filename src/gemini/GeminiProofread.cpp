@@ -110,9 +110,17 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
             if (large) r.error = L"Gemini APIの応答が上限（2MB）を超えました。";
             else if (failed) { r.error = FormatWinHttpError(readError); r.retryable = readError == ERROR_WINHTTP_TIMEOUT; }
             else {
-                r.success = Extract(response, r.text);
-                if (r.success) r.text = masker.Restore(r.text);
-                else { r.error = L"校正結果を取得できませんでした。"; r.retryable = true; }
+                r.success = ExtractGeminiResponseText(response, r.text);
+                if (r.success && !masker.ContainsAllTokens(r.text)) {
+                    r.success = false;
+                    r.text.clear();
+                    r.error = L"マスキングした情報の一部が校正結果から欠落しました。本文の欠落を防ぐため、結果は適用できません。マスキング対象を見直すか、別のモデルで再試行してください。";
+                } else if (r.success) {
+                    r.text = masker.Restore(r.text);
+                } else {
+                    r.error = L"校正結果を取得できませんでした。";
+                    r.retryable = true;
+                }
             }
         } else {
             r.error = FormatGeminiHttpError(code);
