@@ -59,6 +59,18 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
 {
     if (!options_.enabled) return value;
     std::wstring output = value;
+    // Apply manual selections first so complete previews can be replaced atomically.
+    for (const auto& term : manualTerms_)
+    {
+        if (term.size() < 2) continue;
+        size_t position = 0;
+        while ((position = output.find(term, position)) != std::wstring::npos)
+        {
+            const std::wstring token = AddReplacement(term, L"MANUAL");
+            output.replace(position, term.size(), token);
+            position += token.size();
+        }
+    }
     if (options_.email) output = ApplyPattern(output,
         L"[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}", L"EMAIL");
     if (options_.company) output = ApplyPattern(output,
@@ -94,17 +106,6 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
             position += token.size();
         }
     }
-    for (const auto& term : manualTerms_)
-    {
-        if (term.size() < 2) continue;
-        size_t position = 0;
-        while ((position = output.find(term, position)) != std::wstring::npos)
-        {
-            const std::wstring token = AddReplacement(term, L"MANUAL");
-            output.replace(position, term.size(), token);
-            position += token.size();
-        }
-    }
     return output;
 }
 
@@ -113,10 +114,12 @@ bool PiiMasker::MaskSelected(std::wstring& preview, size_t start, size_t length)
     if (!options_.enabled || length == 0 || start > preview.size() || length > preview.size() - start) return false;
     const std::wstring selected = preview.substr(start, length);
     if (selected.size() < 2 || selected.find(L"[MANUAL_") != std::wstring::npos) return false;
-    if (std::find(manualTerms_.begin(), manualTerms_.end(), selected) != manualTerms_.end()) return false;
-    manualTerms_.push_back(selected);
+    const std::wstring originalSelected = Restore(selected);
+    if (originalSelected.size() < 2 ||
+        std::find(manualTerms_.begin(), manualTerms_.end(), originalSelected) != manualTerms_.end()) return false;
+    manualTerms_.push_back(originalSelected);
     size_t position = 0;
-    const std::wstring token = AddReplacement(selected, L"MANUAL");
+    const std::wstring token = AddReplacement(originalSelected, L"MANUAL");
     while ((position = preview.find(selected, position)) != std::wstring::npos)
     {
         preview.replace(position, selected.size(), token);
