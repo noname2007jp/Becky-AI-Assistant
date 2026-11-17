@@ -13,6 +13,7 @@ public:
     std::wstring Mask(const std::wstring& value);
     bool MaskSelected(std::wstring& preview, size_t start, size_t length);
     std::wstring Restore(const std::wstring& value) const;
+    bool ContainsAllTokens(const std::wstring& value) const;
     bool IsReady() const { return error_.empty(); }
     bool IsEnabled() const { return options_.enabled; }
     std::size_t ReplacementCount() const { return replacements_.size(); }
