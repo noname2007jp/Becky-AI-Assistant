@@ -22,6 +22,8 @@ inline bool IsForwardOrQuoteSeparator(const std::wstring& line)
         line.find(L"元のメッセージ") != std::wstring::npos;
 }
 
+inline bool ContainsAny(const std::wstring& text, const std::vector<std::wstring>& words);
+
 inline bool IsSignatureSeparator(const std::wstring& raw)
 {
     const std::wstring line = TrimLine(raw);
