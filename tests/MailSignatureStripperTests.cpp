@@ -21,6 +21,9 @@ int main()
     const std::wstring ambiguous = L"ご連絡ありがとうございます。\n株式会社Exampleについて確認します。";
     check(MailSignature::RemoveObviousSignature(ambiguous) == ambiguous,
         "retains ambiguous prose mentioning a company");
+    const std::wstring divider = L"説明の前半です。\n------\n説明の後半です。";
+    check(MailSignature::RemoveObviousSignature(divider) == divider,
+        "does not remove ordinary text after a decorative divider");
     const std::wstring normal = L"お世話になっております。\n明日までに回答します。";
     check(MailSignature::RemoveObviousSignature(normal) == normal,
         "leaves ordinary message unchanged");
