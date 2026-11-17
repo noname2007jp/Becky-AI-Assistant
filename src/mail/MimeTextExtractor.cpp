@@ -203,7 +203,7 @@ bool EucJpToShiftJis(const std::string& input, std::string& output)
             if (second < 0xa1 || second > 0xfe) return false;
             const unsigned int row = first - 0x80;
             const unsigned int cell = second - 0x80;
-            unsigned int lead = ((row - 1) >> 1) + 0x81;
+            unsigned int lead = ((row - 0x21) >> 1) + 0x81;
             if (lead > 0x9f) lead += 0x40;
             unsigned int trail = (row & 1)
                 ? cell + (cell < 0x60 ? 0x1f : 0x20)
