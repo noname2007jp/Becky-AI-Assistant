@@ -19,12 +19,11 @@ inline int GeminiFallbackPriority(const std::wstring& id)
     // 2.5 models may appear in models.list but are restricted to projects with prior usage.
     if (id.find(L"gemini-2.5-") == 0) return -1;
     if (id.find(L"gemini-3.8-flash") == 0) return 100;
-    if (id.find(L"gemini-3.7-flash") == 0) return 95;
     if (id.find(L"gemini-3.6-flash") == 0) return 90;
     if (id.find(L"gemini-3.5-flash-lite") == 0) return 85;
     if (id.find(L"gemini-3.5-flash") == 0) return 80;
-    if (id.find(L"gemini-3.1-flash-lite") == 0) return 70;
-    if (id.find(L"flash") != std::wstring::npos) return 10;
+    if (id.find(L"gemini-3.1-flash-lite") == 0 || id.find(L"gemini-3.1-flash") == 0) return 70;
+    if (id.find(L"gemini-3.0-flash") == 0 || id.find(L"gemini-3-flash") == 0) return 60;
     return -1;
 }
 
@@ -67,8 +66,9 @@ inline GeminiGenerateResult GenerateWithModelFallback(
     }
 
     std::wstring attempted;
-    // Limit fallback attempts to two models to avoid long waits or excessive API calls.
-    const size_t maxAttempts = (std::min)(candidates.size(), static_cast<size_t>(2));
+    // Try every explicitly verified free-tier model. Each request has a 15-second
+    // receive timeout, so an unavailable model does not block the remaining candidates.
+    const size_t maxAttempts = candidates.size();
     for (size_t i = 0; i < maxAttempts; ++i)
     {
         if (cancelState && cancelState->load(std::memory_order_acquire) != 0)

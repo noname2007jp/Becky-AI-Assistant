@@ -88,10 +88,10 @@ GeminiGenerateResult GenerateNewMailDraft(const std::wstring& apiKey,
         JsonEscape(Utf8(maskedPrompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
     LogGeminiRequest(L"compose", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.50.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.52.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
-    WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
+    WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
     HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
     const std::wstring path = L"/v1beta/models/" + modelId + L":generateContent";
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST", path.c_str(),

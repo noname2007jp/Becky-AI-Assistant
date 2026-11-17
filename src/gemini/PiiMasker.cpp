@@ -11,10 +11,10 @@ std::wstring NormalizeLineEndingsToLf(const std::wstring& text)
     normalized.reserve(text.size());
     for (size_t i = 0; i < text.size(); ++i)
     {
-        if (text[i] == L'\\r')
+        if (text[i] == L'\r')
         {
-            normalized += L'\\n';
-            if (i + 1 < text.size() && text[i + 1] == L'\\n') ++i;
+            normalized += L'\n';
+            if (i + 1 < text.size() && text[i + 1] == L'\n') ++i;
         }
         else
         {

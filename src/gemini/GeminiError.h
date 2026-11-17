@@ -18,7 +18,7 @@ inline std::wstring FormatGeminiHttpError(unsigned long code)
     case 404:
         return L"指定したモデルがAPIで利用できません。モデル一覧を更新し、利用可能なモデルを選び直してください。" + suffix;
     case 408:
-        return L"Gemini APIの応答が30秒以内に完了しませんでした。応答の速いFlash系モデルへ切り替えるか、時間をおいて再試行してください。" + suffix;
+        return L"Gemini APIの応答が15秒以内に完了しませんでした。応答の速いFlash系モデルへ切り替えるか、時間をおいて再試行してください。" + suffix;
     case 413:
         return L"送信データが大きすぎます。メール本文や会話履歴を短くしてください。" + suffix;
     case 429:
