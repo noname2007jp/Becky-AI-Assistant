@@ -138,7 +138,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
     if (!received) {
         const DWORD networkError = GetLastError();
         result.error = FormatWinHttpError(networkError);
-        result.retryable = networkError == ERROR_WINHTTP_TIMEOUT;
+        result.retryable = IsRetryableWinHttpError(networkError);
     }
     else
     {
@@ -182,7 +182,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
             else if (responseReadFailed)
             {
                 result.error = FormatWinHttpError(responseReadError);
-                result.retryable = responseReadError == ERROR_WINHTTP_TIMEOUT;
+                result.retryable = IsRetryableWinHttpError(responseReadError);
             }
             else
             {
