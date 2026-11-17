@@ -66,6 +66,10 @@ int main()
             "identical values reuse the same replacement token");
         Check(masker.Restore(masked) == source,
             "all masked values restore to the original text");
+        Check(masker.ContainsAllTokens(masked),
+            "all masked placeholders are present in generated text");
+        Check(!masker.ContainsAllTokens(L"content with no placeholders"),
+            "missing masked placeholders are detected");
     }
 
     {
