@@ -60,7 +60,7 @@ BEGIN
     EDITTEXT        IDC_SETTINGS_MASK_TERMS, 12, 274, 336, 68, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL | WS_TABSTOP | WS_BORDER
     LTEXT           "氏名・会社名などは自動検出できない場合があります。", -1, 12, 346, 336, 12
     CONTROL         "一時的なエラー時に無料枠ありのFlashモデルへ自動切り替え", IDC_SETTINGS_AUTO_FALLBACK, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 368, 336, 16
-    CONTROL         "有料モデル・料金未確認モデルも含める", IDC_SETTINGS_INCLUDE_PAID, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 388, 336, 16
+    CONTROL         "一覧更新時のみ有料・料金未確認モデルも含める", IDC_SETTINGS_INCLUDE_PAID, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 388, 336, 16
     CONTROL         "", IDC_SETTINGS_PRICING_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD, 12, 408, 336, 16
     CONTROL         "詳細デバッグログを有効にする（マスキングON時のみ送信内容を記録）", IDC_SETTINGS_DEBUG_LOG, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 428, 336, 18
     LTEXT           "ログにはマスキング後の送信文章が残ります。未検出情報が含まれる可能性があるため、確認後は削除してください。", -1, 12, 448, 336, 16
