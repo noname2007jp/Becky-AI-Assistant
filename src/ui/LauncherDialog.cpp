@@ -84,12 +84,19 @@ namespace
         if (!LoadGeminiModelCatalog(context->models, error) || context->models.empty())
             context->models = DefaultGeminiModels();
         HWND combo = GetDlgItem(dialog, IDC_GEMINI_MODEL);
-        int defaultIndex = 0;
+        GeminiReliabilityOptions reliability;
+        std::wstring settingsError;
+        const std::wstring preferred = LoadGeminiReliabilityOptions(reliability, settingsError)
+            ? reliability.defaultModel : L"gemini-3.5-flash-lite";
+        int defaultIndex = -1;
         for (size_t i = 0; i < context->models.size(); ++i)
         {
             SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(context->models[i].label.c_str()));
-            if (context->models[i].id == L"gemini-3.5-flash-lite") defaultIndex = static_cast<int>(i);
+            if (context->models[i].id == preferred) defaultIndex = static_cast<int>(i);
+            else if (defaultIndex < 0 && context->models[i].id == L"gemini-3.5-flash-lite")
+                defaultIndex = static_cast<int>(i);
         }
+        if (defaultIndex < 0 && !context->models.empty()) defaultIndex = 0;
         SendMessageW(combo, CB_SETCURSEL, defaultIndex, 0);
     }
 
