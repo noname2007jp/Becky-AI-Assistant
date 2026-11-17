@@ -35,12 +35,12 @@ int main()
 {
     {
         PiiMasker masker(AllEnabled(), {});
-        const std::wstring source = L"Subject: test\\nFrom: person@example.com\\nBody: confidential text";
+        const std::wstring source = L"Subject: test\nFrom: person@example.com\nBody: confidential text";
         std::wstring preview = masker.Mask(source);
         // Simulate the CRLF text returned by the Win32 multiline EDIT preview.
         for (size_t i = 0; i < preview.size(); ++i)
-            if (preview[i] == L'\\n' && (i == 0 || preview[i - 1] != L'\\r'))
-                preview.insert(i++, 1, L'\\r');
+            if (preview[i] == L'\n' && (i == 0 || preview[i - 1] != L'\r'))
+                preview.insert(i++, 1, L'\r');
         Check(masker.MaskSelected(preview, 0, preview.size()),
             "manual selection works with CRLF-normalized preview text");
         const std::wstring request = masker.Mask(source);
@@ -126,7 +126,7 @@ int main()
     {
         PiiMasker masker(AllEnabled(), {});
         const std::wstring source =
-            L"Instructions\\nSubject: test\\nFrom: person@example.com\\nBody: confidential text";
+            L"Instructions\nSubject: test\nFrom: person@example.com\nBody: confidential text";
         std::wstring preview = masker.Mask(source);
         Check(masker.MaskSelected(preview, 0, preview.size()),
             "manual mask can select the complete automatically masked preview");
@@ -143,11 +143,11 @@ int main()
     {
         PiiMasker masker(AllEnabled(), {});
         const std::wstring content =
-            L"Subject: test\\nFrom: person@example.com\\nBody: confidential text";
+            L"Subject: test\nFrom: person@example.com\nBody: confidential text";
         std::wstring preview = masker.Mask(content);
         Check(masker.MaskSelected(preview, 0, preview.size()),
             "manual mask can select the complete email content preview");
-        const std::wstring fullPrompt = L"Reply instructions\\n\\n" + content;
+        const std::wstring fullPrompt = L"Reply instructions\n\n" + content;
         const std::wstring request = masker.Mask(fullPrompt);
         Check(request.find(L"Reply instructions") == 0 &&
               request.find(L"Subject:") == std::wstring::npos &&
