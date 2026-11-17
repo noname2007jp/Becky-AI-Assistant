@@ -128,6 +128,13 @@ bool PiiMasker::MaskSelected(std::wstring& preview, size_t start, size_t length)
     return true;
 }
 
+bool PiiMasker::ContainsAllTokens(const std::wstring& value) const
+{
+    for (const auto& item : replacements_)
+        if (value.find(item.second) == std::wstring::npos) return false;
+    return true;
+}
+
 std::wstring PiiMasker::Restore(const std::wstring& value) const
 {
     std::wstring output = value;
