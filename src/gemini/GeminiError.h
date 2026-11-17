@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <winhttp.h>
 #include <string>
 
 inline std::wstring FormatGeminiHttpError(unsigned long code)
