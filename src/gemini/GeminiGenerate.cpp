@@ -106,7 +106,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
     if (!received) {
         const DWORD networkError = GetLastError();
         result.error = FormatWinHttpError(networkError);
-        result.retryable = networkError == ERROR_WINHTTP_TIMEOUT;
+        result.retryable = IsRetryableWinHttpError(networkError);
     }
     else
     {
@@ -150,7 +150,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
             else if (responseReadFailed)
             {
                 result.error = FormatWinHttpError(responseReadError);
-                result.retryable = responseReadError == ERROR_WINHTTP_TIMEOUT;
+                result.retryable = IsRetryableWinHttpError(responseReadError);
             }
             else
             {
