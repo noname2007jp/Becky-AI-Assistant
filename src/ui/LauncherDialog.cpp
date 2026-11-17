@@ -230,7 +230,7 @@ namespace
                     return TRUE;
                 }
                 const std::wstring previewRaw = MailPromptContent::BuildEmailContext(
-                    mail.subject, mail.body, L"【件名】", L"【本文】");
+                    mail.subject, mail.body, L"件名:", L"本文:");
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"要約：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
