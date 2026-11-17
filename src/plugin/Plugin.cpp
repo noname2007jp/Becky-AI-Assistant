@@ -231,9 +231,13 @@ namespace
 
         // Copy the SDK-owned string before making another Becky! API call.
         const std::string mailId(currentId);
-        mail.mailId = ToWide(mailId);
-        ParseMailHeader(g_beckyApi.GetHeader(mailId.c_str()), mail);
-        LoadMailBody(mailId, mail);
+        std::string normalizedId = mailId;
+        while (!normalizedId.empty() && normalizedId.back() == '\\0')
+            normalizedId.pop_back();
+        if (normalizedId.empty()) return false;
+        mail.mailId = ToWide(normalizedId);
+        ParseMailHeader(g_beckyApi.GetHeader(normalizedId.c_str()), mail);
+        LoadMailBody(normalizedId, mail);
         return true;
     }
 
@@ -495,7 +499,7 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
     // Keep the target message selected before invoking Becky!'s native reply command.
     g_beckyApi.SetCurrentMail(id.c_str());
     g_pendingReplyText = replyText;
-    g_pendingReplyMailId = id;
+    g_pendingReplyMailId.assign(id.c_str());
     g_pendingReplyTick = GetTickCount64();
     g_pendingComposeMode = replyAll ? COMPOSE_MODE_REPLY2 : COMPOSE_MODE_REPLY1;
 
@@ -509,6 +513,7 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
         const UINT commandId = FindMenuCommandByText(GetMenu(mainWindow), L"全員に返信");
         if (commandId == 0) {
             g_pendingReplyText.clear();
+            g_pendingReplyMailId.clear();
             g_pendingReplyTick = 0;
             return false;
         }
