@@ -20,7 +20,6 @@ GeminiGenerateResult GenerateMailSummary(
     const std::wstring& modelId,
     const std::wstring& thinkingLevel,
     const std::wstring& subject,
-    const std::wstring& from,
     const std::wstring& body,
     PiiMasker* masker = nullptr);
 
