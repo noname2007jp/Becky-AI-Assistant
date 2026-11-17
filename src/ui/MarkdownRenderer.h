@@ -66,9 +66,9 @@ namespace MarkdownRenderer
                     continue;
                 }
             }
-            if (line[i] == L'\\x60')
+            if (line[i] == static_cast<wchar_t>(96))
             {
-                const size_t close = line.find(L'\\x60', i + 1);
+                const size_t close = line.find(static_cast<wchar_t>(96), i + 1);
                 if ((!code && close != std::wstring::npos && close < end) || code)
                 {
                     if (!code) { code = true; codeStart = result.text.size(); }
