@@ -77,10 +77,10 @@ std::wstring PiiMasker::Mask(const std::wstring& value)
         L"(?:株式会社|有限会社|合同会社|合資会社|合名会社)[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}|[一-龠々ぁ-んァ-ヶA-Za-z0-9・＆&（）()ー－]{1,24}(?:株式会社|有限会社|合同会社|合資会社|合名会社)",
         L"COMPANY");
     if (options_.person) output = ApplyPattern(output,
-        L"(?:氏名|担当者名|ご担当者|お名前|名前|差出人|送信者|宛先|宛名|担当者)\\s*[:：】]\\s*[一-龠々ぁ-んァ-ヶ]{2,12}(?:\\s*[一-龠々ぁ-んァ-ヶ]{1,12})?",
+        L"(?:氏名|担当者名|ご担当者|お名前|名前|差出人|送信者|宛先|宛名|担当者)[ \\t]*[:：】][ \\t]*[一-龠々ぁ-んァ-ヶ]{2,12}(?:[ \\t]*[一-龠々ぁ-んァ-ヶ]{1,12})?",
         L"PERSON");
     if (options_.person) output = ApplyPattern(output,
-        L"[一-龠々ぁ-んァ-ヶ]{2,8}(?:\\s+[一-龠々ぁ-んァ-ヶ]{1,8})?(?:様|さん|氏)",
+        L"[一-龠々ぁ-んァ-ヶ]{2,8}(?:[ \\t]+[一-龠々ぁ-んァ-ヶ]{1,8})?(?:様|さん|氏)",
         L"PERSON");
     if (options_.address) output = ApplyPattern(output,
         L"(?:住所|所在地|送付先|Address)\\s*[:：]\\s*[^\\r\\n]+",
@@ -145,6 +145,22 @@ std::wstring PiiMasker::Restore(const std::wstring& value) const
         {
             output.replace(position, item.second.size(), item.first);
             position += item.first.size();
+        }
+    }
+
+    // Gemini may append a Japanese honorific to a PERSON placeholder even
+    // though the original replacement already contains that honorific.
+    // Collapse only immediately repeated honorifics after restoration.
+    const std::pair<std::wstring, std::wstring> honorifics[] = {
+        { L"様様", L"様" }, { L"さんさん", L"さん" }, { L"氏氏", L"氏" }
+    };
+    for (const auto& honorific : honorifics)
+    {
+        size_t position = 0;
+        while ((position = output.find(honorific.first, position)) != std::wstring::npos)
+        {
+            output.replace(position, honorific.first.size(), honorific.second);
+            // Keep the same position: three or more repeated suffixes overlap.
         }
     }
     return output;

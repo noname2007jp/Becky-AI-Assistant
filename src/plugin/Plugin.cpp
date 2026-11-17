@@ -1,12 +1,13 @@
 #include <windows.h>
 
 #ifndef BECKY_AI_ASSISTANT_VERSION
-#define BECKY_AI_ASSISTANT_VERSION "0.44.0"
+#define BECKY_AI_ASSISTANT_VERSION "0.45.0"
 #endif
 #include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 #include "ui/ResultDialog.h"
 #include "mail/MimeTextExtractor.h"
@@ -28,6 +29,8 @@ namespace
     UINT g_newMailCommand = 0;
     UINT g_proofreadCommand = 0;
     std::unordered_map<HWND, int> g_composeModes;
+    std::unordered_map<HWND, MailContext> g_composeSourceMails;
+    std::string g_pendingReplyMailId;
     std::wstring g_pendingReplyText;
     ULONGLONG g_pendingReplyTick = 0;
     int g_pendingComposeMode = COMPOSE_MODE_REPLY1;
@@ -189,6 +192,19 @@ namespace
         mail.bodyStatus = L"本文を取得しました（添付ファイルは対象外）。";
     }
 
+    bool GetMailById(const std::string& mailId, MailContext& mail)
+    {
+        if (mailId.empty()) return false;
+        std::string normalizedId = mailId;
+        while (!normalizedId.empty() && normalizedId.back() == '\0')
+            normalizedId.pop_back();
+        if (normalizedId.empty()) return false;
+        mail.mailId = ToWide(normalizedId);
+        ParseMailHeader(g_beckyApi.GetHeader(normalizedId.c_str()), mail);
+        LoadMailBody(normalizedId, mail);
+        return !mail.mailId.empty();
+    }
+
     bool GetSingleSelectedMail(HWND owner, MailContext& mail)
     {
         char firstId[4096] = {};
@@ -228,9 +244,13 @@ namespace
 
         // Copy the SDK-owned string before making another Becky! API call.
         const std::string mailId(currentId);
-        mail.mailId = ToWide(mailId);
-        ParseMailHeader(g_beckyApi.GetHeader(mailId.c_str()), mail);
-        LoadMailBody(mailId, mail);
+        std::string normalizedId = mailId;
+        while (!normalizedId.empty() && normalizedId.back() == '\0')
+            normalizedId.pop_back();
+        if (normalizedId.empty()) return false;
+        mail.mailId = ToWide(normalizedId);
+        ParseMailHeader(g_beckyApi.GetHeader(normalizedId.c_str()), mail);
+        LoadMailBody(normalizedId, mail);
         return true;
     }
 
@@ -264,13 +284,52 @@ namespace
 
     void WINAPI OpenAssistantNewMail(HWND owner, LPARAM)
     {
-        auto it = g_composeModes.find(owner);
-        if (it == g_composeModes.end() || it->second != COMPOSE_MODE_COMPOSE1) {
-            MessageBoxW(owner, L"AI新規メール作成は、新規メールの作成画面で利用できます。",
+        const auto it = g_composeModes.find(owner);
+        if (it == g_composeModes.end()) {
+            MessageBoxW(owner, L"新規メールまたは返信の作成画面で利用できます。",
                 L"Becky AI Assistant", MB_OK | MB_ICONINFORMATION);
             return;
         }
-        ShowNewMailComposeDialog(owner, g_instance, g_beckyApi);
+
+        if (it->second == COMPOSE_MODE_COMPOSE1) {
+            ShowNewMailComposeDialog(owner, g_instance, g_beckyApi);
+            return;
+        }
+
+        if (it->second == COMPOSE_MODE_REPLY1 || it->second == COMPOSE_MODE_REPLY2) {
+            MailContext mail;
+            const auto source = g_composeSourceMails.find(owner);
+            if (source != g_composeSourceMails.end()) {
+                mail = source->second;
+            } else {
+                const char* currentId = g_beckyApi.GetCurrentMail();
+                if (currentId != nullptr && currentId[0] != '\0')
+                    GetMailById(std::string(currentId), mail);
+            }
+
+            if (mail.mailId.empty() || mail.body.empty()) {
+                MessageBoxW(owner, L"返信元メールを取得できませんでした。元メールを選択してから返信画面を開き直してください。",
+                    L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                return;
+            }
+
+            ShowLauncherDialog(owner, g_instance, mail);
+            if (mail.insertReplyRequested && !mail.replyDraft.empty()) {
+                std::wstring insertion = mail.replyDraft;
+                if (insertion.size() < 2 || insertion.substr(insertion.size() - 2) != L"\r\n")
+                    insertion += L"\r\n\r\n";
+                const int bytes = WideCharToMultiByte(CP_ACP, 0, insertion.c_str(), -1, nullptr, 0, nullptr, nullptr);
+                if (bytes > 1) {
+                    std::string text(static_cast<size_t>(bytes), '\0');
+                    if (WideCharToMultiByte(CP_ACP, 0, insertion.c_str(), -1, text.data(), bytes, nullptr, nullptr))
+                        g_beckyApi.CompSetText(owner, -1, text.c_str());
+                }
+            }
+            return;
+        }
+
+        MessageBoxW(owner, L"AI新規メール作成は新規メールの作成画面、返信文案は返信画面で利用できます。",
+            L"Becky AI Assistant", MB_OK | MB_ICONINFORMATION);
     }
 
     void WINAPI OpenAssistantProofread(HWND owner, LPARAM)
@@ -453,6 +512,7 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
     // Keep the target message selected before invoking Becky!'s native reply command.
     g_beckyApi.SetCurrentMail(id.c_str());
     g_pendingReplyText = replyText;
+    g_pendingReplyMailId.assign(id.c_str());
     g_pendingReplyTick = GetTickCount64();
     g_pendingComposeMode = replyAll ? COMPOSE_MODE_REPLY2 : COMPOSE_MODE_REPLY1;
 
@@ -466,6 +526,7 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
         const UINT commandId = FindMenuCommandByText(GetMenu(mainWindow), L"全員に返信");
         if (commandId == 0) {
             g_pendingReplyText.clear();
+            g_pendingReplyMailId.clear();
             g_pendingReplyTick = 0;
             return false;
         }
@@ -492,7 +553,32 @@ extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
         if (!IsWindow(it->first)) it = g_composeModes.erase(it);
         else ++it;
     }
-    if (composeWindow != nullptr) g_composeModes[composeWindow] = mode;
+    for (auto it = g_composeSourceMails.begin(); it != g_composeSourceMails.end();) {
+        if (!IsWindow(it->first)) it = g_composeSourceMails.erase(it);
+        else ++it;
+    }
+
+    if (composeWindow != nullptr) {
+        g_composeModes[composeWindow] = mode;
+        if (mode == COMPOSE_MODE_REPLY1 || mode == COMPOSE_MODE_REPLY2) {
+            std::string sourceId;
+            const char* currentId = g_beckyApi.GetCurrentMail();
+            if (currentId != nullptr && currentId[0] != '\0')
+                sourceId = currentId;
+            if (sourceId.empty() && !g_pendingReplyMailId.empty() &&
+                GetTickCount64() - g_pendingReplyTick <= 15000 &&
+                mode == g_pendingComposeMode)
+                sourceId = g_pendingReplyMailId;
+
+            MailContext sourceMail;
+            if (!sourceId.empty() && GetMailById(sourceId, sourceMail))
+                g_composeSourceMails[composeWindow] = std::move(sourceMail);
+            else
+                g_composeSourceMails.erase(composeWindow);
+        } else {
+            g_composeSourceMails.erase(composeWindow);
+        }
+    }
 
     if (g_pendingReplyText.empty())
         return 0;
@@ -501,6 +587,7 @@ extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
     if (composeWindow == nullptr || GetTickCount64() - g_pendingReplyTick > 15000 ||
         mode != g_pendingComposeMode) {
         g_pendingReplyText.clear();
+        g_pendingReplyMailId.clear();
         g_pendingReplyTick = 0;
         return 0;
     }
@@ -520,6 +607,7 @@ extern "C" int WINAPI BKC_OnOpenCompose(HWND composeWindow, int mode)
         g_beckyApi.CompSetText(composeWindow, -1, text.c_str());
     }
     g_pendingReplyText.clear();
+    g_pendingReplyMailId.clear();
     g_pendingReplyTick = 0;
     return 0;
 }
