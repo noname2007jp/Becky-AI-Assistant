@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.42.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.43.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -18,6 +18,7 @@ add_library(BeckyAIAssistant SHARED
   src/gemini/GeminiGenerate.cpp
   src/gemini/GeminiReply.cpp
   src/gemini/GeminiCompose.cpp
+  src/gemini/GeminiProofread.cpp
   src/gemini/GeminiDebugLog.cpp
   src/gemini/PiiMasker.cpp
   src/ui/SettingsDialog.cpp
@@ -25,6 +26,7 @@ add_library(BeckyAIAssistant SHARED
   src/ui/LauncherDialog.cpp
   src/ui/ConsultDialog.cpp
   src/ui/ComposeDialog.cpp
+  src/ui/ProofreadDialog.cpp
   src/ui/ResultDialog.cpp
   resources/Launcher.rc
   third_party/becky_sdk/BeckyAPI.cpp

@@ -14,6 +14,7 @@
 #include "ui/LauncherDialog.h"
 #include "ui/SettingsDialog.h"
 #include "ui/ComposeDialog.h"
+#include "ui/ProofreadDialog.h"
 #include <unordered_map>
 
 bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText, bool replyAll);
@@ -25,6 +26,7 @@ namespace
     UINT g_launcherCommandList = 0;
     UINT g_launcherCommandView = 0;
     UINT g_newMailCommand = 0;
+    UINT g_proofreadCommand = 0;
     std::unordered_map<HWND, int> g_composeModes;
     std::wstring g_pendingReplyText;
     ULONGLONG g_pendingReplyTick = 0;
@@ -271,6 +273,20 @@ namespace
         ShowNewMailComposeDialog(owner, g_instance, g_beckyApi);
     }
 
+    void WINAPI OpenAssistantProofread(HWND owner, LPARAM)
+    {
+        auto it = g_composeModes.find(owner);
+        if (it == g_composeModes.end() ||
+            (it->second != COMPOSE_MODE_COMPOSE1 &&
+             it->second != COMPOSE_MODE_REPLY1 &&
+             it->second != COMPOSE_MODE_REPLY2)) {
+            MessageBoxW(owner, L"メールの新規作成・返信・全員への返信画面で利用できます。",
+                L"Becky AI Assistant", MB_OK | MB_ICONINFORMATION);
+            return;
+        }
+        ShowEmailProofreadDialog(owner, g_instance, g_beckyApi);
+    }
+
     UINT FindMenuCommandByText(HMENU menu, const wchar_t* target)
     {
         if (!menu || !target || !*target) return 0;
@@ -403,6 +419,12 @@ extern "C"
         case BKC_MENU_COMPOSE:
             AddAssistantMenuItem(
                 menu, menuType, g_newMailCommand, OpenAssistantNewMail);
+            g_proofreadCommand = g_beckyApi.RegisterCommand(
+                "Proofread email body", menuType, OpenAssistantProofread);
+            if (g_proofreadCommand != 0) {
+                AppendMenuW(menu, MF_STRING, static_cast<UINT_PTR>(g_proofreadCommand),
+                    L"メール本文を校正...");
+            }
             break;
 
         default:
