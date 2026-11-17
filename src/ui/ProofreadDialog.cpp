@@ -120,7 +120,6 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             if(!LoadGeminiApiKey(key,error)||key.empty()){MessageBoxW(d,error.empty()?L"先に設定画面でGemini APIキーを保存してください。":error.c_str(),L"Becky AI Assistant",MB_OK|MB_ICONWARNING);return TRUE;}
             GeminiReliabilityOptions rel;std::wstring relError;
             if(!LoadGeminiReliabilityOptions(rel,relError)){MessageBoxW(d,relError.c_str(),L"設定エラー",MB_OK|MB_ICONWARNING);return TRUE;}
-            SetDlgItemTextW(d,IDC_PROOFREAD_RESULT,L"");
             auto model=c->models[(size_t)ix];auto models=c->models;bool fallback=rel.automaticModelFallback;auto original=source;
             c->busy=true;SetBusy(d,true);ShowApiProcessingStatus(d,IDC_PROOFREAD_STATUS,L"Geminiでメール本文を校正しています...");
             bool started=GeminiAsync::Start(d,std::move(key),
