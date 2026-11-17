@@ -148,7 +148,7 @@ int main()
         options.company = true;
         options.person = true;
         PiiMasker masker(options, {});
-        const std::wstring source = L"株式会社青空商事\\r\\n山田太郎様\\r\\nいつもお世話になっております。";
+        const std::wstring source = L"株式会社青空商事\r\n山田太郎様\r\nいつもお世話になっております。";
         const std::wstring masked = masker.Mask(source);
         Check(masked.find(L"株式会社青空商事") == std::wstring::npos &&
               masked.find(L"山田太郎") == std::wstring::npos,
