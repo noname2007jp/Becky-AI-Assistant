@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.56.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.57.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -112,4 +112,10 @@ if(BUILD_TESTING)
   target_compile_definitions(GeminiResponseJsonTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
   target_compile_options(GeminiResponseJsonTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME GeminiResponseJsonTests COMMAND GeminiResponseJsonTests)
+
+  add_executable(MarkdownRendererTests tests/MarkdownRendererTests.cpp)
+  target_include_directories(MarkdownRendererTests PRIVATE src)
+  target_compile_features(MarkdownRendererTests PRIVATE cxx_std_17)
+  target_compile_options(MarkdownRendererTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME MarkdownRendererTests COMMAND MarkdownRendererTests)
 endif()
