@@ -93,6 +93,27 @@ int main()
     Check(primary404.notice.find(L"gemini-2.5-flash-lite") != std::wstring::npos,
         "success notice names the original model that failed");
 
+
+    calls = 0;
+    std::vector<std::wstring> qualityTried;
+    auto placeholderRetry = GenerateWithModelFallback(
+        L"gemini-primary", L"MEDIUM", models, true,
+        [&](const std::wstring& id, const std::wstring&) {
+            ++calls; qualityTried.push_back(id);
+            if (id == L"gemini-primary") return Failure(0, true); // network timeout
+            if (id == L"gemini-3.8-flash") {
+                auto missingPlaceholder = Failure(200, true);
+                missingPlaceholder.error = L"masked placeholder missing";
+                return missingPlaceholder;
+            }
+            return Success(L"all placeholders preserved");
+        });
+    Check(calls == 3 && placeholderRetry.success &&
+        placeholderRetry.modelUsed == L"gemini-3.5-flash-lite",
+        "placeholder validation failure retries the next verified model");
+    Check(placeholderRetry.notice.find(L"応答内容の検証に失敗") != std::wstring::npos,
+        "fallback notice explains placeholder validation failure");
+
     calls = 0;
     auto disabled = GenerateWithModelFallback(
         L"gemini-primary", L"MEDIUM", models, false,
