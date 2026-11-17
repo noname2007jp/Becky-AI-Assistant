@@ -93,7 +93,7 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
         "\"}]}],\"generationConfig\":{" + config + "}}";
     LogGeminiRequest(L"proofread", model, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.52.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.53.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { r.error = L"通信セッションを開始できません。"; return r; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
