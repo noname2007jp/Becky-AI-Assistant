@@ -317,7 +317,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
                 const MailContext& mail = *context->mail;
-                const std::wstring subject = mail.subject, from = mail.from, body = mail.body;
+                const std::wstring subject = mail.subject, body = mail.body;
                 const std::wstring transcript = context->transcript;
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
                 const auto models = context->models;
