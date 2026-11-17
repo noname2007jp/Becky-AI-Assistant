@@ -341,7 +341,7 @@ bool LoadGeminiReliabilityOptions(GeminiReliabilityOptions& options, std::wstrin
         const wchar_t* model = reinterpret_cast<const wchar_t*>(output.pbData + 2);
         const size_t chars = (output.cbData - 2) / sizeof(wchar_t);
         size_t length = 0;
-        while (length < chars && model[length] != L'\\0') ++length;
+        while (length < chars && model[length] != L'\0') ++length;
         if (length > 0 && length <= 128)
             options.defaultModel.assign(model, length);
     }
