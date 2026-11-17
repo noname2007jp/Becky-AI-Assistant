@@ -113,7 +113,6 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
             source = NormalizeWindowsNewlines(source);
             c->original = source;
             SetDlgItemTextW(d, IDC_PROOFREAD_ORIGINAL, source.c_str());
-            SetDlgItemTextW(d, IDC_PROOFREAD_RESULT, L"");
             const std::wstring masked = masker.Mask(source);
             if(masker.IsEnabled()&&!ShowPiiMaskPreviewDialog(d,c->instance,L"メール校正：Gemini送信内容の確認",masked,masker))return TRUE;
             std::wstring key,error;
