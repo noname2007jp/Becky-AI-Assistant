@@ -11,14 +11,14 @@ std::wstring ToEditControlLineEndings(const std::wstring& text)
     normalized.reserve(text.size() + 16);
     for (size_t i = 0; i < text.size(); ++i)
     {
-        if (text[i] == L'\\r')
+        if (text[i] == L'\r')
         {
-            normalized += L"\\r\\n";
-            if (i + 1 < text.size() && text[i + 1] == L'\\n') ++i;
+            normalized += L"\r\n";
+            if (i + 1 < text.size() && text[i + 1] == L'\n') ++i;
         }
-        else if (text[i] == L'\\n')
+        else if (text[i] == L'\n')
         {
-            normalized += L"\\r\\n";
+            normalized += L"\r\n";
         }
         else
         {
