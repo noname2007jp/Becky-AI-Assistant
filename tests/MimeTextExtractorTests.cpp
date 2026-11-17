@@ -58,6 +58,52 @@ int main()
         output.find(L"\r\n・Second") != std::wstring::npos,
         "HTML entities and structural line breaks");
 
+
+    Check(Extract(
+        "Content-Type: text/plain; charset=shift_jis\r\n\r\n"
+        "\x93\xFA\x96\x7B\x8C\xEA",
+        output) && output == L"日本語", "Japanese Shift_JIS / CP932");
+
+    Check(Extract(
+        "Content-Type: text/plain; charset=euc-jp\r\n\r\n"
+        "\xC6\xFC\xCB\xDC\xB8\xEC",
+        output) && output == L"日本語", "Japanese EUC-JP");
+
+    Check(Extract(
+        "Content-Type: text/plain; charset=iso-2022-jp\r\n\r\n"
+        "\x1B\x24\x42\x46\x7C\x4B\x5C\x38\x6C\x1B\x28\x42",
+        output) && output == L"日本語", "Japanese ISO-2022-JP");
+
+    const std::string nested =
+        "Content-Type: multipart/mixed; boundary=outer\r\n\r\n"
+        "--outer\r\n"
+        "Content-Type: multipart/alternative; boundary=inner\r\n\r\n"
+        "--inner\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n"
+        "Nested plain text\r\n"
+        "--inner\r\nContent-Type: text/html; charset=utf-8\r\n\r\n"
+        "<p>Nested HTML</p>\r\n"
+        "--inner--\r\n"
+        "--outer\r\nContent-Type: application/octet-stream\r\n"
+        "Content-Disposition: attachment; filename=ignored.bin\r\n\r\n"
+        "ignored attachment\r\n"
+        "--outer--\r\n";
+    Check(Extract(nested, output) && output == L"Nested plain text",
+        "nested multipart prefers plain text and ignores attachments");
+
+    const std::string longBody(100050, 'A');
+    const std::string longMail =
+        "Content-Type: text/plain; charset=utf-8\r\n\r\n" + longBody;
+    Check(Extract(longMail, output) && output.size() == 100000,
+        "long message body is safely capped at 100,000 characters");
+
+    {
+        const std::string oversized(5 * 1024 * 1024 + 1, 'x');
+        std::wstring error;
+        Check(!ExtractMailText(oversized.data(), oversized.size(), output, error) &&
+              error.find(L"5 MiB") != std::wstring::npos,
+              "raw MIME message above 5 MiB is rejected with a clear error");
+    }
+
     const std::string attachment =
         "From: test@example.com\r\nContent-Type: application/octet-stream; name=\"file.bin\"\r\n"
         "Content-Disposition: attachment; filename=\"file.bin\"\r\n\r\nignored";
