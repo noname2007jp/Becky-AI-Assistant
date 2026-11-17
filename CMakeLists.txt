@@ -95,9 +95,9 @@ if(BUILD_TESTING)
     tests/GeminiProofreadJsonTests.cpp
     src/gemini/GeminiProofreadJson.cpp
   )
-  target_include_directories(GeminiProofreadJsonTests PRIVATE src)
-  target_compile_features(GeminiProofreadJsonTests PRIVATE cxx_std_17)
-  target_compile_definitions(GeminiProofreadJsonTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
-  target_compile_options(GeminiProofreadJsonTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  target_include_directories(GeminiResponseJsonTests PRIVATE src)
+  target_compile_features(GeminiResponseJsonTests PRIVATE cxx_std_17)
+  target_compile_definitions(GeminiResponseJsonTests PRIVATE _MBCS WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(GeminiResponseJsonTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME GeminiResponseJsonTests COMMAND GeminiResponseJsonTests)
 endif()
