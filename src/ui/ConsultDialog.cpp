@@ -6,6 +6,7 @@
 #include "ResultDialog.h"
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiGenerate.h"
+#include "mail/MailPromptContent.h"
 #include "gemini/GeminiAsync.h"
 #include "gemini/GeminiModels.h"
 #include "gemini/GeminiFallback.h"
