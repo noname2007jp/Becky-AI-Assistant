@@ -25,12 +25,12 @@ int main()
     check(MailSignature::RemoveObviousSignature(divider) == divider,
         "does not remove ordinary text after a decorative divider");
     const std::wstring proofreadInput =
-        L"校正する本文です。\\n\\n-- \\n署名者\\nname@example.jp";
+        L"校正する本文です。\n\n-- \n署名者\nname@example.jp";
     const std::wstring proofreadBody = MailSignature::RemoveObviousSignature(proofreadInput);
     const std::wstring preservedSignature = proofreadInput.substr(proofreadBody.size());
     check(proofreadBody == L"校正する本文です。",
         "proofreading payload excludes obvious signature");
-    check(preservedSignature == L"\\n\\n-- \\n署名者\\nname@example.jp",
+    check(preservedSignature == L"\n\n-- \n署名者\nname@example.jp",
         "proofreading can restore the original signature unchanged");
     const std::wstring normal = L"お世話になっております。\n明日までに回答します。";
     check(MailSignature::RemoveObviousSignature(normal) == normal,
