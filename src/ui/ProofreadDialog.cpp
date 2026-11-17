@@ -67,11 +67,16 @@ INT_PTR CALLBACK Proc(HWND d, UINT m, WPARAM w, LPARAM l) {
         SetDlgItemTextW(d,IDC_PROOFREAD_ORIGINAL,c->original.c_str());
         std::wstring err;
         if(!LoadGeminiModelCatalog(c->models,err)||c->models.empty())c->models=DefaultGeminiModels();
-        int def=0;
+        GeminiReliabilityOptions reliability; std::wstring settingsError;
+        const std::wstring preferred = LoadGeminiReliabilityOptions(reliability, settingsError)
+            ? reliability.defaultModel : L"gemini-3.5-flash-lite";
+        int def=-1;
         for(size_t i=0;i<c->models.size();++i){
             SendDlgItemMessageW(d,IDC_PROOFREAD_MODEL,CB_ADDSTRING,0,(LPARAM)c->models[i].label.c_str());
-            if(c->models[i].id==L"gemini-3.5-flash-lite")def=(int)i;
+            if(c->models[i].id==preferred)def=(int)i;
+            else if(def<0&&c->models[i].id==L"gemini-3.5-flash-lite")def=(int)i;
         }
+        if(def<0&&!c->models.empty())def=0;
         SendDlgItemMessageW(d,IDC_PROOFREAD_MODEL,CB_SETCURSEL,def,0);
         PiiMaskOptions maskOptions; std::wstring maskError;
         if (LoadPiiMaskOptions(maskOptions, maskError) && maskOptions.enabled)
