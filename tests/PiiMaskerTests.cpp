@@ -34,6 +34,25 @@ PiiMaskOptions AllEnabled()
 int main()
 {
     {
+        PiiMasker masker(AllEnabled(), {});
+        const std::wstring source = L"Subject: test\\nFrom: person@example.com\\nBody: confidential text";
+        std::wstring preview = masker.Mask(source);
+        // Simulate the CRLF text returned by the Win32 multiline EDIT preview.
+        for (size_t i = 0; i < preview.size(); ++i)
+            if (preview[i] == L'\\n' && (i == 0 || preview[i - 1] != L'\\r'))
+                preview.insert(i++, 1, L'\\r');
+        Check(masker.MaskSelected(preview, 0, preview.size()),
+            "manual selection works with CRLF-normalized preview text");
+        const std::wstring request = masker.Mask(source);
+        Check(request.find(L"Subject:") == std::wstring::npos &&
+              request.find(L"confidential text") == std::wstring::npos &&
+              request.find(L"[MANUAL_") != std::wstring::npos,
+            "CRLF preview selection is applied to the original LF API prompt");
+        Check(masker.Restore(request) == source,
+            "CRLF preview manual mask restores the original LF prompt exactly");
+    }
+
+    {
         PiiMaskOptions options;
         options.enabled = false;
         PiiMasker masker(options, {});
