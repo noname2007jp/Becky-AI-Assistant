@@ -38,6 +38,12 @@ int main()
         !IsRetryableGeminiStatus(403) && IsRetryableGeminiStatus(404) &&
         !IsRetryableGeminiStatus(413),
         "403 is not retryable while 404 can trigger an alternate model");
+    Check(IsRetryableWinHttpError(ERROR_WINHTTP_TIMEOUT) &&
+        IsRetryableWinHttpError(ERROR_WINHTTP_CANNOT_CONNECT) &&
+        IsRetryableWinHttpError(ERROR_WINHTTP_CONNECTION_ERROR) &&
+        IsRetryableWinHttpError(ERROR_WINHTTP_NAME_NOT_RESOLVED) &&
+        !IsRetryableWinHttpError(ERROR_WINHTTP_SECURE_FAILURE),
+        "transient WinHTTP transport failures are retryable but TLS configuration errors are not");
 
     const std::vector<GeminiModelOption> models = {
         { L"Gemini 2.5 Flash-Lite", L"gemini-2.5-flash-lite", L"MEDIUM", true, true },
@@ -113,6 +119,23 @@ int main()
         "placeholder validation failure retries the next verified model");
     Check(placeholderRetry.notice.find(L"応答内容の検証に失敗") != std::wstring::npos,
         "fallback notice explains placeholder validation failure");
+
+    calls = 0;
+    auto networkZero = GenerateWithModelFallback(
+        L"gemini-2.5-pro", L"MEDIUM", models, true,
+        [&](const std::wstring& id, const std::wstring&) {
+            ++calls;
+            if (id == L"gemini-2.5-pro") return Failure(404, true);
+            if (id == L"gemini-3.8-flash") {
+                auto networkFailure = Failure(0, true);
+                networkFailure.error = L"接続できません（Windowsエラー 12029）";
+                return networkFailure;
+            }
+            return Success(L"recovered after transport error");
+        });
+    Check(calls == 3 && networkZero.success &&
+        networkZero.modelUsed == L"gemini-3.5-flash-lite",
+        "HTTP 0 transport failure continues to the next verified fallback model");
 
     calls = 0;
     auto disabled = GenerateWithModelFallback(
