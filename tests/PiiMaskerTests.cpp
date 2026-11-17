@@ -155,7 +155,14 @@ int main()
             "company and recipient name on adjacent lines are masked");
         Check(masker.Restore(masked) == source,
             "company and recipient on adjacent lines restore without loss");
-        const std::wstring duplicatedHonorific = masked + L"様様";
+        std::wstring duplicatedHonorific = masked;
+        const size_t personToken = duplicatedHonorific.find(L"[PERSON_");
+        const size_t tokenEnd = personToken == std::wstring::npos
+            ? std::wstring::npos : duplicatedHonorific.find(L"]", personToken);
+        Check(tokenEnd != std::wstring::npos,
+            "recipient name receives a PERSON placeholder");
+        if (tokenEnd != std::wstring::npos)
+            duplicatedHonorific.insert(tokenEnd + 1, L"様様");
         const std::wstring restored = masker.Restore(duplicatedHonorific);
         Check(restored.find(L"様様") == std::wstring::npos,
             "duplicate Japanese honorifics are collapsed after restoration");
