@@ -17,10 +17,8 @@ int main()
 
     check(section.rfind(L"\n\n", 0) == 0,
         "reply requirements section starts with actual line breaks");
-    check(section.find(L"\n") == std::wstring::npos,
+    check(section.find(L"\\n") == std::wstring::npos,
         "reply requirements section contains no literal backslash-n sequences");
-    check(section.find(L"\n") != std::wstring::npos || section.find(L"\n") == std::wstring::npos,
-        "line-break sequence check is deterministic");
     check(section.find(requirements) != std::wstring::npos,
         "all user-specified reply requirements are retained");
     check(GeminiReplyPromptContent::BuildReplyRequirementsSection(L"").empty(),
