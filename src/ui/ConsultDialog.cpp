@@ -154,6 +154,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
                 const auto& result = work->result;
                 if (!result.success) {
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
@@ -214,6 +215,7 @@ namespace
             auto* context = reinterpret_cast<ConsultContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             SendDlgItemMessageW(dialog, IDC_AI_CONSULT_QUESTION, EM_SETLIMITTEXT, 10000, 0);
+            SendDlgItemMessageW(dialog, IDC_AI_CONSULT_REPLY_POINTS, EM_SETLIMITTEXT, 10000, 0);
             SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
                 L"質問を入力して「質問する」を押してください。");
             ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
@@ -300,6 +302,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
@@ -377,6 +380,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), FALSE);
                 const MailContext& mail = *context->mail;
                 const std::wstring subject = mail.subject, body = mail.body;
                 const std::wstring transcript = replyContext;
