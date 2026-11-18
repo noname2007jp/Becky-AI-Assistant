@@ -119,4 +119,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-63.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-64.dll`
