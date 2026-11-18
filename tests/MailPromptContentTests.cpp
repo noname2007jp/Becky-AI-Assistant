@@ -28,5 +28,17 @@ int main()
     check(MailPromptContent::BuildEmailContext(L"説明", ordinary).find(ordinary) != std::wstring::npos,
         "ordinary divider and following prose are retained");
 
+    // A flattened HTML/plain alternative can place the actual message and
+    // signature markers on one line. Signature heuristics must never erase it.
+    const std::wstring flattened =
+        L"口座情報の更新が必要です。当社では本人確認を実施します。"
+        L"株式会社Example TEL: 03-1234-5678 info@example.jp";
+    const std::wstring flattenedContext =
+        MailPromptContent::BuildEmailContext(L"重要なお知らせ", flattened);
+    check(flattenedContext.find(L"口座情報の更新が必要です。") != std::wstring::npos,
+        "flattened body is preserved when signature stripping would empty it");
+    check(flattenedContext.find(L"本人確認を実施します。") != std::wstring::npos,
+        "flattened body content is not discarded");
+
     return failures == 0 ? 0 : 1;
 }
