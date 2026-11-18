@@ -1,7 +1,7 @@
 #include <windows.h>
 
 #ifndef BECKY_AI_ASSISTANT_VERSION
-#define BECKY_AI_ASSISTANT_VERSION "0.45.0"
+#define BECKY_AI_ASSISTANT_VERSION "0.60.0"
 #endif
 #include <algorithm>
 #include <cctype>
@@ -392,7 +392,7 @@ namespace
                 menu,
                 MF_STRING,
                 static_cast<UINT_PTR>(commandId),
-                L"Becky AI Assistant...");
+                L"AI");
         }
     }
 }
@@ -435,7 +435,7 @@ extern "C"
 
         lstrcpynA(info->szPlugInName, "Becky AI Assistant",
                   static_cast<int>(sizeof(info->szPlugInName)));
-        lstrcpynA(info->szVendor, "noname2007jp",
+        lstrcpynA(info->szVendor, "none",
                   static_cast<int>(sizeof(info->szVendor)));
         lstrcpynA(info->szVersion, BECKY_AI_ASSISTANT_VERSION,
                   static_cast<int>(sizeof(info->szVersion)));
@@ -482,7 +482,7 @@ extern "C"
                 "Proofread email body", menuType, OpenAssistantProofread);
             if (g_proofreadCommand != 0) {
                 AppendMenuW(menu, MF_STRING, static_cast<UINT_PTR>(g_proofreadCommand),
-                    L"メール本文を校正...");
+                    L"校正");
             }
             break;
 
