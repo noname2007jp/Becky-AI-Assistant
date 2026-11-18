@@ -16,6 +16,7 @@ namespace ConsultHistoryStore
         std::wstring transcript;
         unsigned int roundCount = 0;
         std::wstring lastQuestion;
+        std::vector<std::wstring> pastQuestions;
     };
 
     struct Conversation
@@ -45,6 +46,7 @@ namespace ConsultHistoryStore
 
     inline constexpr size_t kMaximumMailItems = 10;
     inline constexpr size_t kMaximumConversationsPerMail = 10;
+    inline constexpr size_t kMaximumQuestionsPerConversation = 50;
 
     inline std::vector<Conversation> LoadAll(const std::wstring& mailId)
     {
