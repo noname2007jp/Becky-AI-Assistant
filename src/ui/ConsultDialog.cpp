@@ -155,6 +155,18 @@ namespace
         HWND combo = GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS);
         SendMessageW(combo, CB_RESETCONTENT, 0, 0);
         context.sessions = ConsultHistoryStore::LoadAll(context.mail ? context.mail->mailId : L"");
+        const auto active = std::find_if(context.sessions.begin(), context.sessions.end(),
+            [&](const ConsultHistoryStore::Conversation& item) { return item.id == context.activeSessionId; });
+        if (active == context.sessions.end())
+        {
+            ConsultHistoryStore::Conversation current;
+            current.id = context.activeSessionId;
+            current.title = context.activeSessionTitle.empty() ? L"新しい相談" : context.activeSessionTitle;
+            current.snapshot.history = context.history;
+            current.snapshot.transcript = context.transcript;
+            current.snapshot.roundCount = context.roundCount;
+            context.sessions.push_back(std::move(current));
+        }
         int selected = CB_ERR;
         for (size_t i = 0; i < context.sessions.size(); ++i)
         {
@@ -186,8 +198,6 @@ namespace
         SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
         SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"新しい相談を開始しました。");
         RefreshSessionList(dialog, context);
-        SendDlgItemMessageW(dialog, IDC_AI_CONSULT_SESSIONS, CB_SETCURSEL,
-            static_cast<WPARAM>(SendDlgItemMessageW(dialog, IDC_AI_CONSULT_SESSIONS, CB_GETCOUNT, 0, 0) - 1), 0);
     }
 
     INT_PTR CALLBACK ConsultDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
