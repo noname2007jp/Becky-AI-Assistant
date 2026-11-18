@@ -59,24 +59,24 @@ int main()
         "HTML entities and structural line breaks");
 
     const std::string base64Html =
-        "Content-Type: text/html; charset=utf-8\\r\\n"
-        "Content-Transfer-Encoding: base64\\r\\n\\r\\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
         "PGh0bWw+PGJvZHk+PHA+SFRNTCAmYW1wOyBib2R5PC9wPjwvYm9keT48L2h0bWw+";
     Check(Extract(base64Html, output) &&
         output.find(L"HTML & body") != std::wstring::npos,
         "Base64-encoded HTML body");
 
     const std::string base64Alternative =
-        "Content-Type: multipart/alternative; boundary=\\\"b64-boundary\\\"\\r\\n\\r\\n"
-        "--b64-boundary\\r\\n"
-        "Content-Type: text/plain; charset=utf-8\\r\\n"
-        "Content-Transfer-Encoding: base64\\r\\n\\r\\n"
-        "UGxhaW4gZW5jb2RlZCBib2R5\\r\\n"
-        "--b64-boundary\\r\\n"
-        "Content-Type: text/html; charset=utf-8\\r\\n"
-        "Content-Transfer-Encoding: base64\\r\\n\\r\\n"
-        "PGh0bWw+PGJvZHk+PHA+SFRNTCAmYW1wOyBib2R5PC9wPjwvYm9keT48L2h0bWw+\\r\\n"
-        "--b64-boundary--\\r\\n";
+        "Content-Type: multipart/alternative; boundary=\\"b64-boundary\\"\r\n\r\n"
+        "--b64-boundary\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "UGxhaW4gZW5jb2RlZCBib2R5\r\n"
+        "--b64-boundary\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "PGh0bWw+PGJvZHk+PHA+SFRNTCAmYW1wOyBib2R5PC9wPjwvYm9keT48L2h0bWw+\r\n"
+        "--b64-boundary--\r\n";
     Check(Extract(base64Alternative, output) &&
         output.find(L"Plain encoded body") != std::wstring::npos,
         "multipart alternative with Base64 plain and HTML parts");
