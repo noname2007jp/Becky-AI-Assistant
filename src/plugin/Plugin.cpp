@@ -172,11 +172,40 @@ namespace
             return;
         }
 
-        const size_t sourceLength = strnlen_s(source, kMaxSourceBytes + 1);
-        if (sourceLength > kMaxSourceBytes)
+        // GetSource returns the complete raw MIME source. Prefer the SDK's
+        // byte count when available; do not infer a binary buffer's length
+        // solely by scanning for a NUL terminator.
+        size_t sourceLength = 0;
+        const DWORD reportedSize = g_beckyApi.GetSize
+            ? g_beckyApi.GetSize(mailId.c_str())
+            : static_cast<DWORD>(-1);
+
+        if (reportedSize != static_cast<DWORD>(-1))
+        {
+            if (reportedSize > kMaxSourceBytes)
+            {
+                g_beckyApi.Free(source);
+                mail.bodyStatus = L"メールサイズが上限（5 MiB）を超えています。";
+                return;
+            }
+            sourceLength = static_cast<size_t>(reportedSize);
+        }
+        else
+        {
+            // Compatibility fallback for Becky! versions without GetSize.
+            sourceLength = strnlen_s(source, kMaxSourceBytes + 1);
+            if (sourceLength > kMaxSourceBytes)
+            {
+                g_beckyApi.Free(source);
+                mail.bodyStatus = L"メールサイズが上限（5 MiB）を超えています。";
+                return;
+            }
+        }
+
+        if (sourceLength == 0)
         {
             g_beckyApi.Free(source);
-            mail.bodyStatus = L"メールサイズが上限（5 MiB）を超えています。";
+            mail.bodyStatus = L"メール本文が空です。";
             return;
         }
 
