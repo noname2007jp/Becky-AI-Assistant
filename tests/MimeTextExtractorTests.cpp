@@ -81,6 +81,21 @@ int main()
         output.find(L"Plain encoded body") != std::wstring::npos,
         "multipart alternative with Base64 plain and HTML parts");
 
+    const std::string flattenedPlainStructuredHtml =
+        "Content-Type: multipart/alternative; boundary=\\\"format-boundary\\\"\\r\\n\\r\\n"
+        "--format-boundary\\r\\n"
+        "Content-Type: text/plain; charset=utf-8\\r\\n"
+        "Content-Transfer-Encoding: base64\\r\\n\\r\\n"
+        "RmxhdHRlbmVkIHBsYWluIHRleHQ=\\r\\n"
+        "--format-boundary\\r\\n"
+        "Content-Type: text/html; charset=utf-8\\r\\n"
+        "Content-Transfer-Encoding: base64\\r\\n\\r\\n"
+        "PHA+5q616JC9MTwvcD48cD7mrrXokL0yPC9wPjxwPuauteiQvTM8L3A+\\r\\n"
+        "--format-boundary--\\r\\n";
+    Check(Extract(flattenedPlainStructuredHtml, output) &&
+        output.find(L"段落1\\r\\n段落2\\r\\n段落3") != std::wstring::npos,
+        "prefer structured Base64 HTML when plain alternative is flattened");
+
 
     Check(Extract(
         "Content-Type: text/plain; charset=shift_jis\r\n\r\n"
