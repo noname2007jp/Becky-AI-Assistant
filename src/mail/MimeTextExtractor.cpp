@@ -387,6 +387,7 @@ bool ExtractPart(std::string_view raw, std::wstring& result, bool& htmlFound, st
     {
         const std::string marker = "--" + part.boundary;
         size_t pos = 0;
+        std::wstring plainCandidate;
         std::wstring htmlCandidate;
         while ((pos = part.body.find(marker, pos)) != std::string::npos)
         {
@@ -403,13 +404,41 @@ bool ExtractPart(std::string_view raw, std::wstring& result, bool& htmlFound, st
                 --childEnd;
             std::string_view child(part.body.data() + pos, childEnd - pos);
             std::wstring childResult;
-            if (ExtractPart(child, childResult, htmlFound, htmlCandidate, depth + 1))
-            {
-                if (!childResult.empty()) { result = std::move(childResult); return true; }
-            }
+            std::wstring childHtml;
+            bool childHtmlFound = false;
+            if (ExtractPart(child, childResult, childHtmlFound, childHtml, depth + 1) &&
+                !childResult.empty() && plainCandidate.empty())
+                plainCandidate = std::move(childResult);
+            if (childHtmlFound && !childHtml.empty() && htmlCandidate.empty())
+                htmlCandidate = std::move(childHtml);
             pos = next;
         }
-        if (!htmlCandidate.empty()) { htmlText = std::move(htmlCandidate); htmlFound = true; }
+
+        // Prefer plain text when it carries equivalent paragraph structure.
+        // Some senders, however, flatten the entire plain alternative into one
+        // line while the HTML alternative contains meaningful paragraph/BR
+        // boundaries. In that case use the better-structured HTML text.
+        const auto lineBreakCount = [](const std::wstring& value)
+        {
+            size_t count = 0;
+            for (wchar_t ch : value)
+                if (ch == L'\n') ++count;
+            return count;
+        };
+        if (!plainCandidate.empty())
+        {
+            if (!htmlCandidate.empty() &&
+                lineBreakCount(htmlCandidate) >= lineBreakCount(plainCandidate) + 2)
+                result = std::move(htmlCandidate);
+            else
+                result = std::move(plainCandidate);
+            return true;
+        }
+        if (!htmlCandidate.empty())
+        {
+            htmlText = std::move(htmlCandidate);
+            htmlFound = true;
+        }
         return false;
     }
 
