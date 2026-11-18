@@ -17,7 +17,7 @@ inline std::wstring BuildEmailContext(
     const std::wstring strippedBody = MailSignature::RemoveObviousSignature(body);
     const std::wstring& effectiveBody = strippedBody.empty() ? body : strippedBody;
 
-    return subjectLabel + L"\\n" + subject + L"\\n\\n" +
-        bodyLabel + L"\\n" + effectiveBody;
+    return subjectLabel + L"\n" + subject + L"\n\n" +
+        bodyLabel + L"\n" + effectiveBody;
 }
 }
