@@ -106,7 +106,7 @@ GeminiGenerateResult GenerateMailReplyDraft(
     if (apiKey.empty()) { result.error = L"APIキーが設定されていません。"; return result; }
     if (modelId.empty()) { result.error = L"Geminiモデルが選択されていません。"; return result; }
     if (body.empty()) { result.error = L"返信文案を作成する本文がありません。"; return result; }
-    if (body.size() + consultationTranscript.size() + replyRequirements.size() > 110000) { result.error = L"メール本文と相談履歴が長すぎます（合計上限100,000文字）。"; return result; }
+    if (body.size() + consultationTranscript.size() + replyRequirements.size() > 110000) { result.error = L"メール本文と相談履歴が長すぎます（合計上限110,000文字）。"; return result; }
 
     std::wstring prompt = BuildMailReplyPrompt(
         toneInstruction, subject, body, consultationTranscript, replyRequirements);
