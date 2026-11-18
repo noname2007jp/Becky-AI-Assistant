@@ -12,6 +12,7 @@
 #include "gemini/GeminiModels.h"
 #include "gemini/GeminiFallback.h"
 #include "settings/ApiKeyStore.h"
+#include "ConsultHistoryStore.h"
 
 #include <richedit.h>
 #include <cstring>
@@ -217,8 +218,21 @@ namespace
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             SendDlgItemMessageW(dialog, IDC_AI_CONSULT_QUESTION, EM_SETLIMITTEXT, 10000, 0);
             SendDlgItemMessageW(dialog, IDC_AI_CONSULT_REPLY_POINTS, EM_SETLIMITTEXT, 10000, 0);
-            SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
-                L"質問を入力して「質問する」を押してください。");
+            ConsultHistoryStore::Snapshot saved;
+            if (context && context->mail && ConsultHistoryStore::Load(context->mail->mailId, saved))
+            {
+                context->history = std::move(saved.history);
+                context->transcript = std::move(saved.transcript);
+                context->roundCount = saved.roundCount;
+                SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript);
+                SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                    L"このメールの前回の相談履歴を復元しました。追加質問できます。");
+            }
+            else
+            {
+                SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                    L"質問を入力して「質問する」を押してください。");
+            }
             ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
             return TRUE;
         }
@@ -318,6 +332,7 @@ namespace
                     context->history.clear();
                     context->transcript.clear();
                     context->roundCount = 0;
+                    ConsultHistoryStore::Clear(context->mail ? context->mail->mailId : L"");
                     SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
                         L"会話履歴をクリアしました。次の質問から新しく相談できます。");
@@ -432,6 +447,16 @@ namespace
             default: break;
             }
             break;
+        case WM_DESTROY:
+            if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->mail)
+            {
+                ConsultHistoryStore::Snapshot snapshot;
+                snapshot.history = context->history;
+                snapshot.transcript = context->transcript;
+                snapshot.roundCount = context->roundCount;
+                ConsultHistoryStore::Save(context->mail->mailId, snapshot);
+            }
+            return TRUE;
         case WM_CLOSE:
             if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) { context->closeAfterCancel = true; if (context->work) GeminiAsync::RequestCancel(context->work); SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"キャンセルして終了しています..."); return TRUE; }
             EndDialog(dialog, IDCANCEL);
