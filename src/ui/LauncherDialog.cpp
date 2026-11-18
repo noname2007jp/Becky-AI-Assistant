@@ -329,7 +329,7 @@ namespace
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                std::wstring replyRequirements(static_cast<size_t>(requirementsLength) + 1, L'\\0');
+                std::wstring replyRequirements(static_cast<size_t>(requirementsLength) + 1, L'\0');
                 if (requirementsLength > 0)
                     GetDlgItemTextW(dialog, IDC_REPLY_REQUIREMENTS, replyRequirements.data(), requirementsLength + 1);
                 replyRequirements.resize(static_cast<size_t>(requirementsLength));
