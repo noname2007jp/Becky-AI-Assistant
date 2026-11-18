@@ -156,6 +156,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), TRUE);
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"生成処理をキャンセルしました。");
                     GeminiAsync::Destroy(work);
                     if (closeNow) EndDialog(dialog, IDCANCEL);
@@ -168,6 +169,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), TRUE);
                 SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"");
                 const auto& result = work->result;
                 if (!result.notice.empty())
@@ -288,6 +290,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), TRUE);
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
@@ -320,9 +323,19 @@ namespace
                     MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
+                const int requirementsLength = GetWindowTextLengthW(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS));
+                if (requirementsLength > 10000) {
+                    MessageBoxW(dialog, L"返信に盛り込む内容は10,000文字以内で入力してください。",
+                        L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                std::wstring replyRequirements(static_cast<size_t>(requirementsLength) + 1, L'\\0');
+                if (requirementsLength > 0)
+                    GetDlgItemTextW(dialog, IDC_REPLY_REQUIREMENTS, replyRequirements.data(), requirementsLength + 1);
+                replyRequirements.resize(static_cast<size_t>(requirementsLength));
                 const std::wstring tone = GetReplyToneInstruction(static_cast<int>(toneSelected));
                 const std::wstring previewRaw = BuildMailReplyContent(
-                    mail.subject, mail.body, L"");
+                    mail.subject, mail.body, L"", replyRequirements);
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
@@ -348,6 +361,7 @@ namespace
                 context->busy = true;
                 ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
                     L"Geminiで返信文案を作成中です。しばらくお待ちください...");
+                EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
@@ -355,10 +369,10 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                 if (!GeminiAsync::Start(dialog, std::move(apiKey),
-                    [modelId, thinking, models, autoFallback, tone, subject, body, masker](const std::wstring& key, const std::atomic<int>& cancelState) mutable {
+                    [modelId, thinking, models, autoFallback, tone, subject, body, replyRequirements, masker](const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
-                                return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone, subject, body, L"", &masker);
+                                return GenerateMailReplyDraft(key, candidateId, candidateThinking, tone, subject, body, L"", &masker, replyRequirements);
                             }, &cancelState);
                     }, 2, &context->work)) {
                     context->busy = false;
