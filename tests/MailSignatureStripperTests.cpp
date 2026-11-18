@@ -32,6 +32,16 @@ int main()
         "proofreading payload excludes obvious signature");
     check(preservedSignature == L"\n\n-- \n署名者\nname@example.jp",
         "proofreading can restore the original signature unchanged");
+    const std::wstring crlfInput =
+        L"校正する本文です。\r\n\r\n-- \r\n署名者\r\nname@example.jp";
+    const std::wstring crlfBody = MailSignature::RemoveObviousSignature(crlfInput);
+    const std::wstring crlfSignature = crlfInput.substr(crlfBody.size());
+    check(crlfBody == L"校正する本文です。",
+        "CRLF proofreading payload excludes obvious signature");
+    check(crlfSignature == L"\r\n\r\n-- \r\n署名者\r\nname@example.jp",
+        "CRLF signature is preserved with original line endings");
+    check(crlfBody + crlfSignature == crlfInput,
+        "CRLF body and preserved signature reconstruct the original exactly");
     const std::wstring normal = L"お世話になっております。\n明日までに回答します。";
     check(MailSignature::RemoveObviousSignature(normal) == normal,
         "leaves ordinary message unchanged");
