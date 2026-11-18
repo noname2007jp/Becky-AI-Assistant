@@ -241,6 +241,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
+                RefreshQuestionList(dialog, *context);
                 const auto& result = work->result;
                 if (!result.success) {
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
@@ -395,6 +396,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_PAST_QUESTIONS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REUSE_QUESTION), FALSE);
                 ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
@@ -417,6 +420,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
+                    RefreshQuestionList(dialog, *context);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
@@ -473,6 +477,7 @@ namespace
                     context->transcript.clear();
                     context->roundCount = 0;
                     context->lastQuestion.clear();
+                    context->pastQuestions.clear();
                     context->activeSessionTitle = L"新しい相談";
                     context->activeSessionId = ConsultHistoryStore::CreateId();
                     SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
@@ -542,6 +547,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_PAST_QUESTIONS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REUSE_QUESTION), FALSE);
                 const MailContext& mail = *context->mail;
                 const std::wstring subject = mail.subject, body = mail.body;
                 const std::wstring transcript = replyContext;
@@ -570,6 +577,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
+                    RefreshQuestionList(dialog, *context);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
