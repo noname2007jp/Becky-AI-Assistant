@@ -15,6 +15,7 @@ int main()
     first.snapshot.history.push_back({ true, L"first answer" });
     first.snapshot.transcript = L"【第1回】\r\n回答";
     first.snapshot.roundCount = 1;
+    first.snapshot.lastQuestion = L"最初の質問";
     ConsultHistoryStore::Save(L"mail-001", first);
 
     Conversation second;
@@ -34,14 +35,17 @@ int main()
     assert(sessions[0].snapshot.history[0].text == L"initial prompt");
     assert(sessions[0].snapshot.history[1].isModel);
     assert(sessions[0].snapshot.transcript == first.snapshot.transcript);
+    assert(sessions[0].snapshot.lastQuestion == L"最初の質問");
 
     // Updating one conversation must not overwrite its sibling.
     first.snapshot.roundCount = 2;
+    first.snapshot.lastQuestion = L"更新した質問";
     first.snapshot.transcript = L"【第2回】";
     ConsultHistoryStore::Save(L"mail-001", first);
     sessions = ConsultHistoryStore::LoadAll(L"mail-001");
     assert(sessions.size() == 2);
     assert(sessions[0].snapshot.roundCount == 2);
+    assert(sessions[0].snapshot.lastQuestion == L"更新した質問");
     assert(sessions[1].snapshot.transcript == second.snapshot.transcript);
 
     ConsultHistoryStore::Clear(L"mail-001", L"c-1");

@@ -15,6 +15,7 @@ namespace ConsultHistoryStore
         std::vector<GeminiChatTurn> history;
         std::wstring transcript;
         unsigned int roundCount = 0;
+        std::wstring lastQuestion;
     };
 
     struct Conversation

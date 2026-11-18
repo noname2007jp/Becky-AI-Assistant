@@ -33,6 +33,7 @@ namespace
         unsigned int roundCount = 0;
         std::wstring activeSessionId;
         std::wstring activeSessionTitle;
+        std::wstring lastQuestion;
         std::vector<ConsultHistoryStore::Conversation> sessions;
         bool updatingSessionList = false;
         bool busy = false;
@@ -138,6 +139,7 @@ namespace
         item.snapshot.history = context.history;
         item.snapshot.transcript = context.transcript;
         item.snapshot.roundCount = context.roundCount;
+        item.snapshot.lastQuestion = context.lastQuestion;
         ConsultHistoryStore::Save(context.mail->mailId, item);
     }
 
@@ -165,6 +167,7 @@ namespace
             current.snapshot.history = context.history;
             current.snapshot.transcript = context.transcript;
             current.snapshot.roundCount = context.roundCount;
+            current.snapshot.lastQuestion = context.lastQuestion;
             context.sessions.push_back(std::move(current));
         }
         int selected = CB_ERR;
@@ -185,6 +188,7 @@ namespace
         context.history = item.snapshot.history;
         context.transcript = item.snapshot.transcript;
         context.roundCount = item.snapshot.roundCount;
+        context.lastQuestion = item.snapshot.lastQuestion;
     }
 
     void StartNewConversation(HWND dialog, ConsultContext& context)
@@ -195,6 +199,7 @@ namespace
         context.history.clear();
         context.transcript.clear();
         context.roundCount = 0;
+        context.lastQuestion.clear();
         SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
         SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"新しい相談を開始しました。");
         RefreshSessionList(dialog, context);
@@ -263,6 +268,7 @@ namespace
                     context->history.push_back({ true, result.text });
                     while (context->history.size() > 16 && context->history.size() >= 4)
                         context->history.erase(context->history.begin() + 2, context->history.begin() + 4);
+                    context->lastQuestion = question;
                     if (context->roundCount == 0)
                     {
                         context->activeSessionTitle = question;
@@ -416,6 +422,25 @@ namespace
                 }
                 return TRUE;
             }
+            case IDC_AI_CONSULT_REUSE_QUESTION:
+            {
+                auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (!context || context->lastQuestion.empty())
+                {
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"再入力できる質問がありません。");
+                    return TRUE;
+                }
+                const std::wstring current = GetControlText(dialog, IDC_AI_CONSULT_QUESTION);
+                if (!current.empty() && MessageBoxW(dialog,
+                    L"入力欄の内容を直前の質問で置き換えます。よろしいですか？",
+                    L"直前の質問を再入力", MB_YESNO | MB_ICONQUESTION) != IDYES)
+                    return TRUE;
+                SetDlgItemTextW(dialog, IDC_AI_CONSULT_QUESTION, context->lastQuestion.c_str());
+                SetFocus(GetDlgItem(dialog, IDC_AI_CONSULT_QUESTION));
+                SendDlgItemMessageW(dialog, IDC_AI_CONSULT_QUESTION, EM_SETSEL, -1, -1);
+                SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"直前の質問を入力欄に戻しました。必要に応じて編集してください。");
+                return TRUE;
+            }
             case IDC_AI_CONSULT_NEW:
             {
                 auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
@@ -447,6 +472,7 @@ namespace
                     context->history.clear();
                     context->transcript.clear();
                     context->roundCount = 0;
+                    context->lastQuestion.clear();
                     context->activeSessionTitle = L"新しい相談";
                     context->activeSessionId = ConsultHistoryStore::CreateId();
                     SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
