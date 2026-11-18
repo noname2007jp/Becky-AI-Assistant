@@ -348,8 +348,13 @@ namespace
                     MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
+                const std::wstring replyPoints = GetControlText(dialog, IDC_AI_CONSULT_REPLY_POINTS);
+                std::wstring replyContext = context->transcript;
+                if (!replyPoints.empty()) {
+                    replyContext += L"\r\n\r\n【返信に必ず盛り込む内容（ユーザー指定）】\r\n" + replyPoints;
+                }
                 const std::wstring previewRaw = BuildMailReplyContent(
-                    context->mail->subject, context->mail->body, context->transcript);
+                    context->mail->subject, context->mail->body, replyContext);
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"相談から返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
@@ -374,7 +379,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
                 const MailContext& mail = *context->mail;
                 const std::wstring subject = mail.subject, body = mail.body;
-                const std::wstring transcript = context->transcript;
+                const std::wstring transcript = replyContext;
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
                 const auto models = context->models;
                 const bool autoFallback = context->autoFallback;
