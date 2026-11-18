@@ -25,6 +25,24 @@ struct SettingsState
     std::vector<GeminiModelOption> models;
 };
 
+
+void ShowSettingsTab(HWND dialog, int selected)
+{
+    const int basic[] = { IDC_SETTINGS_LABEL_API, IDC_GEMINI_API_KEY, IDC_SETTINGS_TOGGLE_KEY,
+        IDC_GEMINI_APIKEY_LINK, IDC_SETTINGS_LABEL_API_NOTE, IDC_SETTINGS_LABEL_MODEL,
+        IDC_SETTINGS_DEFAULT_MODEL, IDC_SETTINGS_PRICING_LINK, IDC_SETTINGS_UPDATE_MODELS,
+        IDC_SETTINGS_TEST };
+    const int masking[] = { IDC_SETTINGS_LABEL_MASK, IDC_MASK_EMAIL, IDC_MASK_PHONE,
+        IDC_MASK_POSTAL, IDC_MASK_IP, IDC_MASK_COMPANY, IDC_MASK_PERSON, IDC_MASK_ADDRESS,
+        IDC_MASK_ACCOUNT, IDC_MASK_CUSTOM, IDC_SETTINGS_LABEL_MASK_TERMS,
+        IDC_SETTINGS_MASK_TERMS, IDC_SETTINGS_LABEL_MASK_NOTE };
+    const int advanced[] = { IDC_SETTINGS_AUTO_FALLBACK, IDC_SETTINGS_INCLUDE_PAID,
+        IDC_SETTINGS_DEBUG_LOG, IDC_SETTINGS_LABEL_DEBUG_NOTE };
+    for (int id : basic) ShowWindow(GetDlgItem(dialog, id), selected == 0 ? SW_SHOW : SW_HIDE);
+    for (int id : masking) ShowWindow(GetDlgItem(dialog, id), selected == 1 ? SW_SHOW : SW_HIDE);
+    for (int id : advanced) ShowWindow(GetDlgItem(dialog, id), selected == 2 ? SW_SHOW : SW_HIDE);
+}
+
 void PopulateDefaultModelCombo(HWND dialog, SettingsState* state, const std::wstring& preferred)
 {
     if (!state) return;
@@ -125,6 +143,13 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
     {
         auto* state = reinterpret_cast<SettingsState*>(lParam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
+        HWND tabs = GetDlgItem(dialog, IDC_SETTINGS_TABS);
+        TCITEMW tab{}; tab.mask = TCIF_TEXT;
+        tab.pszText = const_cast<wchar_t*>(L"基本"); TabCtrl_InsertItem(tabs, 0, &tab);
+        tab.pszText = const_cast<wchar_t*>(L"マスキング"); TabCtrl_InsertItem(tabs, 1, &tab);
+        tab.pszText = const_cast<wchar_t*>(L"詳細"); TabCtrl_InsertItem(tabs, 2, &tab);
+        TabCtrl_SetCurSel(tabs, 0);
+        ShowSettingsTab(dialog, 0);
         std::wstring key, error;
         SetDlgItemTextW(dialog, IDC_GEMINI_APIKEY_LINK,
             L"<a href=\"https://aistudio.google.com/api-keys\">Google AI StudioでAPIキーを取得</a>");
@@ -179,6 +204,11 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
 
     case WM_NOTIFY:
     {
+        const auto* tabNotification = reinterpret_cast<const NMHDR*>(lParam);
+        if (tabNotification && tabNotification->idFrom == IDC_SETTINGS_TABS && tabNotification->code == TCN_SELCHANGE) {
+            ShowSettingsTab(dialog, TabCtrl_GetCurSel(GetDlgItem(dialog, IDC_SETTINGS_TABS)));
+            return TRUE;
+        }
         const auto* notification = reinterpret_cast<const NMHDR*>(lParam);
         if (notification != nullptr &&
             notification->idFrom == IDC_SETTINGS_PRICING_LINK &&
@@ -423,7 +453,7 @@ INT_PTR ShowSettingsDialog(HWND owner, HINSTANCE instance)
 {
     INITCOMMONCONTROLSEX controls{};
     controls.dwSize = sizeof(controls);
-    controls.dwICC = ICC_LINK_CLASS;
+    controls.dwICC = ICC_LINK_CLASS | ICC_TAB_CLASSES
     InitCommonControlsEx(&controls);
 
     SettingsState state;
