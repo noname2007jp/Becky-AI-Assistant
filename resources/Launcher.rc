@@ -27,9 +27,9 @@ BEGIN
     LTEXT           "Geminiモデル", -1, 17, 248, 122, 12
     LTEXT           "返信トーン：標準", IDC_REPLY_TONE_LABEL, 147, 248, 134, 12
     COMBOBOX        IDC_GEMINI_MODEL, 17, 263, 122, 120, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL         "", IDC_REPLY_TONE, "msctls_trackbar32", TBS_AUTOTICKS | WS_TABSTOP | WS_CHILD | WS_VISIBLE, 147, 290, 134, 25
-    LTEXT           "強ビジネス文書", -1, 147, 316, 67, 12
-    LTEXT           "簡潔", -1, 255, 316, 26, 12, SS_RIGHT
+    CONTROL         "", IDC_REPLY_TONE, "msctls_trackbar32", TBS_AUTOTICKS | WS_TABSTOP | WS_CHILD | WS_VISIBLE, 147, 263, 134, 25
+    LTEXT           "強ビジネス文書", -1, 147, 290, 67, 12
+    LTEXT           "簡潔", -1, 255, 290, 26, 12, SS_RIGHT
 
     PUSHBUTTON      "メール要約", IDC_AI_SUMMARY, 17, 338, 84, 26
     PUSHBUTTON      "返信文案", IDC_AI_REPLY, 107, 338, 84, 26
