@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.61.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.62.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -124,4 +124,10 @@ if(BUILD_TESTING)
   target_compile_features(MarkdownRendererTests PRIVATE cxx_std_17)
   target_compile_options(MarkdownRendererTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME MarkdownRendererTests COMMAND MarkdownRendererTests)
+
+  add_executable(ConsultHistoryStoreTests tests/ConsultHistoryStoreTests.cpp)
+  target_include_directories(ConsultHistoryStoreTests PRIVATE src)
+  target_compile_features(ConsultHistoryStoreTests PRIVATE cxx_std_17)
+  target_compile_options(ConsultHistoryStoreTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME ConsultHistoryStoreTests COMMAND ConsultHistoryStoreTests)
 endif()
