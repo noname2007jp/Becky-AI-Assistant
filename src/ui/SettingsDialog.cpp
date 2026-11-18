@@ -202,6 +202,15 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         return TRUE;
     }
 
+    case WM_CTLCOLORDLG:
+        return reinterpret_cast<INT_PTR>(GetSysColorBrush(COLOR_WINDOW));
+    case WM_CTLCOLORSTATIC:
+    {
+        HDC dc = reinterpret_cast<HDC>(wParam);
+        SetBkMode(dc, TRANSPARENT);
+        return reinterpret_cast<INT_PTR>(GetSysColorBrush(COLOR_WINDOW));
+    }
+
     case WM_NOTIFY:
     {
         const auto* tabNotification = reinterpret_cast<const NMHDR*>(lParam);
