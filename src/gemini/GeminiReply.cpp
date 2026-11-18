@@ -7,6 +7,7 @@
 #include "GeminiDebugLog.h"
 #include "mail/MailSignatureStripper.h"
 #include "mail/MailPromptContent.h"
+#include "GeminiReplyPromptContent.h"
 #include <string>
 
 namespace
@@ -57,12 +58,7 @@ std::wstring BuildMailReplyContent(
 {
     std::wstring content = MailPromptContent::BuildEmailContext(
         subject, body, L"件名:", L"受信メール本文:");
-    if (!replyRequirements.empty())
-    {
-        content += L"\\n\\n以下はユーザーが返信に必ず盛り込むよう指定した内容です。各項目を漏れなく反映してください。\\n"
-            L"指定内容が元メールと矛盾する場合は、事実として断定せず確認が必要な点として扱ってください。\\n"
-            L"【返信に必ず盛り込む内容（ユーザー指定）】\\n" + replyRequirements;
-    }
+    content += GeminiReplyPromptContent::BuildReplyRequirementsSection(replyRequirements);
     if (!consultationTranscript.empty())
     {
         content += L"\n\n以下は、このメールについてユーザーとAIが行った相談の記録です。"
