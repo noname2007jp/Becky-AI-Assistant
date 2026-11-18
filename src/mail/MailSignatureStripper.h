@@ -51,9 +51,11 @@ inline bool ContainsAny(const std::wstring& text, const std::vector<std::wstring
 inline std::wstring RemoveObviousSignature(const std::wstring& body)
 {
     std::vector<std::wstring> lines;
+    std::vector<size_t> lineStarts;
     size_t pos = 0;
     while (pos <= body.size())
     {
+        lineStarts.push_back(pos);
         const size_t end = body.find(L'\n', pos);
         std::wstring line = body.substr(pos, end == std::wstring::npos ? body.size() - pos : end - pos);
         if (!line.empty() && line.back() == L'\r') line.pop_back();
@@ -61,6 +63,14 @@ inline std::wstring RemoveObviousSignature(const std::wstring& body)
         if (end == std::wstring::npos) break;
         pos = end + 1;
     }
+
+    // Keep original offsets so CRLF input remains byte-for-character aligned.
+    auto prefixBeforeLine = [&](size_t lineIndex) {
+        size_t end = lineStarts[lineIndex];
+        while (end > 0 && (body[end - 1] == L'\r' || body[end - 1] == L'\n' ||
+            body[end - 1] == L' ' || body[end - 1] == L'\t')) --end;
+        return body.substr(0, end);
+    };
 
     for (size_t i = 0; i < lines.size(); ++i)
     {
@@ -80,11 +90,7 @@ inline std::wstring RemoveObviousSignature(const std::wstring& body)
                 { signatureEvidence = true; break; }
             }
             if (!rfcDelimiter && !signatureEvidence) continue;
-            std::wstring result;
-            for (size_t j = 0; j < i; ++j) { if (j) result += L"\n"; result += lines[j]; }
-            while (!result.empty() && (result.back() == L'\r' || result.back() == L'\n' ||
-                result.back() == L' ' || result.back() == L'\t')) result.pop_back();
-            return result;
+            return prefixBeforeLine(i);
         }
     }
 
@@ -109,11 +115,7 @@ inline std::wstring RemoveObviousSignature(const std::wstring& body)
         static_cast<int>(hasPostal || hasAddress) + static_cast<int>(hasUrl);
     if (hasIdentity && contactKinds >= 2 && firstSignatureLine < lines.size())
     {
-        std::wstring result;
-        for (size_t j = 0; j < firstSignatureLine; ++j) { if (j) result += L"\n"; result += lines[j]; }
-        while (!result.empty() && (result.back() == L'\r' || result.back() == L'\n' ||
-            result.back() == L' ' || result.back() == L'\t')) result.pop_back();
-        return result;
+        return prefixBeforeLine(firstSignatureLine);
     }
     return body;
 }
