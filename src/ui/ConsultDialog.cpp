@@ -31,6 +31,10 @@ namespace
         std::vector<GeminiChatTurn> history;
         std::wstring transcript;
         unsigned int roundCount = 0;
+        std::wstring activeSessionId;
+        std::wstring activeSessionTitle;
+        std::vector<ConsultHistoryStore::Conversation> sessions;
+        bool updatingSessionList = false;
         bool busy = false;
         bool closeAfterCancel = false;
         GeminiAsync::WorkItem* work = nullptr;
@@ -125,6 +129,77 @@ namespace
         SendMessageW(control, EM_SCROLLCARET, 0, 0);
     }
 
+    void SaveActiveConversation(ConsultContext& context)
+    {
+        if (!context.mail || context.activeSessionId.empty()) return;
+        ConsultHistoryStore::Conversation item;
+        item.id = context.activeSessionId;
+        item.title = context.activeSessionTitle.empty() ? L"新しい相談" : context.activeSessionTitle;
+        item.snapshot.history = context.history;
+        item.snapshot.transcript = context.transcript;
+        item.snapshot.roundCount = context.roundCount;
+        ConsultHistoryStore::Save(context.mail->mailId, item);
+    }
+
+    std::wstring MakeSessionLabel(const ConsultHistoryStore::Conversation& item)
+    {
+        std::wstring label = item.title.empty() ? L"新しい相談" : item.title;
+        for (auto& ch : label) if (ch == L'\r' || ch == L'\n' || ch == L'\t') ch = L' ';
+        if (label.size() > 32) label = label.substr(0, 32) + L"…";
+        return label + L"（" + std::to_wstring(item.snapshot.roundCount) + L"回）";
+    }
+
+    void RefreshSessionList(HWND dialog, ConsultContext& context)
+    {
+        context.updatingSessionList = true;
+        HWND combo = GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS);
+        SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+        context.sessions = ConsultHistoryStore::LoadAll(context.mail ? context.mail->mailId : L"");
+        const auto active = std::find_if(context.sessions.begin(), context.sessions.end(),
+            [&](const ConsultHistoryStore::Conversation& item) { return item.id == context.activeSessionId; });
+        if (active == context.sessions.end())
+        {
+            ConsultHistoryStore::Conversation current;
+            current.id = context.activeSessionId;
+            current.title = context.activeSessionTitle.empty() ? L"新しい相談" : context.activeSessionTitle;
+            current.snapshot.history = context.history;
+            current.snapshot.transcript = context.transcript;
+            current.snapshot.roundCount = context.roundCount;
+            context.sessions.push_back(std::move(current));
+        }
+        int selected = CB_ERR;
+        for (size_t i = 0; i < context.sessions.size(); ++i)
+        {
+            const auto label = MakeSessionLabel(context.sessions[i]);
+            const LRESULT index = SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(label.c_str()));
+            if (context.sessions[i].id == context.activeSessionId) selected = static_cast<int>(index);
+        }
+        if (selected != CB_ERR) SendMessageW(combo, CB_SETCURSEL, selected, 0);
+        context.updatingSessionList = false;
+    }
+
+    void LoadConversation(ConsultContext& context, const ConsultHistoryStore::Conversation& item)
+    {
+        context.activeSessionId = item.id;
+        context.activeSessionTitle = item.title;
+        context.history = item.snapshot.history;
+        context.transcript = item.snapshot.transcript;
+        context.roundCount = item.snapshot.roundCount;
+    }
+
+    void StartNewConversation(HWND dialog, ConsultContext& context)
+    {
+        SaveActiveConversation(context);
+        context.activeSessionId = ConsultHistoryStore::CreateId();
+        context.activeSessionTitle = L"新しい相談";
+        context.history.clear();
+        context.transcript.clear();
+        context.roundCount = 0;
+        SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
+        SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"新しい相談を開始しました。");
+        RefreshSessionList(dialog, context);
+    }
+
     INT_PTR CALLBACK ConsultDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
     {
         switch (message)
@@ -146,6 +221,8 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"生成処理をキャンセルしました。");
                     GeminiAsync::Destroy(work);
                     if (closeNow) EndDialog(dialog, IDCANCEL);
@@ -157,6 +234,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                 const auto& result = work->result;
                 if (!result.success) {
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
@@ -184,6 +263,10 @@ namespace
                     context->history.push_back({ true, result.text });
                     while (context->history.size() > 16 && context->history.size() >= 4)
                         context->history.erase(context->history.begin() + 2, context->history.begin() + 4);
+                    if (context->roundCount == 0)
+                    {
+                        context->activeSessionTitle = question;
+                    }
                     if (!context->transcript.empty())
                         context->transcript += L"\r\n\r\n────────────────────────\r\n\r\n";
                     ++context->roundCount;
@@ -191,6 +274,8 @@ namespace
                         L"【質問】\r\n" + question + L"\r\n\r\n【回答】\r\n" + result.text;
                     SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_QUESTION, L"");
+                    SaveActiveConversation(*context);
+                    RefreshSessionList(dialog, *context);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, result.notice.empty()
                         ? L"回答が完了しました。前の会話を踏まえて追加質問できます。"
                         : result.notice.c_str());
@@ -218,20 +303,24 @@ namespace
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             SendDlgItemMessageW(dialog, IDC_AI_CONSULT_QUESTION, EM_SETLIMITTEXT, 10000, 0);
             SendDlgItemMessageW(dialog, IDC_AI_CONSULT_REPLY_POINTS, EM_SETLIMITTEXT, 10000, 0);
-            ConsultHistoryStore::Snapshot saved;
-            if (context && context->mail && ConsultHistoryStore::Load(context->mail->mailId, saved))
+            if (context && context->mail)
             {
-                context->history = std::move(saved.history);
-                context->transcript = std::move(saved.transcript);
-                context->roundCount = saved.roundCount;
-                SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript);
-                SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
-                    L"このメールの前回の相談履歴を復元しました。追加質問できます。");
-            }
-            else
-            {
-                SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
-                    L"質問を入力して「質問する」を押してください。");
+                context->sessions = ConsultHistoryStore::LoadAll(context->mail->mailId);
+                if (!context->sessions.empty())
+                {
+                    LoadConversation(*context, context->sessions.back());
+                    SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript);
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                        L"前回の相談履歴を復元しました。履歴一覧から別の相談にも切り替えられます。");
+                }
+                else
+                {
+                    context->activeSessionId = ConsultHistoryStore::CreateId();
+                    context->activeSessionTitle = L"新しい相談";
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                        L"質問を入力して「質問する」を押してください。");
+                }
+                RefreshSessionList(dialog, *context);
             }
             ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
             return TRUE;
@@ -298,6 +387,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
                 ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
@@ -318,24 +409,50 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
                 return TRUE;
             }
+            case IDC_AI_CONSULT_NEW:
+            {
+                auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context && !context->busy) StartNewConversation(dialog, *context);
+                return TRUE;
+            }
+            case IDC_AI_CONSULT_SESSIONS:
+            {
+                if (HIWORD(wParam) != CBN_SELCHANGE) return TRUE;
+                auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (!context || context->busy || context->updatingSessionList) return TRUE;
+                const LRESULT selected = SendDlgItemMessageW(dialog, IDC_AI_CONSULT_SESSIONS, CB_GETCURSEL, 0, 0);
+                if (selected < 0 || static_cast<size_t>(selected) >= context->sessions.size()) return TRUE;
+                const auto target = context->sessions[static_cast<size_t>(selected)];
+                if (target.id == context->activeSessionId) return TRUE;
+                SaveActiveConversation(*context);
+                LoadConversation(*context, target);
+                SetConsultMarkdownText(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), context->transcript);
+                SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"選択した相談履歴に切り替えました。");
+                RefreshSessionList(dialog, *context);
+                return TRUE;
+            }
             case IDC_AI_CONSULT_CLEAR:
             {
-                auto* context = reinterpret_cast<ConsultContext*>(
-                    GetWindowLongPtrW(dialog, DWLP_USER));
+                auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context)
                 {
+                    ConsultHistoryStore::Clear(context->mail ? context->mail->mailId : L"", context->activeSessionId);
                     context->history.clear();
                     context->transcript.clear();
                     context->roundCount = 0;
-                    ConsultHistoryStore::Clear(context->mail ? context->mail->mailId : L"");
+                    context->activeSessionTitle = L"新しい相談";
+                    context->activeSessionId = ConsultHistoryStore::CreateId();
                     SetWindowTextW(GetDlgItem(dialog, IDC_AI_CONSULT_RESPONSE), L"");
+                    RefreshSessionList(dialog, *context);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
-                        L"会話履歴をクリアしました。次の質問から新しく相談できます。");
+                        L"この相談の履歴を削除しました。新しい質問を開始できます。");
                 }
                 return TRUE;
             }
@@ -397,6 +514,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
                 const MailContext& mail = *context->mail;
                 const std::wstring subject = mail.subject, body = mail.body;
                 const std::wstring transcript = replyContext;
@@ -423,6 +542,8 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
@@ -449,13 +570,7 @@ namespace
             break;
         case WM_DESTROY:
             if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->mail)
-            {
-                ConsultHistoryStore::Snapshot snapshot;
-                snapshot.history = context->history;
-                snapshot.transcript = context->transcript;
-                snapshot.roundCount = context->roundCount;
-                ConsultHistoryStore::Save(context->mail->mailId, snapshot);
-            }
+                SaveActiveConversation(*context);
             return TRUE;
         case WM_CLOSE:
             if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->busy) { context->closeAfterCancel = true; if (context->work) GeminiAsync::RequestCancel(context->work); SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"キャンセルして終了しています..."); return TRUE; }
