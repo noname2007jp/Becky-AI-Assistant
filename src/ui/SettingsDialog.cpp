@@ -453,7 +453,7 @@ INT_PTR ShowSettingsDialog(HWND owner, HINSTANCE instance)
 {
     INITCOMMONCONTROLSEX controls{};
     controls.dwSize = sizeof(controls);
-    controls.dwICC = ICC_LINK_CLASS | ICC_TAB_CLASSES
+    controls.dwICC = ICC_LINK_CLASS | ICC_TAB_CLASSES;
     InitCommonControlsEx(&controls);
 
     SettingsState state;
