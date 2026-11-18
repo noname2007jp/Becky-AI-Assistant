@@ -145,9 +145,9 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         HWND tabs = GetDlgItem(dialog, IDC_SETTINGS_TABS);
         TCITEMW tab{}; tab.mask = TCIF_TEXT;
-        tab.pszText = const_cast<wchar_t*>(L"基本"); TabCtrl_InsertItem(tabs, 0, &tab);
-        tab.pszText = const_cast<wchar_t*>(L"マスキング"); TabCtrl_InsertItem(tabs, 1, &tab);
-        tab.pszText = const_cast<wchar_t*>(L"詳細"); TabCtrl_InsertItem(tabs, 2, &tab);
+        tab.pszText = const_cast<wchar_t*>(L"\u57FA\u672C"); TabCtrl_InsertItem(tabs, 0, &tab);
+        tab.pszText = const_cast<wchar_t*>(L"\u30DE\u30B9\u30AD\u30F3\u30B0"); TabCtrl_InsertItem(tabs, 1, &tab);
+        tab.pszText = const_cast<wchar_t*>(L"\u8A73\u7D30"); TabCtrl_InsertItem(tabs, 2, &tab);
         TabCtrl_SetCurSel(tabs, 0);
         ShowSettingsTab(dialog, 0);
         std::wstring key, error;
