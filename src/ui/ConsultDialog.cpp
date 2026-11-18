@@ -221,6 +221,8 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"生成処理をキャンセルしました。");
                     GeminiAsync::Destroy(work);
                     if (closeNow) EndDialog(dialog, IDCANCEL);
@@ -232,6 +234,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                 const auto& result = work->result;
                 if (!result.success) {
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
@@ -383,6 +387,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
                 ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
                 std::wstring workerKey = std::move(context->apiKey);
                 context->apiKey.clear();
@@ -403,6 +409,8 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
@@ -506,6 +514,8 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
                 const MailContext& mail = *context->mail;
                 const std::wstring subject = mail.subject, body = mail.body;
                 const std::wstring transcript = replyContext;
@@ -532,6 +542,8 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
