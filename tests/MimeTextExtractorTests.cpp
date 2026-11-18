@@ -67,7 +67,7 @@ int main()
         "Base64-encoded HTML body");
 
     const std::string base64Alternative =
-        "Content-Type: multipart/alternative; boundary=\\"b64-boundary\\"\r\n\r\n"
+        "Content-Type: multipart/alternative; boundary=\"b64-boundary\"\r\n\r\n"
         "--b64-boundary\r\n"
         "Content-Type: text/plain; charset=utf-8\r\n"
         "Content-Transfer-Encoding: base64\r\n\r\n"
