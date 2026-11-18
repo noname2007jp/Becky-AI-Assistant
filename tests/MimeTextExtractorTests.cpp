@@ -58,6 +58,44 @@ int main()
         output.find(L"\r\n・Second") != std::wstring::npos,
         "HTML entities and structural line breaks");
 
+    const std::string base64Html =
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "PGh0bWw+PGJvZHk+PHA+SFRNTCAmYW1wOyBib2R5PC9wPjwvYm9keT48L2h0bWw+";
+    Check(Extract(base64Html, output) &&
+        output.find(L"HTML & body") != std::wstring::npos,
+        "Base64-encoded HTML body");
+
+    const std::string base64Alternative =
+        "Content-Type: multipart/alternative; boundary=\"b64-boundary\"\r\n\r\n"
+        "--b64-boundary\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "UGxhaW4gZW5jb2RlZCBib2R5\r\n"
+        "--b64-boundary\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "PGh0bWw+PGJvZHk+PHA+SFRNTCAmYW1wOyBib2R5PC9wPjwvYm9keT48L2h0bWw+\r\n"
+        "--b64-boundary--\r\n";
+    Check(Extract(base64Alternative, output) &&
+        output.find(L"Plain encoded body") != std::wstring::npos,
+        "multipart alternative with Base64 plain and HTML parts");
+
+    const std::string flattenedPlainStructuredHtml =
+        "Content-Type: multipart/alternative; boundary=\"format-boundary\"\r\n\r\n"
+        "--format-boundary\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "RmxhdHRlbmVkIHBsYWluIHRleHQ=\r\n"
+        "--format-boundary\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Transfer-Encoding: base64\r\n\r\n"
+        "PHA+5q616JC9MTwvcD48cD7mrrXokL0yPC9wPjxwPuauteiQvTM8L3A+\r\n"
+        "--format-boundary--\r\n";
+    Check(Extract(flattenedPlainStructuredHtml, output) &&
+        output.find(L"段落1\r\n段落2\r\n段落3") != std::wstring::npos,
+        "prefer structured Base64 HTML when plain alternative is flattened");
+
 
     Check(Extract(
         "Content-Type: text/plain; charset=shift_jis\r\n\r\n"

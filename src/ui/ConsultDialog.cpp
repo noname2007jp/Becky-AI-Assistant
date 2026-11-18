@@ -144,6 +144,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"生成処理をキャンセルしました。");
                     GeminiAsync::Destroy(work);
                     if (closeNow) EndDialog(dialog, IDCANCEL);
@@ -154,6 +155,7 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
                 const auto& result = work->result;
                 if (!result.success) {
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
@@ -214,6 +216,7 @@ namespace
             auto* context = reinterpret_cast<ConsultContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
             SendDlgItemMessageW(dialog, IDC_AI_CONSULT_QUESTION, EM_SETLIMITTEXT, 10000, 0);
+            SendDlgItemMessageW(dialog, IDC_AI_CONSULT_REPLY_POINTS, EM_SETLIMITTEXT, 10000, 0);
             SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
                 L"質問を入力して「質問する」を押してください。");
             ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
@@ -300,6 +303,7 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), TRUE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), TRUE);
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"バックグラウンド処理を開始できませんでした。");
                     MessageBoxW(dialog, L"非同期処理を開始できませんでした。", L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                 }
@@ -348,8 +352,13 @@ namespace
                     MessageBoxW(dialog, masker.Error().c_str(), L"マスキング設定エラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
+                const std::wstring replyPoints = GetControlText(dialog, IDC_AI_CONSULT_REPLY_POINTS);
+                std::wstring replyContext = context->transcript;
+                if (!replyPoints.empty()) {
+                    replyContext += L"\r\n\r\n【返信に必ず盛り込む内容（ユーザー指定）】\r\n" + replyPoints;
+                }
                 const std::wstring previewRaw = BuildMailReplyContent(
-                    context->mail->subject, context->mail->body, context->transcript);
+                    context->mail->subject, context->mail->body, replyContext);
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     L"相談から返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
@@ -372,9 +381,10 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_COPY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
+                EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY_POINTS), FALSE);
                 const MailContext& mail = *context->mail;
                 const std::wstring subject = mail.subject, body = mail.body;
-                const std::wstring transcript = context->transcript;
+                const std::wstring transcript = replyContext;
                 const std::wstring modelId = context->modelId, thinking = context->thinkingLevel;
                 const auto models = context->models;
                 const bool autoFallback = context->autoFallback;
