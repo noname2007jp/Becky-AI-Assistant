@@ -392,7 +392,7 @@ namespace
                 menu,
                 MF_STRING,
                 static_cast<UINT_PTR>(commandId),
-                L"AI");
+                menuType == BKC_MENU_COMPOSE ? L"AI" : L"Becky AI Assistant...");
         }
     }
 }
