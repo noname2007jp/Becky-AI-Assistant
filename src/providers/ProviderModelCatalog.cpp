@@ -1,4 +1,5 @@
 #include "ProviderModelCatalog.h"
+#include "WorkersAIModelId.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -70,7 +71,7 @@ std::vector<std::string> Objects(const std::string& json,const char* arrayName) 
 }
 bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& token,
     const wchar_t* extraHeader,std::string& body,std::wstring& error) {
-    HINTERNET session=WinHttpOpen(L"Becky-AI-Assistant/0.69.0",
+    HINTERNET session=WinHttpOpen(L"Becky-AI-Assistant/0.70.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0);
     if(!session){error=L"モデル一覧の通信を開始できません。";return false;}
     WinHttpSetTimeouts(session,10000,10000,15000,30000);
@@ -134,8 +135,9 @@ bool FetchWorkersAIModelCatalog(const std::wstring& accountId,const std::wstring
     std::string json;
     if(!Download(L"api.cloudflare.com",path,apiToken,nullptr,json,error))return false;
     for(const auto& obj:Objects(json,"result")) {
-        std::string id=Field(obj,"id");
-        if(id.empty())id=Field(obj,"name");
+        const std::string name = Field(obj,"name");
+        const std::string recordId = Field(obj,"id");
+        const std::string id = SelectWorkersAIModelIdentifier(name, recordId);
         if(id.empty())continue;
         std::string task=Field(obj,"task");
         std::string lower=task;std::transform(lower.begin(),lower.end(),lower.begin(),[](unsigned char c){return (char)std::tolower(c);});
