@@ -25,11 +25,11 @@ inline std::wstring GetModelDescription(int provider, const std::wstring& modelI
 
     if (provider == 1) { // Groq
         if (id == L"openai/gpt-oss-120b")
-            return L"高性能な汎用・推論モデル。複雑なメール相談、長文の要約、論点整理、返信案の作成に向いています。Tool Use／JSON対応。\r\nコンテキスト: 131,072 tokens／最大出力: 65,536 tokens／速度目安: 約500 tokens/sec。\\r\\nFree枠・TPM/RPM/RPDは契約プランとアカウントのLimits画面で確認してください。";
+            return L"高性能な汎用・推論モデル。複雑なメール相談、長文の要約、論点整理、返信案の作成に向いています。Tool Use／JSON対応。\r\nコンテキスト: 131,072 tokens／最大出力: 65,536 tokens／速度目安: 約500 tokens/sec。\r\nFree枠・TPM/RPM/RPDは契約プランとアカウントのLimits画面で確認してください。";
         if (id == L"openai/gpt-oss-20b")
-            return L"応答速度を重視した汎用モデル。日常的なメール要約、返信案、校正に向いています。推論・Tool Use／JSON対応。\r\nコンテキスト: 131,072 tokens／最大出力: 65,536 tokens／速度目安: 約1,000 tokens/sec。\\r\\nFree枠・TPM/RPM/RPDは契約プランとアカウントのLimits画面で確認してください。";
+            return L"応答速度を重視した汎用モデル。日常的なメール要約、返信案、校正に向いています。推論・Tool Use／JSON対応。\r\nコンテキスト: 131,072 tokens／最大出力: 65,536 tokens／速度目安: 約1,000 tokens/sec。\r\nFree枠・TPM/RPM/RPDは契約プランとアカウントのLimits画面で確認してください。";
         if (id == L"qwen/qwen3.8-27b")
-            return L"推論と指示追従に強いマルチモーダルモデル。複雑な相談や多言語の文章処理に向いています。Thinking／Instruct、Tool Use／JSON対応。\r\nコンテキスト: 131,072 tokens／最大出力: 16,384 tokens／速度目安: 約450 tokens/sec。\\r\\nFree枠・TPM/RPM/RPDは契約プランとアカウントのLimits画面で確認してください。";
+            return L"推論と指示追従に強いマルチモーダルモデル。複雑な相談や多言語の文章処理に向いています。Thinking／Instruct、Tool Use／JSON対応。\r\nコンテキスト: 131,072 tokens／最大出力: 16,384 tokens／速度目安: 約450 tokens/sec。\r\nFree枠・TPM/RPM/RPDは契約プランとアカウントのLimits画面で確認してください。";
         if (id == L"meta-models/muse-spark-open")
             return L"推論を重視したPreviewモデル。複雑な問題解決向けですが、Previewのため仕様変更・提供終了の可能性があります。\r\nコンテキスト: 131,072 tokens／最大出力: 131,072 tokens／速度目安: 約350 tokens/sec。";
         if (id == L"minimaxai/minimax-m2.7")
