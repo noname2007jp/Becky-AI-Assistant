@@ -2,9 +2,7 @@
 
 #include <windows.h>
 #include <winhttp.h>
-#include <algorithm>
 #include <string>
-#include <vector>
 
 #include "GeminiError.h"
 
@@ -18,7 +16,7 @@ std::string Utf8(const std::wstring& value)
     const int count = WideCharToMultiByte(CP_UTF8, 0, value.data(),
         static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
     if (count <= 0) return {};
-    std::string result(static_cast<size_t>(count), '\\0');
+    std::string result(static_cast<size_t>(count), '\0');
     WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()),
         result.data(), count, nullptr, nullptr);
     return result;
@@ -30,7 +28,7 @@ std::wstring Wide(const std::string& value)
     const int count = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
         value.data(), static_cast<int>(value.size()), nullptr, 0);
     if (count <= 0) return {};
-    std::wstring result(static_cast<size_t>(count), L'\\0');
+    std::wstring result(static_cast<size_t>(count), L'\0');
     MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
         static_cast<int>(value.size()), result.data(), count);
     return result;
@@ -45,12 +43,12 @@ std::string EscapeJson(const std::string& value)
         switch (c)
         {
         case '"': result += "\\\""; break;
-        case '\\\\': result += "\\\\\\\\"; break;
-        case '\\b': result += "\\b"; break;
-        case '\\f': result += "\\f"; break;
-        case '\\n': result += "\\n"; break;
-        case '\\r': result += "\\r"; break;
-        case '\\t': result += "\\t"; break;
+        case '\\': result += "\\\\"; break;
+        case '\b': result += "\\b"; break;
+        case '\f': result += "\\f"; break;
+        case '\n': result += "\\n"; break;
+        case '\r': result += "\\r"; break;
+        case '\t': result += "\\t"; break;
         default:
             if (c < 0x20) result += ' ';
             else result += static_cast<char>(c);
@@ -68,7 +66,7 @@ bool ReadJsonString(const std::string& json, size_t& position, std::string& valu
         const unsigned char c = static_cast<unsigned char>(json[position++]);
         if (c == '"') return true;
         if (c < 0x20) return false;
-        if (c != '\\\\')
+        if (c != '\\')
         {
             value.push_back(static_cast<char>(c));
             continue;
@@ -78,39 +76,39 @@ bool ReadJsonString(const std::string& json, size_t& position, std::string& valu
         switch (escaped)
         {
         case '"': value.push_back('"'); break;
-        case '\\\\': value.push_back('\\\\'); break;
+        case '\\': value.push_back('\\'); break;
         case '/': value.push_back('/'); break;
-        case 'b': value.push_back('\\b'); break;
-        case 'f': value.push_back('\\f'); break;
-        case 'n': value.push_back('\\n'); break;
-        case 'r': value.push_back('\\r'); break;
-        case 't': value.push_back('\\t'); break;
+        case 'b': value.push_back('\b'); break;
+        case 'f': value.push_back('\f'); break;
+        case 'n': value.push_back('\n'); break;
+        case 'r': value.push_back('\r'); break;
+        case 't': value.push_back('\t'); break;
         case 'u':
-            // Groq normally emits UTF-8 directly. Decode common BMP escapes safely.
+        {
             if (position + 4 > json.size()) return false;
+            unsigned int cp = 0;
+            for (int i = 0; i < 4; ++i)
             {
-                unsigned int codepoint = 0;
-                for (int i = 0; i < 4; ++i)
-                {
-                    const char h = json[position++];
-                    codepoint <<= 4;
-                    if (h >= '0' && h <= '9') codepoint |= static_cast<unsigned int>(h - '0');
-                    else if (h >= 'a' && h <= 'f') codepoint |= static_cast<unsigned int>(h - 'a' + 10);
-                    else if (h >= 'A' && h <= 'F') codepoint |= static_cast<unsigned int>(h - 'A' + 10);
-                    else return false;
-                }
-                if (codepoint >= 0xd800 && codepoint <= 0xdfff) return false;
-                if (codepoint <= 0x7f) value.push_back(static_cast<char>(codepoint));
-                else if (codepoint <= 0x7ff) {
-                    value.push_back(static_cast<char>(0xc0 | (codepoint >> 6)));
-                    value.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
-                } else {
-                    value.push_back(static_cast<char>(0xe0 | (codepoint >> 12)));
-                    value.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3f)));
-                    value.push_back(static_cast<char>(0x80 | (codepoint & 0x3f)));
-                }
+                const char h = json[position++];
+                cp <<= 4;
+                if (h >= '0' && h <= '9') cp |= static_cast<unsigned int>(h - '0');
+                else if (h >= 'a' && h <= 'f') cp |= static_cast<unsigned int>(h - 'a' + 10);
+                else if (h >= 'A' && h <= 'F') cp |= static_cast<unsigned int>(h - 'A' + 10);
+                else return false;
+            }
+            // Reject isolated surrogate escapes instead of producing invalid UTF-8.
+            if (cp >= 0xd800 && cp <= 0xdfff) return false;
+            if (cp <= 0x7f) value.push_back(static_cast<char>(cp));
+            else if (cp <= 0x7ff) {
+                value.push_back(static_cast<char>(0xc0 | (cp >> 6)));
+                value.push_back(static_cast<char>(0x80 | (cp & 0x3f)));
+            } else {
+                value.push_back(static_cast<char>(0xe0 | (cp >> 12)));
+                value.push_back(static_cast<char>(0x80 | ((cp >> 6) & 0x3f)));
+                value.push_back(static_cast<char>(0x80 | (cp & 0x3f)));
             }
             break;
+        }
         default: return false;
         }
     }
@@ -128,13 +126,13 @@ bool ExtractStringProperty(const std::string& json, const char* property, std::w
         if (!ReadJsonString(json, position, key)) return false;
         size_t valuePosition = position;
         while (valuePosition < json.size() &&
-            (json[valuePosition] == ' ' || json[valuePosition] == '\\t' ||
-             json[valuePosition] == '\\r' || json[valuePosition] == '\\n')) ++valuePosition;
+            (json[valuePosition] == ' ' || json[valuePosition] == '\t' ||
+             json[valuePosition] == '\r' || json[valuePosition] == '\n')) ++valuePosition;
         if (valuePosition >= json.size() || json[valuePosition] != ':') continue;
         ++valuePosition;
         while (valuePosition < json.size() &&
-            (json[valuePosition] == ' ' || json[valuePosition] == '\\t' ||
-             json[valuePosition] == '\\r' || json[valuePosition] == '\\n')) ++valuePosition;
+            (json[valuePosition] == ' ' || json[valuePosition] == '\t' ||
+             json[valuePosition] == '\r' || json[valuePosition] == '\n')) ++valuePosition;
         if (key != property || valuePosition >= json.size() || json[valuePosition] != '"')
         {
             position = valuePosition;
@@ -178,10 +176,10 @@ GeminiGenerateResult GenerateGroqChatCompletion(
     }
 
     const std::string payload =
-        "{\\"model\\":\\"" + EscapeJson(Utf8(modelId)) +
-        "\\",\\"messages\\":[{\\"role\\":\\"system\\",\\"content\\":\\"" +
-        EscapeJson(Utf8(systemPrompt)) + "\\"},{\\"role\\":\\"user\\",\\"content\\":\\"" +
-        EscapeJson(Utf8(userPrompt)) + "\\"}],\\"max_tokens\\":" +
+        "{\"model\":\"" + EscapeJson(Utf8(modelId)) +
+        "\",\"messages\":[{\"role\":\"system\",\"content\":\"" +
+        EscapeJson(Utf8(systemPrompt)) + "\"},{\"role\":\"user\",\"content\":\"" +
+        EscapeJson(Utf8(userPrompt)) + "\"}],\"max_tokens\":" +
         std::to_string(maxOutputTokens) + "}";
 
     HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.67.0",
@@ -200,11 +198,14 @@ GeminiGenerateResult GenerateGroqChatCompletion(
         return result;
     }
 
-    const std::wstring headers = L"Authorization: Bearer " + apiKey +
-        L"\\r\\nContent-Type: application/json; charset=utf-8\\r\\nAccept: application/json\\r\\n";
+    std::wstring headers = L"Authorization: Bearer " + apiKey +
+        L"\r\nContent-Type: application/json; charset=utf-8\r\nAccept: application/json\r\n";
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), static_cast<DWORD>(headers.size()),
         const_cast<char*>(payload.data()), static_cast<DWORD>(payload.size()),
         static_cast<DWORD>(payload.size()), 0);
+    if (!headers.empty()) SecureZeroMemory(headers.data(), headers.size() * sizeof(wchar_t));
+    headers.clear();
+
     BOOL received = sent ? WinHttpReceiveResponse(request, nullptr) : FALSE;
     if (!received)
     {
@@ -265,15 +266,11 @@ GeminiGenerateResult GenerateGroqChatCompletion(
                 result.retryable = status == 408 || status == 429 || status >= 500;
                 std::wstring providerMessage;
                 if (ExtractStringProperty(response, "message", providerMessage) && !providerMessage.empty())
-                    result.error += L"\\n詳細: " + providerMessage;
+                    result.error += L"\n詳細: " + providerMessage;
             }
         }
     }
 
-    if (!headers.empty()) {
-        // Do not retain an Authorization header containing the API key.
-        // The header buffer is released immediately after the request completes.
-    }
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
     WinHttpCloseHandle(session);
