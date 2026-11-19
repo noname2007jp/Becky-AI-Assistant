@@ -276,7 +276,7 @@ GeminiGenerateResult GenerateGroqChatCompletion(
                             L"このモデルでは一度に要求できる出力トークン数に制限があります。"
                             L"出力を短くして再試行するか、時間をおいてください。";
                     }
-                    result.error += L"\\n詳細: " + providerMessage;
+                    result.error += L"\n詳細: " + providerMessage;
                 }
             }
         }
