@@ -5,6 +5,7 @@
 #include <string>
 
 #include "gemini/GeminiError.h"
+#include "gemini/GeminiTextContinuation.h"
 
 #pragma comment(lib, "winhttp.lib")
 
@@ -158,12 +159,14 @@ std::wstring HttpError(unsigned long status)
 }
 }
 
-GeminiGenerateResult GenerateGroqChatCompletion(
+static GeminiGenerateResult GenerateGroqChatCompletionOnce(
     const std::wstring& apiKey,
     const std::wstring& modelId,
     const std::wstring& systemPrompt,
     const std::wstring& userPrompt,
+    const std::wstring& assistantContinuation,
     unsigned int maxOutputTokens,
+    std::string* finishReason,
     const std::atomic<int>* cancelState)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
@@ -175,14 +178,27 @@ GeminiGenerateResult GenerateGroqChatCompletion(
         return result;
     }
 
+    std::string messages =
+        "[{\"role\":\"system\",\"content\":\"" +
+        EscapeJson(Utf8(systemPrompt)) + "\"},{\"role\":\"user\",\"content\":\"" +
+        EscapeJson(Utf8(userPrompt)) + "\"}";
+    if (!assistantContinuation.empty())
+    {
+        messages += ",{\"role\":\"assistant\",\"content\":\"" +
+            EscapeJson(Utf8(assistantContinuation)) + "\"}";
+        messages += ",{\"role\":\"user\",\"content\":\"前の回答が出力上限で途中終了しました。"
+            "直前の回答の続きだけを書いてください。すでに書いた内容を繰り返さず、"
+            "説明の前置きや要約も追加しないでください。文の途中で切れている場合は、"
+            "その位置から自然につなげてください。回答全体の構成・書式・文体を維持し、"
+            "元の依頼への回答を最後まで完成させてください。\"}";
+    }
+    messages += "]";
     const std::string payload =
         "{\"model\":\"" + EscapeJson(Utf8(modelId)) +
-        "\",\"messages\":[{\"role\":\"system\",\"content\":\"" +
-        EscapeJson(Utf8(systemPrompt)) + "\"},{\"role\":\"user\",\"content\":\"" +
-        EscapeJson(Utf8(userPrompt)) + "\"}],\"max_tokens\":" +
+        "\",\"messages\":" + messages + ",\"max_tokens\":" +
         std::to_string(maxOutputTokens) + "}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.75.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.76.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
@@ -258,7 +274,13 @@ GeminiGenerateResult GenerateGroqChatCompletion(
                     result.error = L"Groq APIの応答から文章を取得できませんでした。";
                     result.retryable = true;
                 }
-                else result.success = true;
+                else
+                {
+                    std::wstring finish;
+                    if (finishReason && ExtractStringProperty(response, "finish_reason", finish))
+                        *finishReason = Utf8(finish);
+                    result.success = true;
+                }
             }
             else
             {
@@ -285,5 +307,62 @@ GeminiGenerateResult GenerateGroqChatCompletion(
     WinHttpCloseHandle(request);
     WinHttpCloseHandle(connection);
     WinHttpCloseHandle(session);
+    return result;
+}
+
+GeminiGenerateResult GenerateGroqChatCompletion(
+    const std::wstring& apiKey,
+    const std::wstring& modelId,
+    const std::wstring& systemPrompt,
+    const std::wstring& userPrompt,
+    unsigned int maxOutputTokens,
+    const std::atomic<int>* cancelState)
+{
+    constexpr int kMaxContinuationAttempts = 2;
+    GeminiGenerateResult result{ false, 0, {}, L"" };
+    std::wstring accumulated;
+    for (int attempt = 0; attempt <= kMaxContinuationAttempts; ++attempt)
+    {
+        if (cancelState && cancelState->load(std::memory_order_acquire) != 0)
+        {
+            result.cancelled = true;
+            result.success = false;
+            result.text.clear();
+            return result;
+        }
+
+        std::string finishReason;
+        result = GenerateGroqChatCompletionOnce(apiKey, modelId, systemPrompt,
+            userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
+        if (!result.success)
+        {
+            // Never expose a partial response as a successful answer.
+            result.text.clear();
+            return result;
+        }
+
+        AppendGeminiContinuationText(accumulated, result.text);
+        if (finishReason == "length")
+        {
+            if (attempt == kMaxContinuationAttempts)
+            {
+                result.success = false;
+                result.text.clear();
+                result.error = L"Groqの回答が長文のため、続きを2回生成しましたが完了しませんでした。"
+                    L"不完全な回答は表示していません。質問を分けて再度お試しください。";
+                return result;
+            }
+            continue;
+        }
+
+        result.text = accumulated;
+        result.success = true;
+        result.error.clear();
+        return result;
+    }
+
+    result.success = false;
+    result.text.clear();
+    result.error = L"Groqの回答を完了できませんでした。質問を分けて再度お試しください。";
     return result;
 }
