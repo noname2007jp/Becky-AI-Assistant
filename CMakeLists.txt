@@ -13,6 +13,8 @@ add_library(BeckyAIAssistant SHARED
   src/plugin/Plugin.cpp
   src/mail/MimeTextExtractor.cpp
   src/settings/ApiKeyStore.cpp
+  src/settings/AIProviderSettings.cpp
+  src/settings/AIProviderSettingsCodec.cpp
   src/gemini/GeminiConnection.cpp
   src/gemini/GeminiModels.cpp
   src/gemini/GeminiGenerate.cpp
@@ -136,4 +138,13 @@ if(BUILD_TESTING)
   target_compile_features(ConsultHistoryStoreTests PRIVATE cxx_std_17)
   target_compile_options(ConsultHistoryStoreTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME ConsultHistoryStoreTests COMMAND ConsultHistoryStoreTests)
+
+  add_executable(AIProviderSettingsCodecTests
+    tests/AIProviderSettingsCodecTests.cpp
+    src/settings/AIProviderSettingsCodec.cpp
+  )
+  target_include_directories(AIProviderSettingsCodecTests PRIVATE src)
+  target_compile_features(AIProviderSettingsCodecTests PRIVATE cxx_std_17)
+  target_compile_options(AIProviderSettingsCodecTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME AIProviderSettingsCodecTests COMMAND AIProviderSettingsCodecTests)
 endif()
