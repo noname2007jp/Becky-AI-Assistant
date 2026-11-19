@@ -32,7 +32,7 @@ GeminiGenerateResult GenerateGroqMailReplyDraft(
         toneInstruction, subject, body, L"", replyRequirements));
     const ULONGLONG started = GetTickCount64();
     LogProviderEvent(L"Groq", L"reply", modelId, L"START", 0, false, 0, L"");
-    result = GenerateGroqChatCompletion(apiKey, modelId, systemPrompt, prompt, 2048, cancelState);
+    result = GenerateGroqChatCompletion(apiKey, modelId, systemPrompt, prompt, 768, cancelState);
     LogProviderEvent(L"Groq", L"reply", modelId, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success) result.text = masker.Restore(result.text);
