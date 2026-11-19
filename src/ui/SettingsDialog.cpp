@@ -77,7 +77,7 @@ void UpdateProviderModelDescription(HWND dialog, int provider)
 {
     const int control = provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
     const int length = GetWindowTextLengthW(GetDlgItem(dialog, control));
-    std::wstring model(static_cast<size_t>(length) + 1, L'\\0');
+    std::wstring model(static_cast<size_t>(length) + 1, L'\0');
     if (length > 0) GetDlgItemTextW(dialog, control, model.data(), length + 1);
     model.resize(static_cast<size_t>(length));
     SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
