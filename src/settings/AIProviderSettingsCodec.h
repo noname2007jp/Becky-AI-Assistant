@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AIProviderSettings.h"
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
