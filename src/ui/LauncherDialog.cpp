@@ -474,7 +474,8 @@ namespace
                 }
                 const MailContext& mail = *context->mail;
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
-                if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
+                if (context->providerSettings.provider == AIProvider::Gemini &&
+                    (selected < 0 || selected >= static_cast<LRESULT>(context->models.size())))
                 {
                     MessageBoxW(dialog, L"Geminiモデルを選択してください。",
                         L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
