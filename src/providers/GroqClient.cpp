@@ -266,7 +266,18 @@ GeminiGenerateResult GenerateGroqChatCompletion(
                 result.retryable = status == 408 || status == 429 || status >= 500;
                 std::wstring providerMessage;
                 if (ExtractStringProperty(response, "message", providerMessage) && !providerMessage.empty())
-                    result.error += L"\n詳細: " + providerMessage;
+                {
+                    if (status == 429 &&
+                        (providerMessage.find(L"output tokens per minute") != std::wstring::npos ||
+                         providerMessage.find(L"OTPM") != std::wstring::npos))
+                    {
+                        result.error =
+                            L"Groqの1分あたりの出力トークン上限（OTPM）を超えました。"
+                            L"このモデルでは一度に要求できる出力トークン数に制限があります。"
+                            L"出力を短くして再試行するか、時間をおいてください。";
+                    }
+                    result.error += L"\\n詳細: " + providerMessage;
+                }
             }
         }
     }
