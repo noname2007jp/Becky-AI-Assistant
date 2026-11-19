@@ -518,6 +518,12 @@ namespace
                 auto* context = reinterpret_cast<ConsultContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (!context || !context->mail || context->busy) return TRUE;
+                if (context->providerSettings.provider == AIProvider::Groq)
+                {
+                    MessageBoxW(dialog, L"相談内容からの返信文案作成は現在Geminiのみ対応しています。Groq対応は次の段階で追加します。",
+                        L"未対応の機能", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 if (context->transcript.empty())
                 {
                     MessageBoxW(dialog, L"先にAIへの相談と回答を行ってください。", L"返信文案の作成", MB_OK | MB_ICONINFORMATION);
