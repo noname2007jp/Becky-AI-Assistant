@@ -130,7 +130,7 @@ bool FetchWorkersAIModelCatalog(const std::wstring& accountId,const std::wstring
     ids.clear();error.clear();
     if(accountId.empty()||apiToken.empty()){error=L"Workers AIのAccount IDとAPI Tokenを入力してから取得してください。";return false;}
     const std::string account=Utf8(accountId);
-    std::wstring path=L"/client/v4/accounts/"+Wide(account)+L"/ai/models/search?task=text-generation&hide_experimental=true&include_deprecated=false&per_page=100&page=1";
+    std::wstring path=L"/client/v4/accounts/"+Wide(account)+L"/ai/models/search?task=Text%20Generation&hide_experimental=true&include_deprecated=false&per_page=100&page=1";
     std::string json;
     if(!Download(L"api.cloudflare.com",path,apiToken,nullptr,json,error))return false;
     for(const auto& obj:Objects(json,"result")) {
