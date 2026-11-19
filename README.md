@@ -32,7 +32,7 @@ Becky! Internet Mail向けのGemini／Groq API連携AIアシスタントプラ�
 
 ## 複数AIサービス設定
 
-設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約をGroqで実行できます。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Workers AIのメール処理とCloudflare AI Gateway経由の接続は今後の段階で実装します。Gatewayのリクエストログ・キャッシュは初期値OFFです。
+設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約と返信文案をGroqで実行できます。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Workers AIのメール処理とCloudflare AI Gateway経由の接続は今後の段階で実装します。Gatewayのリクエストログ・キャッシュは初期値OFFです。
 
 ## 個人情報のマスキング
 
