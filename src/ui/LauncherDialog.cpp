@@ -260,6 +260,12 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
+                if (!context->providerSettingsLoaded)
+                {
+                    MessageBoxW(dialog, L"AIサービス設定を読み込めません。設定ファイルを確認してから再試行してください。",
+                        L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
                 const MailContext& mail = *context->mail;
                 if (context->providerSettingsLoaded &&
                     context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
@@ -403,8 +409,13 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
-                if (context->providerSettingsLoaded &&
-                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                if (!context->providerSettingsLoaded)
+                {
+                    MessageBoxW(dialog, L"AIサービス設定を読み込めません。設定ファイルを確認してから再試行してください。",
+                        L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                if (context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
                 {
                     MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
@@ -518,8 +529,13 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr) return TRUE;
-                if (context->providerSettingsLoaded &&
-                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                if (!context->providerSettingsLoaded)
+                {
+                    MessageBoxW(dialog, L"AIサービス設定を読み込めません。設定ファイルを確認してから再試行してください。",
+                        L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                if (context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
                 {
                     MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
