@@ -51,6 +51,8 @@ GeminiGenerateResult GenerateGroqMailSummary(
 
     result = GenerateGroqChatCompletion(apiKey, modelId, systemPrompt,
         userPrompt, 1024, cancelState);
+    if (result.success)
+        result.text = masker.Restore(result.text);
     result.modelUsed = modelId;
     return result;
 }
