@@ -181,9 +181,8 @@ bool WaitForOtpRetry(DWORD delayMs, const std::atomic<int>* cancelState,
             static_cast<unsigned int>((delayMs - elapsed + 999) / 1000);
         if (progress && remainingSeconds != lastReportedSeconds)
         {
-            progress(L"GroqのOTPM利用枠の回復待ちです。あと" +
-                std::to_wstring(remainingSeconds) + L"秒で再試行します（" +
-                std::to_wstring(retryNumber) + L"回目／最大2回）");
+            progress(L"OTPM回復待ち：あと" + std::to_wstring(remainingSeconds) +
+                L"秒（再試行" + std::to_wstring(retryNumber) + L"/2）");
             lastReportedSeconds = remainingSeconds;
         }
         if (cancelState && cancelState->load(std::memory_order_acquire) != 0)
@@ -388,12 +387,11 @@ GeminiGenerateResult GenerateGroqChatCompletion(
             if (progress)
             {
                 if (otpRetryAttempt > 0)
-                    progress(L"Groq APIに再問い合わせしています（OTPM再試行 " +
-                        std::to_wstring(otpRetryAttempt) + L"/2）");
+                    progress(L"Groq API再試行中（OTPM " + std::to_wstring(otpRetryAttempt) + L"/2）");
                 else if (attempt > 0)
-                    progress(L"Groqの回答の続きを取得しています…");
+                    progress(L"回答の続き取得中…");
                 else
-                    progress(L"Groq APIの応答待ちです…");
+                    progress(L"Groq API応答待ち");
             }
             result = GenerateGroqChatCompletionOnce(apiKey, modelId, systemPrompt,
                 userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
