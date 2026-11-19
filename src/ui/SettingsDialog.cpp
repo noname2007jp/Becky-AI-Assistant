@@ -5,6 +5,7 @@
 #include "settings/AIProviderSettings.h"
 #include "gemini/GeminiConnection.h"
 #include "gemini/GeminiModels.h"
+#include "providers/ProviderModelCatalog.h"
 
 #include <string>
 #include <vector>
@@ -17,12 +18,14 @@ namespace
 {
 constexpr UINT WM_GEMINI_TEST_FINISHED = WM_APP + 41;
 constexpr UINT WM_MODEL_UPDATE_FINISHED = WM_APP + 42;
+constexpr UINT WM_PROVIDER_MODELS_FINISHED = WM_APP + 43;
 
 struct SettingsState
 {
     bool testRunning = false;
     bool apiKeyVisible = false;
     bool modelUpdateRunning = false;
+    bool providerModelUpdateRunning = false;
     std::vector<GeminiModelOption> models;
 };
 
@@ -39,7 +42,8 @@ void ShowSettingsTab(HWND dialog, int selected)
         IDC_PROVIDER_GROQ_KEY, IDC_PROVIDER_GROQ_MODEL_LABEL, IDC_PROVIDER_GROQ_MODEL,
         IDC_PROVIDER_WORKERS_ACCOUNT_LABEL, IDC_PROVIDER_WORKERS_ACCOUNT,
         IDC_PROVIDER_WORKERS_TOKEN_LABEL, IDC_PROVIDER_WORKERS_TOKEN,
-        IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL };
+        IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL,
+        IDC_PROVIDER_GROQ_MODELS_UPDATE, IDC_PROVIDER_WORKERS_MODELS_UPDATE };
     const int gateway[] = { IDC_GATEWAY_ACCOUNT_LABEL, IDC_GATEWAY_ACCOUNT, IDC_GATEWAY_ID_LABEL,
         IDC_GATEWAY_ID, IDC_GATEWAY_TOKEN_LABEL, IDC_GATEWAY_TOKEN, IDC_GATEWAY_LOGGING,
         IDC_GATEWAY_CACHE, IDC_GATEWAY_PRIVACY_NOTE };
@@ -92,6 +96,39 @@ struct ModelUpdateResult
     std::wstring message;
     std::vector<GeminiModelOption> models;
 };
+
+
+struct ProviderModelsResult
+{
+    int provider = 0;
+    std::vector<std::wstring> models;
+    std::wstring message;
+    bool success = false;
+};
+struct ProviderModelsArgs
+{
+    HWND dialog;
+    int provider;
+    std::wstring apiKey;
+    std::wstring accountId;
+    std::wstring apiToken;
+};
+DWORD WINAPI ProviderModelsThread(void* parameter)
+{
+    std::unique_ptr<ProviderModelsArgs> args(static_cast<ProviderModelsArgs*>(parameter));
+    auto* result = new ProviderModelsResult{};
+    result->provider = args->provider;
+    if (args->provider == 1)
+        result->success = FetchGroqModelCatalog(args->apiKey, result->models, result->message);
+    else
+        result->success = FetchWorkersAIModelCatalog(args->accountId, args->apiToken, result->models, result->message);
+    for (auto* secret : { &args->apiKey, &args->apiToken })
+        if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
+    if (result->success)
+        result->message = L"モデル一覧を取得しました（" + std::to_wstring(result->models.size()) + L"件）。Free枠の対象かどうかはこのAPIでは判定できません。";
+    if (!PostMessageW(args->dialog, WM_PROVIDER_MODELS_FINISHED, 0, reinterpret_cast<LPARAM>(result))) delete result;
+    return 0;
+}
 
 struct ModelUpdateArgs
 {
@@ -332,6 +369,41 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         return TRUE;
     }
 
+    case WM_PROVIDER_MODELS_FINISHED:
+    {
+        auto* state = reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER));
+        auto* result = reinterpret_cast<ProviderModelsResult*>(lParam);
+        if (result)
+        {
+            if (result->success)
+            {
+                const int control = result->provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
+                HWND combo = GetDlgItem(dialog, control);
+                const int len = GetWindowTextLengthW(combo);
+                std::wstring preferred(static_cast<size_t>(len) + 1, L'\0');
+                if (len > 0) GetWindowTextW(combo, preferred.data(), len + 1);
+                preferred.resize(static_cast<size_t>(len));
+                SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+                int selected = -1;
+                for (size_t i = 0; i < result->models.size(); ++i)
+                {
+                    SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(result->models[i].c_str()));
+                    if (result->models[i] == preferred) selected = static_cast<int>(i);
+                }
+                if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
+                else SetWindowTextW(combo, preferred.c_str());
+            }
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, result->message.c_str());
+            delete result;
+        }
+        if (state) state->providerModelUpdateRunning = false;
+        EnableWindow(GetDlgItem(dialog, IDC_PROVIDER_GROQ_MODELS_UPDATE), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDC_PROVIDER_WORKERS_MODELS_UPDATE), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), TRUE);
+        EnableWindow(GetDlgItem(dialog, IDCANCEL), TRUE);
+        return TRUE;
+    }
+
     case WM_GEMINI_TEST_FINISHED:
     {
         auto* state = reinterpret_cast<SettingsState*>(
@@ -494,6 +566,45 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             return TRUE;
         }
 
+        case IDC_PROVIDER_GROQ_MODELS_UPDATE:
+        case IDC_PROVIDER_WORKERS_MODELS_UPDATE:
+        {
+            auto* state = reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER));
+            if (!state || state->providerModelUpdateRunning || state->modelUpdateRunning || state->testRunning) return TRUE;
+            const int provider = LOWORD(wParam) == IDC_PROVIDER_GROQ_MODELS_UPDATE ? 1 : 2;
+            auto read = [&](int id) {
+                int len = GetWindowTextLengthW(GetDlgItem(dialog, id));
+                std::wstring value(static_cast<size_t>(len) + 1, L'\0');
+                if (len > 0) GetDlgItemTextW(dialog, id, value.data(), len + 1);
+                value.resize(static_cast<size_t>(len));
+                return value;
+            };
+            auto* args = new ProviderModelsArgs{ dialog, provider,
+                provider == 1 ? read(IDC_PROVIDER_GROQ_KEY) : L"",
+                provider == 2 ? read(IDC_PROVIDER_WORKERS_ACCOUNT) : L"",
+                provider == 1 ? L"" : read(IDC_PROVIDER_WORKERS_TOKEN) };
+            state->providerModelUpdateRunning = true;
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
+                provider == 1 ? L"Groqの利用可能モデルを取得しています..." : L"Cloudflare Workers AIのテキスト生成モデルを取得しています...");
+            EnableWindow(GetDlgItem(dialog, IDC_PROVIDER_GROQ_MODELS_UPDATE), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDC_PROVIDER_WORKERS_MODELS_UPDATE), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), FALSE);
+            EnableWindow(GetDlgItem(dialog, IDCANCEL), FALSE);
+            HANDLE thread = CreateThread(nullptr, 0, ProviderModelsThread, args, 0, nullptr);
+            if (!thread)
+            {
+                delete args;
+                state->providerModelUpdateRunning = false;
+                EnableWindow(GetDlgItem(dialog, IDC_PROVIDER_GROQ_MODELS_UPDATE), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_PROVIDER_WORKERS_MODELS_UPDATE), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDC_SETTINGS_SAVE), TRUE);
+                EnableWindow(GetDlgItem(dialog, IDCANCEL), TRUE);
+                SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, L"モデル一覧の取得を開始できませんでした。");
+            }
+            else CloseHandle(thread);
+            return TRUE;
+        }
+
         case IDC_SETTINGS_TEST:
         {
             auto* state = reinterpret_cast<SettingsState*>(
@@ -531,7 +642,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         {
             auto* state = reinterpret_cast<SettingsState*>(
                 GetWindowLongPtrW(dialog, DWLP_USER));
-            if (state != nullptr && (state->testRunning || state->modelUpdateRunning)) return TRUE;
+            if (state != nullptr && (state->testRunning || state->modelUpdateRunning || state->providerModelUpdateRunning)) return TRUE;
             EndDialog(dialog, LOWORD(wParam));
             return TRUE;
         }
@@ -542,7 +653,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
     {
         auto* state = reinterpret_cast<SettingsState*>(
             GetWindowLongPtrW(dialog, DWLP_USER));
-        if (state != nullptr && (state->testRunning || state->modelUpdateRunning)) return TRUE;
+        if (state != nullptr && (state->testRunning || state->modelUpdateRunning || state->providerModelUpdateRunning)) return TRUE;
         EndDialog(dialog, IDCANCEL);
         return TRUE;
     }
