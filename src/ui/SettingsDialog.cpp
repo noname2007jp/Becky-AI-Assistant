@@ -30,6 +30,7 @@ void ShowSettingsTab(HWND dialog, int selected)
 {
     const int basic[] = { IDC_SETTINGS_LABEL_API, IDC_GEMINI_API_KEY, IDC_SETTINGS_TOGGLE_KEY,
         IDC_GEMINI_APIKEY_LINK, IDC_SETTINGS_LABEL_API_NOTE, IDC_SETTINGS_LABEL_MODEL,
+        IDC_GROQ_APIKEY_LINK, IDC_CF_WORKERS_AI_LINK, IDC_CF_AI_GATEWAY_LINK,
         IDC_SETTINGS_DEFAULT_MODEL, IDC_SETTINGS_PRICING_LINK, IDC_SETTINGS_UPDATE_MODELS,
         IDC_SETTINGS_TEST };
     const int masking[] = { IDC_SETTINGS_LABEL_MASK, IDC_MASK_EMAIL, IDC_MASK_PHONE,
@@ -155,6 +156,12 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             L"<a href=\"https://aistudio.google.com/api-keys\">Google AI StudioでAPIキーを取得</a>");
         SetDlgItemTextW(dialog, IDC_SETTINGS_PRICING_LINK,
             L"<a href=\"https://aistudio.google.com/docs/pricing\">Google公式料金ページを開く</a>");
+        SetDlgItemTextW(dialog, IDC_GROQ_APIKEY_LINK,
+            L"<a href=\"https://console.groq.com/keys\">Groq APIキーを取得</a>");
+        SetDlgItemTextW(dialog, IDC_CF_WORKERS_AI_LINK,
+            L"<a href=\"https://developers.cloudflare.com/workers-ai/get-started/rest-api/\">Cloudflare Workers AI：API Token取得手順</a>");
+        SetDlgItemTextW(dialog, IDC_CF_AI_GATEWAY_LINK,
+            L"<a href=\"https://developers.cloudflare.com/ai-gateway/get-started/\">Cloudflare AI Gateway：セットアップ手順</a>");
         if (!LoadGeminiApiKey(key, error))
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, error.c_str());
         else if (!key.empty())
@@ -227,12 +234,20 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             return TRUE;
         }
         if (notification != nullptr &&
-            notification->idFrom == IDC_GEMINI_APIKEY_LINK &&
+            (notification->idFrom == IDC_GEMINI_APIKEY_LINK ||
+             notification->idFrom == IDC_GROQ_APIKEY_LINK ||
+             notification->idFrom == IDC_CF_WORKERS_AI_LINK ||
+             notification->idFrom == IDC_CF_AI_GATEWAY_LINK) &&
             (notification->code == NM_CLICK || notification->code == NM_RETURN))
         {
-            ShellExecuteW(dialog, L"open",
-                L"https://aistudio.google.com/api-keys",
-                nullptr, nullptr, SW_SHOWNORMAL);
+            const wchar_t* url = L"https://aistudio.google.com/api-keys";
+            if (notification->idFrom == IDC_GROQ_APIKEY_LINK)
+                url = L"https://console.groq.com/keys";
+            else if (notification->idFrom == IDC_CF_WORKERS_AI_LINK)
+                url = L"https://developers.cloudflare.com/workers-ai/get-started/rest-api/";
+            else if (notification->idFrom == IDC_CF_AI_GATEWAY_LINK)
+                url = L"https://developers.cloudflare.com/ai-gateway/get-started/";
+            ShellExecuteW(dialog, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
             return TRUE;
         }
         break;
