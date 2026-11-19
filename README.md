@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.66.0）
+## 現在の機能（0.67.0）
 
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
@@ -31,7 +31,7 @@ Becky! Internet Mail向けのGemini API連携AIアシスタントプラグイン
 
 ## 複数AIサービス設定（接続機能は順次実装）
 
-設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。現時点で実際のメール処理に利用できるのはGeminiのみで、Groq／Workers AI／AI Gatewayは通信アダプター実装後に利用可能になります。Gatewayのリクエストログ・キャッシュは初期値OFFです。
+設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを追加しました。現時点ではメール機能への接続前であり、実際のメール処理に利用できるのはGeminiのみです。Workers AI／AI Gatewayは今後実装します。Gatewayのリクエストログ・キャッシュは初期値OFFです。
 
 ## 個人情報のマスキング
 

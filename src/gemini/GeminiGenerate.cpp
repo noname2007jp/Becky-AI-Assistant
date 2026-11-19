@@ -86,7 +86,7 @@ GeminiGenerateResult GenerateMailSummary(const std::wstring& apiKey,
         JsonEscape(Utf8(prompt)) + "\"}]}],\"generationConfig\":{" + generationConfig + "}}";
     LogGeminiRequest(L"summary", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.65.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.67.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
@@ -265,7 +265,7 @@ GeminiGenerateResult GenerateMailConsultation(const std::wstring& apiKey,
         const std::string payload = "{" + contents + ",\"generationConfig\":{" + generationConfig + "}}";
         LogGeminiRequest(L"consultation", modelId, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-        HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.65.0",
+        HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.67.0",
             WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
         if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
         WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
