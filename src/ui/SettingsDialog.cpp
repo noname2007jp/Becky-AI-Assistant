@@ -6,6 +6,7 @@
 #include "gemini/GeminiConnection.h"
 #include "gemini/GeminiModels.h"
 #include "providers/ProviderModelCatalog.h"
+#include "providers/ProviderModelCatalogStore.h"
 #include "providers/ModelDescriptions.h"
 
 #include <string>
@@ -90,6 +91,22 @@ void UpdateCurrentProviderModelDescription(HWND dialog)
     if (provider == 1 || provider == 2) UpdateProviderModelDescription(dialog, provider);
     else SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
         L"Geminiのモデル説明は「基本」タブに表示します。");
+}
+
+void PopulateProviderModelCombo(HWND dialog, int provider,
+    const std::vector<std::wstring>& models, const std::wstring& preferred)
+{
+    const int control = provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
+    HWND combo = GetDlgItem(dialog, control);
+    SendMessageW(combo, CB_RESETCONTENT, 0, 0);
+    int selected = -1;
+    for (size_t i = 0; i < models.size(); ++i)
+    {
+        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(models[i].c_str()));
+        if (models[i] == preferred) selected = static_cast<int>(i);
+    }
+    if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
+    else SetWindowTextW(combo, preferred.c_str());
 }
 
 void PopulateDefaultModelCombo(HWND dialog, SettingsState* state, const std::wstring& preferred)
@@ -268,6 +285,21 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_ACCOUNT, providerSettings.workersAccountId.c_str());
             SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_TOKEN, providerSettings.workersApiToken.c_str());
             SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_MODEL, providerSettings.workersModel.c_str());
+            // Restore the last successfully fetched catalogs immediately; network refresh is optional.
+            for (int provider : { 1, 2 })
+            {
+                std::vector<std::wstring> cachedModels;
+                std::wstring cacheError;
+                if (LoadProviderModelCatalog(provider, cachedModels, cacheError) && !cachedModels.empty())
+                {
+                    const int modelControl = provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
+                    const int modelLength = GetWindowTextLengthW(GetDlgItem(dialog, modelControl));
+                    std::wstring preferred(static_cast<size_t>(modelLength) + 1, L'\\0');
+                    if (modelLength > 0) GetDlgItemTextW(dialog, modelControl, preferred.data(), modelLength + 1);
+                    preferred.resize(static_cast<size_t>(modelLength));
+                    PopulateProviderModelCombo(dialog, provider, cachedModels, preferred);
+                }
+            }
             SetDlgItemTextW(dialog, IDC_GATEWAY_ACCOUNT, providerSettings.cloudflareAccountId.c_str());
             SetDlgItemTextW(dialog, IDC_GATEWAY_ID, providerSettings.cloudflareGatewayId.c_str());
             SetDlgItemTextW(dialog, IDC_GATEWAY_TOKEN, providerSettings.cloudflareApiToken.c_str());
@@ -416,19 +448,16 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 const int control = result->provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
                 HWND combo = GetDlgItem(dialog, control);
                 const int len = GetWindowTextLengthW(combo);
-                std::wstring preferred(static_cast<size_t>(len) + 1, L'\0');
+                std::wstring preferred(static_cast<size_t>(len) + 1, L'\\0');
                 if (len > 0) GetWindowTextW(combo, preferred.data(), len + 1);
                 preferred.resize(static_cast<size_t>(len));
-                SendMessageW(combo, CB_RESETCONTENT, 0, 0);
-                int selected = -1;
-                for (size_t i = 0; i < result->models.size(); ++i)
-                {
-                    SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(result->models[i].c_str()));
-                    if (result->models[i] == preferred) selected = static_cast<int>(i);
-                }
-                if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
-                else SetWindowTextW(combo, preferred.c_str());
+                PopulateProviderModelCombo(dialog, result->provider, result->models, preferred);
                 UpdateProviderModelDescription(dialog, result->provider);
+                std::wstring saveError;
+                if (SaveProviderModelCatalog(result->provider, result->models, saveError))
+                    result->message += L" 次回起動時もこの一覧を利用できます。";
+                else
+                    result->message += L" ただし、一覧の保存に失敗しました：" + saveError;
             }
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, result->message.c_str());
             delete result;
