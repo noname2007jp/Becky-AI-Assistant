@@ -56,7 +56,9 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 
 自動検出は完全ではありません。氏名・会社名・住所など、確実に伏せたい語句は設定画面に登録してください。マスキング後の情報でも文脈から個人や組織が推測される可能性があります。送信前プレビューを必ず確認してください。
 
-## Groq／Workers AIモデル一覧の更新\n\n設定画面の「AIサービス」タブにある各「モデル一覧取得」ボタンから、保存前の入力値を使って公式APIへ接続します。Groqは `GET https://api.groq.com/openai/v1/models`、Workers AIは `GET /accounts/{account_id}/ai/models/search?task=Text%20Generation` を使用します。Workers AIでは実験的・非推奨モデルを除外し、テキスト生成タスクに絞ります。取得処理はバックグラウンドで実行し、既存のモデルIDを保持したまま選択リストを更新します。どちらもモデルIDは手入力できます。\n\n重要：両APIのモデル一覧応答には、Freeプランでの利用可否を確定する情報が含まれません。そのため取得したモデルは「利用可能モデル」であり、「Free対象」とは表示しません。GroqのFree枠は公式モデル料金・Rate Limits情報、Workers AIのFree枠はCloudflareのプラン・Neurons利用量に基づき別途確認してください。\n\n## Gemini APIモデル一覧の更新
+## Groq／Workers AIモデル一覧の更新
+
+設定画面の「AIサービス」タブにある各「モデル一覧取得」ボタンから、保存前の入力値を使って公式APIへ接続します。Groqは `GET https://api.groq.com/openai/v1/models`、Workers AIは `GET /accounts/{account_id}/ai/models/search?task=Text%20Generation` を使用します。Workers AIでは実験的・非推奨モデルを除外し、テキスト生成タスクに絞ります。取得処理はバックグラウンドで実行し、既存のモデルIDを保持したまま選択リストを更新します。どちらもモデルIDは手入力できます。\n\n重要：両APIのモデル一覧応答には、Freeプランでの利用可否を確定する情報が含まれません。そのため取得したモデルは「利用可能モデル」であり、「Free対象」とは表示しません。GroqのFree枠は公式モデル料金・Rate Limits情報、Workers AIのFree枠はCloudflareのプラン・Neurons利用量に基づき別途確認してください。\n\n## Gemini APIモデル一覧の更新
 
 設定画面の「APIモデルを更新」から、保存済みAPIキーでGemini APIの `models.list` を呼び出します。
 
