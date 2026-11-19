@@ -4,6 +4,8 @@
 #include <shlobj.h>
 #include <algorithm>
 #include <fstream>
+#include <iterator>
+#include <utility>
 #include <string>
 #include <vector>
 
