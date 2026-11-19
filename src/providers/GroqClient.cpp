@@ -341,6 +341,14 @@ GeminiGenerateResult GenerateGroqChatCompletion(
             return result;
         }
 
+        if (finishReason == "length" && result.text.empty())
+        {
+            result.success = false;
+            result.text.clear();
+            result.error = L"Groqの回答が空のまま出力上限に達しました。質問を分けて再度お試しください。";
+            return result;
+        }
+
         AppendGeminiContinuationText(accumulated, result.text);
         if (finishReason == "length")
         {
