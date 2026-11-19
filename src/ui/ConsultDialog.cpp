@@ -229,8 +229,7 @@ namespace
                 {
                     context->progressMessage = *status;
                     context->progressCountdown =
-                        status->find(L"あと") != std::wstring::npos &&
-                        status->find(L"秒で再試行") != std::wstring::npos;
+                        status->find(L"OTPM回復待ち") != std::wstring::npos;
                     context->progressStartedTick = GetTickCount64();
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, status->c_str());
                 }
@@ -458,11 +457,11 @@ namespace
                 const bool useGroq = context->providerSettings.provider == AIProvider::Groq;
                 if (useGroq)
                 {
-                    context->progressMessage = L"Groq APIの応答待ち";
+                    context->progressMessage = L"Groq API応答待ち";
                     context->progressStartedTick = GetTickCount64();
                     context->progressCountdown = false;
                     SetTimer(dialog, TIMER_GROQ_PROGRESS, 1000, nullptr);
-                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"Groq APIの応答待ちです（経過 0秒）");
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"Groq API応答待ち（経過 0秒）");
                 }
                 else
                 {
