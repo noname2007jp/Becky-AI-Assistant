@@ -22,13 +22,32 @@ namespace MarkdownRenderer
         for (size_t i = first; i < line.size(); ++i)
         {
             const wchar_t ch = line[i];
-            if (ch == L' ' || ch == L'\t') continue;
+            if (ch == L' ' || ch == L'\\t') continue;
             if (ch != L'-' && ch != L'*' && ch != L'_') return false;
             if (!marker) marker = ch;
             if (marker != ch) return false;
             ++count;
         }
         return count >= 3;
+    }
+
+    // Find a matching ** or __ marker outside inline-code spans.
+    // A marker inside `...` must not accidentally close an outer bold span.
+    inline size_t FindClosingBoldMarker(const std::wstring& line, size_t begin,
+        size_t end, wchar_t marker)
+    {
+        bool inCode = false;
+        for (size_t i = begin; i + 1 < end; ++i)
+        {
+            if (line[i] == static_cast<wchar_t>(96))
+            {
+                inCode = !inCode;
+                continue;
+            }
+            if (!inCode && line[i] == marker && line[i + 1] == marker)
+                return i;
+        }
+        return std::wstring::npos;
     }
 
     inline void AppendInline(const std::wstring& line, size_t begin, size_t end,
@@ -51,8 +70,8 @@ namespace MarkdownRenderer
                  (line[i] == L'_' && line[i + 1] == L'_')))
             {
                 const wchar_t marker = line[i];
-                const size_t close = line.find(std::wstring(2, marker), i + 2);
-                if ((!bold && close != std::wstring::npos && close < end) || (bold && marker == boldMarker))
+                const size_t close = FindClosingBoldMarker(line, i + 2, end, marker);
+                if ((!bold && close != std::wstring::npos) || (bold && marker == boldMarker))
                 {
                     if (!bold) { bold = true; boldMarker = marker; boldStart = result.text.size(); }
                     else
@@ -84,10 +103,8 @@ namespace MarkdownRenderer
             }
             result.text += line[i++];
         }
-        if (bold && result.text.size() > boldStart)
-            result.bold.push_back({ boldStart, result.text.size() - boldStart });
-        if (code && result.text.size() > codeStart)
-            result.code.push_back({ codeStart, result.text.size() - codeStart });
+        // Unmatched delimiters are left as literal text; they must not style
+        // the remainder of the line accidentally.
     }
 
     inline Result Render(const std::wstring& source)
@@ -97,13 +114,13 @@ namespace MarkdownRenderer
         bool fencedCode = false;
         while (pos < source.size())
         {
-            size_t end = source.find(L'\n', pos);
+            size_t end = source.find(L'\\n', pos);
             if (end == std::wstring::npos) end = source.size();
             size_t lineEnd = end;
-            if (lineEnd > pos && source[lineEnd - 1] == L'\r') --lineEnd;
+            if (lineEnd > pos && source[lineEnd - 1] == L'\\r') --lineEnd;
             const std::wstring line = source.substr(pos, lineEnd - pos);
             size_t first = 0;
-            while (first < line.size() && (line[first] == L' ' || line[first] == L'\t')) ++first;
+            while (first < line.size() && (line[first] == L' ' || line[first] == L'\\t')) ++first;
             const bool fence = first + 2 < line.size() && line.compare(first, 3, L"```") == 0;
             if (fence) fencedCode = !fencedCode;
             else if (fencedCode) AppendInline(line, 0, line.size(), result, true);
@@ -147,7 +164,7 @@ namespace MarkdownRenderer
                 if (heading && formattedLength > 0)
                     result.headings.push_back({ formattedStart, formattedLength });
             }
-            if (end < source.size()) result.text += L"\r\n";
+            if (end < source.size()) result.text += L"\\r\\n";
             pos = end + (end < source.size() ? 1 : 0);
         }
         return result;
