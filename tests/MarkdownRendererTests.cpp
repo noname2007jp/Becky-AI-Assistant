@@ -46,5 +46,17 @@ int main()
     check(unmatchedCode.text == L"通常の文 `閉じていないコード", "unmatched code marker remains literal");
     check(unmatchedCode.code.empty(), "unmatched code marker does not format trailing text");
 
+    const auto afterLines = MarkdownRenderer::Render(
+        L"1行目\r\n2行目 **重要な単語** の後\r\n3行目 **最後**");
+    check(afterLines.text.find(L"\r\n") == std::wstring::npos,
+        "RichEdit output uses single-character paragraph breaks");
+    check(afterLines.bold.size() == 2, "bold ranges after paragraph breaks are retained");
+    if (afterLines.bold.size() == 2) {
+        check(afterLines.text.substr(afterLines.bold[0].start, afterLines.bold[0].length) == L"重要な単語",
+            "first bold range after a paragraph break aligns with the complete word");
+        check(afterLines.text.substr(afterLines.bold[1].start, afterLines.bold[1].length) == L"最後",
+            "later bold range remains aligned after multiple paragraph breaks");
+    }
+
     return failures == 0 ? 0 : 1;
 }
