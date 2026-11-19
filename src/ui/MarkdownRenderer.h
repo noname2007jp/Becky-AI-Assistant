@@ -164,7 +164,7 @@ namespace MarkdownRenderer
                 if (heading && formattedLength > 0)
                     result.headings.push_back({ formattedStart, formattedLength });
             }
-            if (end < source.size()) result.text += L"\r\n";
+            // RichEdit stores a paragraph break as one character (CR). Keeping CRLF\n            // here makes every formatting range after the first line drift by one.\n            if (end < source.size()) result.text += L"\\r";
             pos = end + (end < source.size() ? 1 : 0);
         }
         return result;
