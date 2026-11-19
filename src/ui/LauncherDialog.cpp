@@ -588,23 +588,39 @@ namespace
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
-                if (context->providerSettingsLoaded && context->providerSettings.provider != AIProvider::Gemini)
+                if (context->providerSettings.provider == AIProvider::WorkersAI)
                 {
-                    MessageBoxW(dialog, L"AIへの相談は現在Geminiのみ対応しています。AIサービス設定でGeminiを選択してください。",
+                    MessageBoxW(dialog, L"AI相談は現在GeminiとGroqに対応しています。Workers AIは今後対応予定です。",
                         L"未対応の機能", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
-                const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
-                if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
+                std::wstring modelId, thinking;
+                if (context->providerSettings.provider == AIProvider::Groq)
                 {
-                    MessageBoxW(dialog, L"Geminiモデルを選択してください。",
-                        L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
-                    return TRUE;
+                    if (context->providerSettings.groqApiKey.empty() || context->providerSettings.groqModel.empty())
+                    {
+                        MessageBoxW(dialog, L"Groq APIキーとモデルIDをAIサービス設定で保存してください。",
+                            L"Groq設定", MB_OK | MB_ICONWARNING);
+                        return TRUE;
+                    }
+                    modelId = context->providerSettings.groqModel;
                 }
-                const auto& model = context->models[static_cast<size_t>(selected)];
+                else
+                {
+                    const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
+                    if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
+                    {
+                        MessageBoxW(dialog, L"Geminiモデルを選択してください。",
+                            L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                        return TRUE;
+                    }
+                    const auto& model = context->models[static_cast<size_t>(selected)];
+                    modelId = model.id;
+                    thinking = model.thinking;
+                }
                 const int toneLevel = static_cast<int>(SendDlgItemMessageW(dialog, IDC_REPLY_TONE, TBM_GETPOS, 0, 0));
                 ShowConsultDialog(dialog, context->instance, *context->mail,
-                    model.id, model.thinking, GetReplyToneInstruction(toneLevel));
+                    modelId, thinking, GetReplyToneInstruction(toneLevel), context->providerSettings);
                 if (context->mail->insertReplyRequested)
                     EndDialog(dialog, IDOK);
                 return TRUE;

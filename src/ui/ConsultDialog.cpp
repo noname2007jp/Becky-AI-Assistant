@@ -11,6 +11,8 @@
 #include "gemini/GeminiAsync.h"
 #include "gemini/GeminiModels.h"
 #include "gemini/GeminiFallback.h"
+#include "settings/AIProviderSettings.h"
+#include "providers/GroqMailConsultation.h"
 #include "settings/ApiKeyStore.h"
 #include "ConsultHistoryStore.h"
 
@@ -42,6 +44,7 @@ namespace
         std::wstring pendingQuestion;
         std::vector<GeminiModelOption> models;
         bool autoFallback = true;
+        AIProviderSettings providerSettings;
     };
 
     bool CopyConsultText(HWND owner, const std::wstring& value)
@@ -245,7 +248,9 @@ namespace
                 if (!result.success) {
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
                         wParam == 1 ? L"問い合わせに失敗しました。" : L"返信文案の作成に失敗しました。");
-                    MessageBoxW(dialog, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(dialog, result.error.c_str(),
+                        context->providerSettings.provider == AIProvider::Groq ? L"Groq APIエラー" : L"Gemini APIエラー",
+                        MB_OK | MB_ICONWARNING);
                 } else if (wParam == 1) {
                     const std::wstring question = context->pendingQuestion;
                     if (context->history.empty())
@@ -345,7 +350,7 @@ namespace
                     MessageBoxW(dialog, L"質問を入力してください。", L"AIに相談", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                if (context->apiKey.empty())
+                if (context->providerSettings.provider == AIProvider::Gemini && context->apiKey.empty())
                 {
                     std::wstring error;
                     if (!LoadGeminiApiKey(context->apiKey, error) || context->apiKey.empty())
@@ -355,6 +360,13 @@ namespace
                             L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
                         return TRUE;
                     }
+                }
+                if (context->providerSettings.provider == AIProvider::Groq &&
+                    (context->providerSettings.groqApiKey.empty() || context->providerSettings.groqModel.empty()))
+                {
+                    MessageBoxW(dialog, L"Groq APIキーまたはモデルIDが設定されていません。",
+                        L"Groq設定", MB_OK | MB_ICONWARNING);
+                    return TRUE;
                 }
                 PiiMasker masker;
                 if (!masker.IsReady())
@@ -377,7 +389,9 @@ namespace
                 }
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
-                    L"AI相談：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
+                    context->providerSettings.provider == AIProvider::Groq
+                        ? L"AI相談：Groq送信内容の確認" : L"AI相談：Gemini送信内容の確認",
+                    maskedPreview, masker)) return TRUE;
 
                 const MailContext& mail = *context->mail;
                 const std::wstring subject = mail.subject, body = mail.body;
@@ -395,12 +409,18 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_REPLY), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
-                ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
-                std::wstring workerKey = std::move(context->apiKey);
-                context->apiKey.clear();
+                const bool useGroq = context->providerSettings.provider == AIProvider::Groq;
+                ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS,
+                    useGroq ? L"Groqに問い合わせています..." : L"Geminiに問い合わせています...");
+                std::wstring workerKey = useGroq
+                    ? context->providerSettings.groqApiKey : std::move(context->apiKey);
+                if (!useGroq) context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
-                    [modelId, thinking, models, autoFallback, subject, body, history, question, masker]
+                    [useGroq, modelId, thinking, models, autoFallback, subject, body, history, question, masker]
                     (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
+                        if (useGroq)
+                            return GenerateGroqMailConsultation(key, modelId, subject, body,
+                                history, question, &masker, &cancelState);
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailConsultation(key, candidateId, candidateThinking,
@@ -498,6 +518,12 @@ namespace
                 auto* context = reinterpret_cast<ConsultContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (!context || !context->mail || context->busy) return TRUE;
+                if (context->providerSettings.provider == AIProvider::Groq)
+                {
+                    MessageBoxW(dialog, L"相談内容からの返信文案作成は現在Geminiのみ対応しています。Groq対応は次の段階で追加します。",
+                        L"未対応の機能", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 if (context->transcript.empty())
                 {
                     MessageBoxW(dialog, L"先にAIへの相談と回答を行ってください。", L"返信文案の作成", MB_OK | MB_ICONINFORMATION);
@@ -610,9 +636,10 @@ namespace
 
 INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
     const std::wstring& modelId, const std::wstring& thinkingLevel,
-    const std::wstring& toneInstruction)
+    const std::wstring& toneInstruction, const AIProviderSettings& providerSettings)
 {
     ConsultContext context{ &mail, instance, modelId, thinkingLevel, toneInstruction, {} };
+    context.providerSettings = providerSettings;
     std::wstring modelError;
     if (!LoadGeminiModelCatalog(context.models, modelError) || context.models.empty())
         context.models = DefaultGeminiModels();

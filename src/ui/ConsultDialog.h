@@ -2,7 +2,8 @@
 #include "LauncherDialog.h"
 #include <windows.h>
 #include <string>
+#include "settings/AIProviderSettings.h"
 
 INT_PTR ShowConsultDialog(HWND owner, HINSTANCE instance, MailContext& mail,
     const std::wstring& modelId, const std::wstring& thinkingLevel,
-    const std::wstring& toneInstruction);
+    const std::wstring& toneInstruction, const AIProviderSettings& providerSettings);
