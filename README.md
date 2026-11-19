@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.65.0）
+## 現在の機能（0.66.0）
 
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
@@ -28,6 +28,10 @@ Becky! Internet Mail向けのGemini API連携AIアシスタントプラグイン
 - 要約・返信・相談・新規メール作成・メール校正で共通のモデルカタログを使用
 - AI相談の履歴はメールごとに保持し、相談画面を閉じて再度開いても復元。履歴一覧から複数の相談を切り替え・個別削除でき、直前の質問を入力欄へ再入力可能。Becky!終了時に消去し、ディスクには保存しない（1メールにつき最大10件の相談をメモリ内に保持、最大10メール分を管理し、古い履歴から自動削除）
 - 添付ファイルはGemini APIへの送信対象外
+
+## 複数AIサービス設定（接続機能は順次実装）
+
+設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。現時点で実際のメール処理に利用できるのはGeminiのみで、Groq／Workers AI／AI Gatewayは通信アダプター実装後に利用可能になります。Gatewayのリクエストログ・キャッシュは初期値OFFです。
 
 ## 個人情報のマスキング
 
@@ -123,4 +127,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-65.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-66.dll`
