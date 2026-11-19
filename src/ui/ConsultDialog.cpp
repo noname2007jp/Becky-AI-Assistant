@@ -18,10 +18,14 @@
 
 #include <richedit.h>
 #include <cstring>
+#include <new>
 #include <utility>
 
 namespace
 {
+    constexpr UINT WM_GROQ_PROGRESS = WM_APP + 0x352;
+    constexpr UINT_PTR TIMER_GROQ_PROGRESS = 0x352;
+
     struct ConsultContext
     {
         MailContext* mail;
@@ -45,6 +49,9 @@ namespace
         std::vector<GeminiModelOption> models;
         bool autoFallback = true;
         AIProviderSettings providerSettings;
+        std::wstring progressMessage;
+        ULONGLONG progressStartedTick = 0;
+        bool progressCountdown = false;
     };
 
     bool CopyConsultText(HWND owner, const std::wstring& value)
@@ -212,6 +219,42 @@ namespace
     {
         switch (message)
         {
+        case WM_GROQ_PROGRESS:
+        {
+            auto* status = reinterpret_cast<std::wstring*>(lParam);
+            if (status)
+            {
+                auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context && context->busy)
+                {
+                    context->progressMessage = *status;
+                    context->progressCountdown =
+                        status->find(L"あと") != std::wstring::npos &&
+                        status->find(L"秒で再試行") != std::wstring::npos;
+                    context->progressStartedTick = GetTickCount64();
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, status->c_str());
+                }
+                delete status;
+            }
+            return TRUE;
+        }
+        case WM_TIMER:
+        {
+            if (wParam == TIMER_GROQ_PROGRESS)
+            {
+                auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                if (context && context->busy && !context->progressCountdown &&
+                    !context->progressMessage.empty())
+                {
+                    const ULONGLONG elapsed = (GetTickCount64() - context->progressStartedTick) / 1000;
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
+                        (context->progressMessage + L"（経過 " +
+                            std::to_wstring(elapsed) + L"秒）").c_str());
+                }
+                return TRUE;
+            }
+            break;
+        }
         case GeminiAsync::WM_GENERATION_COMPLETE:
         {
             auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
@@ -220,6 +263,9 @@ namespace
             if (context) {
                 context->busy = false;
                 context->work = nullptr;
+                KillTimer(dialog, TIMER_GROQ_PROGRESS);
+                context->progressMessage.clear();
+                context->progressCountdown = false;
                 ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
                 if (work->result.cancelled) {
                     const bool closeNow = context->closeAfterCancel;
@@ -410,17 +456,35 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
                 const bool useGroq = context->providerSettings.provider == AIProvider::Groq;
-                ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS,
-                    useGroq ? L"Groqに問い合わせています..." : L"Geminiに問い合わせています...");
+                if (useGroq)
+                {
+                    context->progressMessage = L"Groq APIの応答待ち";
+                    context->progressStartedTick = GetTickCount64();
+                    context->progressCountdown = false;
+                    SetTimer(dialog, TIMER_GROQ_PROGRESS, 1000, nullptr);
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"Groq APIの応答待ちです（経過 0秒）");
+                }
+                else
+                {
+                    ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
+                }
                 std::wstring workerKey = useGroq
                     ? context->providerSettings.groqApiKey : std::move(context->apiKey);
                 if (!useGroq) context->apiKey.clear();
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
-                    [useGroq, modelId, thinking, models, autoFallback, subject, body, history, question, masker]
+                    [dialog, useGroq, modelId, thinking, models, autoFallback, subject, body, history, question, masker]
                     (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         if (useGroq)
+                        {
+                            GroqProgressCallback progress = [dialog](const std::wstring& message) {
+                                auto* copy = new (std::nothrow) std::wstring(message);
+                                if (copy && !PostMessageW(dialog, WM_GROQ_PROGRESS, 0,
+                                    reinterpret_cast<LPARAM>(copy)))
+                                    delete copy;
+                            };
                             return GenerateGroqMailConsultation(key, modelId, subject, body,
-                                history, question, &masker, &cancelState);
+                                history, question, &masker, &cancelState, progress);
+                        }
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
                                 return GenerateMailConsultation(key, candidateId, candidateThinking,
@@ -429,6 +493,8 @@ namespace
                     }, 1, &context->work)) {
                     context->busy = false;
                     context->work = nullptr;
+                    KillTimer(dialog, TIMER_GROQ_PROGRESS);
+                    context->progressMessage.clear();
                     ShowWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CANCEL), SW_HIDE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SEND), TRUE);
                     EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_CLEAR), TRUE);
@@ -621,6 +687,7 @@ namespace
             }
             break;
         case WM_DESTROY:
+            KillTimer(dialog, TIMER_GROQ_PROGRESS);
             if (auto* context = reinterpret_cast<ConsultContext*>(GetWindowLongPtrW(dialog, DWLP_USER)); context && context->mail)
                 SaveActiveConversation(*context);
             return TRUE;
