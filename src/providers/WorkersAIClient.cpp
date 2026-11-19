@@ -1,4 +1,5 @@
 #include "WorkersAIClient.h"
+#include "WorkersAIEndpoint.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -197,13 +198,13 @@ bool WaitForOtpRetry(DWORD delayMs, const std::atomic<int>* cancelState,
 
 std::wstring HttpError(unsigned long status)
 {
-    if (status == 400) return L"WorkersAI APIがリクエストを受け付けませんでした。モデルIDや入力内容を確認してください。";
-    if (status == 401) return L"WorkersAI APIトークンが無効です。WorkersAI ConsoleでAPIトークンを確認してください。";
-    if (status == 403) return L"WorkersAI APIへのアクセスが拒否されました。アカウントとモデルの利用権限を確認してください。";
-    if (status == 404) return L"WorkersAI APIで指定したモデルまたはエンドポイントが見つかりません。モデルIDを確認してください。";
-    if (status == 429) return L"WorkersAI APIのレート制限または無料利用枠に達しました。時間をおいて再試行してください。";
-    if (status >= 500) return L"WorkersAI API側で一時的な障害が発生しています。時間をおいて再試行してください。";
-    return L"WorkersAI APIから予期しないHTTP応答がありました。";
+    if (status == 400) return L"Cloudflare Workers AI APIがリクエストを受け付けませんでした。モデルIDや入力内容を確認してください。";
+    if (status == 401) return L"Cloudflare Workers AI APIトークンが無効です。CloudflareダッシュボードでAPIトークンを確認してください。";
+    if (status == 403) return L"Cloudflare Workers AI APIへのアクセスが拒否されました。アカウントとモデルの利用権限を確認してください。";
+    if (status == 404) return L"Cloudflare Workers AI APIで指定したモデルまたはエンドポイントが見つかりません。モデルIDを確認してください。";
+    if (status == 429) return L"Cloudflare Workers AI APIのレート制限または無料利用枠に達しました。時間をおいて再試行してください。";
+    if (status >= 500) return L"Cloudflare Workers AI API側で一時的な障害が発生しています。時間をおいて再試行してください。";
+    return L"Cloudflare Workers AI APIから予期しないHTTP応答がありました。";
 }
 }
 
@@ -219,8 +220,11 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
     const std::atomic<int>* cancelState)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
-    if (apiKey.empty()) { result.error = L"WorkersAI APIトークンが設定されていません。"; return result; }
-    if (modelId.empty()) { result.error = L"WorkersAIモデルIDが設定されていません。"; return result; }
+    if (apiKey.empty()) { result.error = L"Cloudflare Workers AI APIトークンが設定されていません。"; return result; }
+    if (!IsValidWorkersAIAccountId(accountId)) {
+        result.error = L"Cloudflare Account IDは32桁の16進数で指定してください。"; return result;
+    }
+    if (modelId.empty()) { result.error = L"Workers AIモデルIDが設定されていません。"; return result; }
     if (userPrompt.empty()) { result.error = L"AIへ送信する内容がありません。"; return result; }
     if (cancelState && cancelState->load(std::memory_order_acquire) != 0) {
         result.cancelled = true;
@@ -249,10 +253,10 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
 
     HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.79.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!session) { result.error = L"WorkersAI APIへの通信セッションを開始できません。"; return result; }
+    if (!session) { result.error = L"Cloudflare Workers AI APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
     HINTERNET connection = WinHttpConnect(session, L"api.cloudflare.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring requestPath = L"/client/v4/accounts/" + accountId + L"/ai/v1/chat/completions";
+    const std::wstring requestPath = BuildWorkersAIChatCompletionsPath(accountId);
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
         requestPath.c_str(), nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
@@ -260,7 +264,7 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
     {
         if (connection) WinHttpCloseHandle(connection);
         WinHttpCloseHandle(session);
-        result.error = L"WorkersAI APIへの接続を開始できません。";
+        result.error = L"Cloudflare Workers AI APIへの接続を開始できません。";
         return result;
     }
 
@@ -315,13 +319,13 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
         {
             if (status == 200)
             {
-                if (tooLarge) result.error = L"WorkersAI APIの応答データが上限（2MB）を超えました。";
+                if (tooLarge) result.error = L"Cloudflare Workers AI APIの応答データが上限（2MB）を超えました。";
                 else if (readFailed) {
                     result.error = FormatWinHttpError(readError);
                     result.retryable = IsRetryableWinHttpError(readError);
                 }
                 else if (!ExtractStringProperty(response, "content", result.text)) {
-                    result.error = L"WorkersAI APIの応答から文章を取得できませんでした。";
+                    result.error = L"Cloudflare Workers AI APIの応答から文章を取得できませんでした。";
                     result.retryable = true;
                 }
                 else
@@ -344,7 +348,7 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
                          providerMessage.find(L"OTPM") != std::wstring::npos))
                     {
                         result.error =
-                            L"WorkersAIの1分あたりの出力トークン上限（OTPM）に達しました。"
+                            L"Workers AIの1分あたりの出力トークン上限（OTPM）に達しました。"
                             L"使用枠が回復するまで待ってから自動再試行します。";
                     }
                     result.error += L"\n詳細: " + providerMessage;
@@ -390,11 +394,11 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
             if (progress)
             {
                 if (otpRetryAttempt > 0)
-                    progress(L"WorkersAI API再試行中（OTPM " + std::to_wstring(otpRetryAttempt) + L"/2）");
+                    progress(L"Cloudflare Workers AI API再試行中（OTPM " + std::to_wstring(otpRetryAttempt) + L"/2）");
                 else if (attempt > 0)
                     progress(L"回答の続き取得中…");
                 else
-                    progress(L"WorkersAI API応答待ち");
+                    progress(L"Cloudflare Workers AI API応答待ち");
             }
             result = GenerateWorkersAIChatCompletionOnce(apiKey, accountId, modelId, systemPrompt,
                 userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
@@ -420,7 +424,7 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
             if (IsOtpRateLimitError(result.error))
             {
                 result.error =
-                    L"WorkersAIの出力トークン上限（OTPM）に達しました。"
+                    L"Workers AIの出力トークン上限（OTPM）に達しました。"
                     L"指定時間待って2回再試行しましたが、制限が解除されませんでした。"
                     L"しばらく時間をおいてから再度お試しください。\n" + result.error;
             }
@@ -431,7 +435,7 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
         {
             result.success = false;
             result.text.clear();
-            result.error = L"WorkersAIの回答が空のまま出力上限に達しました。質問を分けて再度お試しください。";
+            result.error = L"Workers AIの回答が空のまま出力上限に達しました。質問を分けて再度お試しください。";
             return result;
         }
 
@@ -442,7 +446,7 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
             {
                 result.success = false;
                 result.text.clear();
-                result.error = L"WorkersAIの回答が長文のため、続きを2回生成しましたが完了しませんでした。"
+                result.error = L"Workers AIの回答が長文のため、続きを2回生成しましたが完了しませんでした。"
                     L"不完全な回答は表示していません。質問を分けて再度お試しください。";
                 return result;
             }
@@ -457,6 +461,6 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
 
     result.success = false;
     result.text.clear();
-    result.error = L"WorkersAIの回答を完了できませんでした。質問を分けて再度お試しください。";
+    result.error = L"Workers AIの回答を完了できませんでした。質問を分けて再度お試しください。";
     return result;
 }
