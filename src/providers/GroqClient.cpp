@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <winhttp.h>
 #include <string>
+#include <cwchar>
 
 #include "gemini/GeminiError.h"
 #include "gemini/GeminiTextContinuation.h"
@@ -147,6 +148,43 @@ bool ExtractStringProperty(const std::string& json, const char* property, std::w
     return false;
 }
 
+bool IsOtpRateLimitError(const std::wstring& error)
+{
+    return error.find(L"OTPM") != std::wstring::npos ||
+        error.find(L"output tokens per minute") != std::wstring::npos;
+}
+
+DWORD GetOtpRetryDelayMs(const std::wstring& error)
+{
+    const std::wstring marker = L"try again in ";
+    const size_t pos = error.find(marker);
+    if (pos == std::wstring::npos) return 15000;
+    const wchar_t* begin = error.c_str() + pos + marker.size();
+    wchar_t* end = nullptr;
+    const double seconds = std::wcstod(begin, &end);
+    if (end == begin || seconds <= 0.0) return 15000;
+    // Add a 750 ms safety margin to the provider's suggested reset time.
+    const double milliseconds = seconds * 1000.0 + 750.0;
+    if (milliseconds > 60000.0) return 60000;
+    return static_cast<DWORD>(milliseconds);
+}
+
+bool WaitForOtpRetry(DWORD delayMs, const std::atomic<int>* cancelState)
+{
+    constexpr DWORD kPollIntervalMs = 100;
+    DWORD elapsed = 0;
+    while (elapsed < delayMs)
+    {
+        if (cancelState && cancelState->load(std::memory_order_acquire) != 0)
+            return false;
+        const DWORD slice = (delayMs - elapsed < kPollIntervalMs)
+            ? delayMs - elapsed : kPollIntervalMs;
+        Sleep(slice);
+        elapsed += slice;
+    }
+    return !(cancelState && cancelState->load(std::memory_order_acquire) != 0);
+}
+
 std::wstring HttpError(unsigned long status)
 {
     if (status == 400) return L"Groq APIがリクエストを受け付けませんでした。モデルIDや入力内容を確認してください。";
@@ -198,7 +236,7 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
         "\",\"messages\":" + messages + ",\"max_tokens\":" +
         std::to_string(maxOutputTokens) + "}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.76.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.77.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
@@ -294,9 +332,8 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
                          providerMessage.find(L"OTPM") != std::wstring::npos))
                     {
                         result.error =
-                            L"Groqの1分あたりの出力トークン上限（OTPM）を超えました。"
-                            L"このモデルでは一度に要求できる出力トークン数に制限があります。"
-                            L"出力を短くして再試行するか、時間をおいてください。";
+                            L"Groqの1分あたりの出力トークン上限（OTPM）に達しました。"
+                            L"使用枠が回復するまで待ってから自動再試行します。";
                     }
                     result.error += L"\n詳細: " + providerMessage;
                 }
@@ -332,12 +369,38 @@ GeminiGenerateResult GenerateGroqChatCompletion(
         }
 
         std::string finishReason;
-        result = GenerateGroqChatCompletionOnce(apiKey, modelId, systemPrompt,
-            userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
+        constexpr int kMaxOtpRetryAttempts = 2;
+        int otpRetryAttempt = 0;
+        for (;;)
+        {
+            result = GenerateGroqChatCompletionOnce(apiKey, modelId, systemPrompt,
+                userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
+            if (result.success || !IsOtpRateLimitError(result.error) ||
+                otpRetryAttempt >= kMaxOtpRetryAttempts)
+                break;
+
+            const DWORD delayMs = GetOtpRetryDelayMs(result.error);
+            if (!WaitForOtpRetry(delayMs, cancelState))
+            {
+                result.success = false;
+                result.cancelled = true;
+                result.text.clear();
+                result.error.clear();
+                return result;
+            }
+            ++otpRetryAttempt;
+        }
         if (!result.success)
         {
             // Never expose a partial response as a successful answer.
             result.text.clear();
+            if (IsOtpRateLimitError(result.error))
+            {
+                result.error =
+                    L"Groqの出力トークン上限（OTPM）に達しました。"
+                    L"指定時間待って2回再試行しましたが、制限が解除されませんでした。"
+                    L"しばらく時間をおいてから再度お試しください。\n" + result.error;
+            }
             return result;
         }
 
