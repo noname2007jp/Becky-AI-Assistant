@@ -39,6 +39,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Becky-AI-Assistant-77-win32
-          path: Becky-AI-Assistant-76-win32.zip
+          path: Becky-AI-Assistant-77-win32.zip
           if-no-files-found: error
           retention-days: 14
