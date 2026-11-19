@@ -134,8 +134,8 @@ bool FetchWorkersAIModelCatalog(const std::wstring& accountId,const std::wstring
     std::string json;
     if(!Download(L"api.cloudflare.com",path,apiToken,nullptr,json,error))return false;
     for(const auto& obj:Objects(json,"result")) {
-        std::string id=Field(obj,"name");
-        if(id.empty())id=Field(obj,"id");
+        std::string id=Field(obj,"id");
+        if(id.empty())id=Field(obj,"name");
         if(id.empty())continue;
         std::string task=Field(obj,"task");
         std::string lower=task;std::transform(lower.begin(),lower.end(),lower.begin(),[](unsigned char c){return (char)std::tolower(c);});
