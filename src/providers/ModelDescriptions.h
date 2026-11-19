@@ -36,6 +36,14 @@ inline std::wstring GetModelDescription(int provider, const std::wstring& modelI
             return L"大規模な推論・コーディング向けモデル。複雑な分析や長文の相談に向いています。Enterprise区分のため、Free枠で利用できるとは限りません。\r\nコンテキスト: 196,608 tokens／最大出力: 131,072 tokens／速度目安: 約260 tokens/sec。";
         if (id == L"llama-3.3-70b-versatile")
             return L"Meta Llama 3.3 70B。汎用的な文章生成・要約・指示追従向け。Groqの現行一覧ではEnterprise扱いのため、利用条件を確認してください。\r\nコンテキスト: 131,072 tokens／最大出力: 32,768 tokens／速度目安: 約280 tokens/sec。";
+        if (id.find(L"qwen/") != std::wstring::npos)
+            return L"Qwen系モデル。多言語の文章処理や指示追従、モデルによっては推論タスクに向いています。世代・サイズ固有の機能はモデルカードで確認してください。\\r\\nコンテキスト長・最大出力・速度・Free枠はこのIDでは確定できません。";
+        if (id.find(L"deepseek") != std::wstring::npos)
+            return L"DeepSeek系モデル。推論・論理的な分析やコード関連の相談に向いている系統です。Distillなど派生名により特性が異なります。\\r\\nコンテキスト長・最大出力・速度・Free枠はこのIDでは確定できません。";
+        if (id.find(L"llama") != std::wstring::npos)
+            return L"Meta Llama系の汎用モデル。メール要約、返信案、文章生成など幅広い用途の候補です。モデルサイズが大きいほど品質・速度・利用条件が異なります。\\r\\nコンテキスト長・最大出力・速度・Free枠はこのIDでは確定できません。";
+        if (id.find(L"gemma") != std::wstring::npos)
+            return L"Google Gemma系のモデル。比較的軽量な文章生成・要約用途の候補です。モデル世代・サイズにより対応能力が異なります。\\r\\nコンテキスト長・最大出力・速度・Free枠はこのIDでは確定できません。";
         if (id == L"llama-3.1-8b-instant")
             return L"軽量・高速な文章生成モデル。短い要約や定型処理向け。ただしGroqでは提供終了済みのモデルIDです。新規選択には使用しないでください。";
         if (id == L"groq/compound" || id == L"groq/compound-mini")
