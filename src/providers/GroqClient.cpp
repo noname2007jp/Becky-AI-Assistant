@@ -169,12 +169,23 @@ DWORD GetOtpRetryDelayMs(const std::wstring& error)
     return static_cast<DWORD>(milliseconds);
 }
 
-bool WaitForOtpRetry(DWORD delayMs, const std::atomic<int>* cancelState)
+bool WaitForOtpRetry(DWORD delayMs, const std::atomic<int>* cancelState,
+    const GroqProgressCallback& progress, int retryNumber)
 {
     constexpr DWORD kPollIntervalMs = 100;
     DWORD elapsed = 0;
+    unsigned int lastReportedSeconds = static_cast<unsigned int>(-1);
     while (elapsed < delayMs)
     {
+        const unsigned int remainingSeconds =
+            static_cast<unsigned int>((delayMs - elapsed + 999) / 1000);
+        if (progress && remainingSeconds != lastReportedSeconds)
+        {
+            progress(L"GroqのOTPM利用枠の回復待ちです。あと" +
+                std::to_wstring(remainingSeconds) + L"秒で再試行します（" +
+                std::to_wstring(retryNumber) + L"回目／最大2回）");
+            lastReportedSeconds = remainingSeconds;
+        }
         if (cancelState && cancelState->load(std::memory_order_acquire) != 0)
             return false;
         const DWORD slice = (delayMs - elapsed < kPollIntervalMs)
@@ -236,7 +247,7 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
         "\",\"messages\":" + messages + ",\"max_tokens\":" +
         std::to_string(maxOutputTokens) + "}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.77.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.78.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
@@ -353,7 +364,8 @@ GeminiGenerateResult GenerateGroqChatCompletion(
     const std::wstring& systemPrompt,
     const std::wstring& userPrompt,
     unsigned int maxOutputTokens,
-    const std::atomic<int>* cancelState)
+    const std::atomic<int>* cancelState,
+    const GroqProgressCallback& progress)
 {
     constexpr int kMaxContinuationAttempts = 2;
     GeminiGenerateResult result{ false, 0, {}, L"" };
@@ -373,6 +385,16 @@ GeminiGenerateResult GenerateGroqChatCompletion(
         int otpRetryAttempt = 0;
         for (;;)
         {
+            if (progress)
+            {
+                if (otpRetryAttempt > 0)
+                    progress(L"Groq APIに再問い合わせしています（OTPM再試行 " +
+                        std::to_wstring(otpRetryAttempt) + L"/2）");
+                else if (attempt > 0)
+                    progress(L"Groqの回答の続きを取得しています…");
+                else
+                    progress(L"Groq APIの応答待ちです…");
+            }
             result = GenerateGroqChatCompletionOnce(apiKey, modelId, systemPrompt,
                 userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
             if (result.success || !IsOtpRateLimitError(result.error) ||
@@ -380,7 +402,7 @@ GeminiGenerateResult GenerateGroqChatCompletion(
                 break;
 
             const DWORD delayMs = GetOtpRetryDelayMs(result.error);
-            if (!WaitForOtpRetry(delayMs, cancelState))
+            if (!WaitForOtpRetry(delayMs, cancelState, progress, otpRetryAttempt + 1))
             {
                 result.success = false;
                 result.cancelled = true;
