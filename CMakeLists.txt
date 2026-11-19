@@ -16,6 +16,7 @@ add_library(BeckyAIAssistant SHARED
   src/settings/AIProviderSettings.cpp
   src/settings/AIProviderSettingsCodec.cpp
   src/providers/GroqClient.cpp
+  src/providers/GroqMailSummary.cpp
   src/providers/ProviderModelCatalog.cpp
   src/providers/ProviderModelCatalogStore.cpp
   src/gemini/GeminiConnection.cpp
