@@ -261,6 +261,13 @@ namespace
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
                 const MailContext& mail = *context->mail;
+                if (context->providerSettingsLoaded &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                {
+                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                        L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 PiiMasker masker;
                 if (!masker.IsReady())
                 {
@@ -396,6 +403,13 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
+                if (context->providerSettingsLoaded &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                {
+                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                        L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 if (context->providerSettingsLoaded && context->providerSettings.provider != AIProvider::Gemini)
                 {
                     MessageBoxW(dialog, L"返信文案は現在Geminiのみ対応しています。AIサービス設定でGeminiを選択してください。",
@@ -504,6 +518,13 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr) return TRUE;
+                if (context->providerSettingsLoaded &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                {
+                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                        L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 if (context->providerSettingsLoaded && context->providerSettings.provider != AIProvider::Gemini)
                 {
                     MessageBoxW(dialog, L"AIへの相談は現在Geminiのみ対応しています。AIサービス設定でGeminiを選択してください。",
