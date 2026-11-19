@@ -13,7 +13,7 @@ std::string Utf8(const std::wstring& s) {
     if (s.empty()) return {};
     int n=WideCharToMultiByte(CP_UTF8,0,s.data(),(int)s.size(),nullptr,0,nullptr,nullptr);
     if(n<=0)return {};
-    std::string r((size_t)n,'\\0');
+    std::string r((size_t)n,'\0');
     WideCharToMultiByte(CP_UTF8,0,s.data(),(int)s.size(),r.data(),n,nullptr,nullptr);
     return r;
 }
@@ -21,7 +21,7 @@ std::wstring Wide(const std::string& s) {
     if(s.empty())return {};
     int n=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,s.data(),(int)s.size(),nullptr,0);
     if(n<=0)return {};
-    std::wstring r((size_t)n,L'\\0');
+    std::wstring r((size_t)n,L'\0');
     MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,s.data(),(int)s.size(),r.data(),n);
     return r;
 }
