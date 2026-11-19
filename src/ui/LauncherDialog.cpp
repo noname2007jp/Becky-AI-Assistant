@@ -212,7 +212,9 @@ namespace
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, result.notice.c_str());
                 if (!result.success) {
                     MessageBoxW(dialog, result.error.c_str(),
-                        context->providerSettings.provider == AIProvider::Groq ? L"Groq APIエラー" : L"Gemini APIエラー",
+                        context->providerSettings.provider == AIProvider::Groq ? L"Groq APIエラー" :
+                            (context->providerSettings.provider == AIProvider::WorkersAI
+                                ? L"Workers AI APIエラー" : L"Gemini APIエラー"),
                         MB_OK | MB_ICONWARNING);
                 } else if (wParam == 1) {
                     if (!result.notice.empty())
