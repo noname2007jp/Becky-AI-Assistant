@@ -1,5 +1,6 @@
 #pragma once
 #include "gemini/GeminiGenerate.h"
+#include "GroqClient.h"
 #include <atomic>
 #include <string>
 #include <vector>
@@ -14,4 +15,5 @@ GeminiGenerateResult GenerateGroqMailConsultation(
     const std::vector<GeminiChatTurn>& history,
     const std::wstring& question,
     PiiMasker* masker = nullptr,
-    const std::atomic<int>* cancelState = nullptr);
+    const std::atomic<int>* cancelState = nullptr,
+    const GroqProgressCallback& progress = {});
