@@ -6,6 +6,7 @@
 #include "gemini/GeminiConnection.h"
 #include "gemini/GeminiModels.h"
 #include "providers/ProviderModelCatalog.h"
+#include "providers/ModelDescriptions.h"
 
 #include <string>
 #include <vector>
@@ -36,14 +37,15 @@ void ShowSettingsTab(HWND dialog, int selected)
         IDC_GEMINI_APIKEY_LINK, IDC_SETTINGS_LABEL_API_NOTE, IDC_SETTINGS_LABEL_MODEL,
         IDC_GROQ_APIKEY_LINK, IDC_CF_WORKERS_AI_LINK, IDC_CF_AI_GATEWAY_LINK,
         IDC_SETTINGS_DEFAULT_MODEL, IDC_SETTINGS_PRICING_LINK, IDC_SETTINGS_UPDATE_MODELS,
-        IDC_SETTINGS_TEST };
+        IDC_SETTINGS_TEST, IDC_GEMINI_MODEL_DETAILS };
     const int provider[] = { IDC_PROVIDER_LABEL, IDC_PROVIDER_SELECT, IDC_PROVIDER_ROUTE_LABEL,
         IDC_PROVIDER_ROUTE, IDC_PROVIDER_STATUS_NOTE, IDC_PROVIDER_GROQ_KEY_LABEL,
         IDC_PROVIDER_GROQ_KEY, IDC_PROVIDER_GROQ_MODEL_LABEL, IDC_PROVIDER_GROQ_MODEL,
         IDC_PROVIDER_WORKERS_ACCOUNT_LABEL, IDC_PROVIDER_WORKERS_ACCOUNT,
         IDC_PROVIDER_WORKERS_TOKEN_LABEL, IDC_PROVIDER_WORKERS_TOKEN,
         IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL,
-        IDC_PROVIDER_GROQ_MODELS_UPDATE, IDC_PROVIDER_WORKERS_MODELS_UPDATE };
+        IDC_PROVIDER_GROQ_MODELS_UPDATE, IDC_PROVIDER_WORKERS_MODELS_UPDATE,
+        IDC_PROVIDER_MODEL_DETAILS };
     const int gateway[] = { IDC_GATEWAY_ACCOUNT_LABEL, IDC_GATEWAY_ACCOUNT, IDC_GATEWAY_ID_LABEL,
         IDC_GATEWAY_ID, IDC_GATEWAY_TOKEN_LABEL, IDC_GATEWAY_TOKEN, IDC_GATEWAY_LOGGING,
         IDC_GATEWAY_CACHE, IDC_GATEWAY_PRIVACY_NOTE };
@@ -58,6 +60,36 @@ void ShowSettingsTab(HWND dialog, int selected)
     for (int id : advanced) ShowWindow(GetDlgItem(dialog, id), selected == 2 ? SW_SHOW : SW_HIDE);
     for (int id : provider) ShowWindow(GetDlgItem(dialog, id), selected == 3 ? SW_SHOW : SW_HIDE);
     for (int id : gateway) ShowWindow(GetDlgItem(dialog, id), selected == 4 ? SW_SHOW : SW_HIDE);
+}
+
+void UpdateGeminiModelDescription(HWND dialog, SettingsState* state)
+{
+    if (!state) return;
+    const LRESULT selected = SendDlgItemMessageW(dialog, IDC_SETTINGS_DEFAULT_MODEL, CB_GETCURSEL, 0, 0);
+    if (selected >= 0 && selected < static_cast<LRESULT>(state->models.size()))
+        SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS,
+            GetModelDescription(0, state->models[static_cast<size_t>(selected)].id).c_str());
+    else
+        SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS, L"モデルを選択すると特徴を表示します。");
+}
+
+void UpdateProviderModelDescription(HWND dialog, int provider)
+{
+    const int control = provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
+    const int length = GetWindowTextLengthW(GetDlgItem(dialog, control));
+    std::wstring model(static_cast<size_t>(length) + 1, L'\\0');
+    if (length > 0) GetDlgItemTextW(dialog, control, model.data(), length + 1);
+    model.resize(static_cast<size_t>(length));
+    SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
+        GetModelDescription(provider, model).c_str());
+}
+
+void UpdateCurrentProviderModelDescription(HWND dialog)
+{
+    const int provider = static_cast<int>(SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_GETCURSEL, 0, 0));
+    if (provider == 1 || provider == 2) UpdateProviderModelDescription(dialog, provider);
+    else SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
+        L"Geminiのモデル説明は「基本」タブに表示します。");
 }
 
 void PopulateDefaultModelCombo(HWND dialog, SettingsState* state, const std::wstring& preferred)
@@ -295,6 +327,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         else
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, reliabilityError.c_str());
         PopulateDefaultModelCombo(dialog, state, reliability.defaultModel);
+        UpdateGeminiModelDescription(dialog, state);
+        UpdateCurrentProviderModelDescription(dialog);
         return TRUE;
     }
 
@@ -311,7 +345,9 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
     {
         const auto* tabNotification = reinterpret_cast<const NMHDR*>(lParam);
         if (tabNotification && tabNotification->idFrom == IDC_SETTINGS_TABS && tabNotification->code == TCN_SELCHANGE) {
-            ShowSettingsTab(dialog, TabCtrl_GetCurSel(GetDlgItem(dialog, IDC_SETTINGS_TABS)));
+            const int selectedTab = TabCtrl_GetCurSel(GetDlgItem(dialog, IDC_SETTINGS_TABS));
+            ShowSettingsTab(dialog, selectedTab);
+            if (selectedTab == 3) UpdateCurrentProviderModelDescription(dialog);
             return TRUE;
         }
         const auto* notification = reinterpret_cast<const NMHDR*>(lParam);
@@ -392,6 +428,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 }
                 if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
                 else SetWindowTextW(combo, preferred.c_str());
+                UpdateProviderModelDescription(dialog, result->provider);
             }
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, result->message.c_str());
             delete result;
@@ -423,6 +460,13 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
     }
 
     case WM_COMMAND:
+        if (LOWORD(wParam) == IDC_SETTINGS_DEFAULT_MODEL && HIWORD(wParam) == CBN_SELCHANGE)
+            UpdateGeminiModelDescription(dialog, reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER)));
+        if (LOWORD(wParam) == IDC_PROVIDER_SELECT && HIWORD(wParam) == CBN_SELCHANGE)
+            UpdateCurrentProviderModelDescription(dialog);
+        if ((LOWORD(wParam) == IDC_PROVIDER_GROQ_MODEL || LOWORD(wParam) == IDC_PROVIDER_WORKERS_MODEL) &&
+            (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == EN_CHANGE))
+            UpdateProviderModelDescription(dialog, LOWORD(wParam) == IDC_PROVIDER_GROQ_MODEL ? 1 : 2);
         switch (LOWORD(wParam))
         {
         case IDC_SETTINGS_TOGGLE_KEY:
