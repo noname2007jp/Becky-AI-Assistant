@@ -24,7 +24,6 @@ struct SettingsState
     bool apiKeyVisible = false;
     bool modelUpdateRunning = false;
     std::vector<GeminiModelOption> models;
-    AIProviderSettings providerSettings;
 };
 
 
@@ -186,7 +185,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         std::wstring providerError;
         if (LoadAIProviderSettings(providerSettings, providerError))
         {
-            state->providerSettings = providerSettings;
             HWND providerCombo = GetDlgItem(dialog, IDC_PROVIDER_SELECT);
             SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Gemini"));
             SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Groq"));
@@ -206,6 +204,9 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             SetDlgItemTextW(dialog, IDC_GATEWAY_TOKEN, providerSettings.cloudflareApiToken.c_str());
             CheckDlgButton(dialog, IDC_GATEWAY_LOGGING, providerSettings.gatewayRequestLogging ? BST_CHECKED : BST_UNCHECKED);
             CheckDlgButton(dialog, IDC_GATEWAY_CACHE, providerSettings.gatewayCacheEnabled ? BST_CHECKED : BST_UNCHECKED);
+            for (auto* secret : { &providerSettings.geminiApiKey, &providerSettings.groqApiKey,
+                &providerSettings.workersApiToken, &providerSettings.cloudflareApiToken })
+                if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
         }
         else
         {
