@@ -353,50 +353,6 @@ namespace
                     return TRUE;
                 }
 
-                if (context->providerSettings.provider == AIProvider::Groq)
-                {
-                    const auto settings = context->providerSettings;
-                    if (settings.groqApiKey.empty() || settings.groqModel.empty()) {
-                        MessageBoxW(dialog, L"Groq APIキーとモデルIDを設定画面で保存してください。",
-                            L"Groq設定", MB_OK | MB_ICONWARNING);
-                        return TRUE;
-                    }
-                    const std::wstring subject = mail.subject, body = mail.body;
-                    context->busy = true;
-                    ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
-                    EnableWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), TRUE);
-                    ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
-                        L"Groqで返信文案を作成中です。しばらくお待ちください...");
-                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), FALSE);
-                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
-                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
-                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
-                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
-                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
-                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
-                    if (!GeminiAsync::Start(dialog, std::move(settings.groqApiKey),
-                        [modelId = settings.groqModel, tone, subject, body, replyRequirements, masker]
-                        (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
-                            return GenerateGroqMailReplyDraft(key, modelId, tone, subject, body,
-                                replyRequirements, &masker, &cancelState);
-                        }, 2, &context->work)) {
-                        context->busy = false;
-                        context->work = nullptr;
-                        ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
-                        EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), TRUE);
-                        EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
-                        EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
-                        EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
-                        EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
-                        EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
-                        EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
-                        SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
-                        MessageBoxW(dialog, L"Groqのバックグラウンド処理を開始できませんでした。",
-                            L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
-                    }
-                    return TRUE;
-                }
-
                 std::wstring apiKey, error;
                 if (!LoadGeminiApiKey(apiKey, error) || apiKey.empty())
                 {
@@ -511,6 +467,50 @@ namespace
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     context->providerSettings.provider == AIProvider::Groq
                         ? L"返信文案：Groq送信内容の確認" : L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
+
+                if (context->providerSettings.provider == AIProvider::Groq)
+                {
+                    const auto settings = context->providerSettings;
+                    if (settings.groqApiKey.empty() || settings.groqModel.empty()) {
+                        MessageBoxW(dialog, L"Groq APIキーとモデルIDを設定画面で保存してください。",
+                            L"Groq設定", MB_OK | MB_ICONWARNING);
+                        return TRUE;
+                    }
+                    const std::wstring subject = mail.subject, body = mail.body;
+                    context->busy = true;
+                    ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), TRUE);
+                    ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
+                        L"Groqで返信文案を作成中です。しばらくお待ちください...");
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
+                    if (!GeminiAsync::Start(dialog, std::move(settings.groqApiKey),
+                        [modelId = settings.groqModel, tone, subject, body, replyRequirements, masker]
+                        (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
+                            return GenerateGroqMailReplyDraft(key, modelId, tone, subject, body,
+                                replyRequirements, &masker, &cancelState);
+                        }, 2, &context->work)) {
+                        context->busy = false;
+                        context->work = nullptr;
+                        ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
+                        EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                        SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
+                        MessageBoxW(dialog, L"Groqのバックグラウンド処理を開始できませんでした。",
+                            L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    }
+                    return TRUE;
+                }
 
                 std::wstring apiKey, error;
                 if (!LoadGeminiApiKey(apiKey, error) || apiKey.empty())
