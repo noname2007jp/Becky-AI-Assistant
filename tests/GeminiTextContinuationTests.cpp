@@ -33,5 +33,12 @@ int main()
         check(text == L"最初の回答",
             "handles an empty accumulated response");
     }
+    {
+        std::wstring text = L"冒頭の説明です。";
+        AppendGeminiContinuationText(text, L"説明です。次の項目です。");
+        AppendGeminiContinuationText(text, L"次の項目です。最後の結論です。");
+        check(text == L"冒頭の説明です。次の項目です。最後の結論です。",
+            "joins multiple continuation chunks without repeating boundaries");
+    }
     return failures ? 1 : 0;
 }

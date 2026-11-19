@@ -54,7 +54,7 @@ GeminiGenerateResult GenerateGroqMailSummary(
     const ULONGLONG started = GetTickCount64();
     LogProviderEvent(L"Groq", L"summary", modelId, L"START", 0, false, 0, L"");
     result = GenerateGroqChatCompletion(apiKey, modelId, systemPrompt,
-        userPrompt, 1024, cancelState);
+        userPrompt, 768, cancelState);
     LogProviderEvent(L"Groq", L"summary", modelId, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success)
