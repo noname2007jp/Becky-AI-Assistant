@@ -439,7 +439,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             providerSettings.route = static_cast<AIConnectionRoute>(SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_GETCURSEL, 0, 0));
             auto readSetting = [dialog](int id) {
                 const int length = GetWindowTextLengthW(GetDlgItem(dialog, id));
-                std::wstring value(static_cast<size_t>(length) + 1, L'\\0');
+                std::wstring value(static_cast<size_t>(length) + 1, L'\0');
                 if (length > 0) GetDlgItemTextW(dialog, id, value.data(), length + 1);
                 value.resize(static_cast<size_t>(length));
                 return value;
