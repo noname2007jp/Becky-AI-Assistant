@@ -4,7 +4,7 @@
 #include <winhttp.h>
 #include <string>
 
-#include "GeminiError.h"
+#include "gemini/GeminiError.h"
 
 #pragma comment(lib, "winhttp.lib")
 
