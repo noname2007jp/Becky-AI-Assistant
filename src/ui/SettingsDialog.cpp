@@ -294,7 +294,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 {
                     const int modelControl = provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
                     const int modelLength = GetWindowTextLengthW(GetDlgItem(dialog, modelControl));
-                    std::wstring preferred(static_cast<size_t>(modelLength) + 1, L'\\0');
+                    std::wstring preferred(static_cast<size_t>(modelLength) + 1, L'\0');
                     if (modelLength > 0) GetDlgItemTextW(dialog, modelControl, preferred.data(), modelLength + 1);
                     preferred.resize(static_cast<size_t>(modelLength));
                     PopulateProviderModelCombo(dialog, provider, cachedModels, preferred);
@@ -448,7 +448,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 const int control = result->provider == 1 ? IDC_PROVIDER_GROQ_MODEL : IDC_PROVIDER_WORKERS_MODEL;
                 HWND combo = GetDlgItem(dialog, control);
                 const int len = GetWindowTextLengthW(combo);
-                std::wstring preferred(static_cast<size_t>(len) + 1, L'\\0');
+                std::wstring preferred(static_cast<size_t>(len) + 1, L'\0');
                 if (len > 0) GetWindowTextW(combo, preferred.data(), len + 1);
                 preferred.resize(static_cast<size_t>(len));
                 PopulateProviderModelCombo(dialog, result->provider, result->models, preferred);
