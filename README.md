@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini／Groq API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.74.0）
+## 現在の機能（0.75.0）
 
 - メール要約・返信文案・複数ターンのAI相談：AIサービス設定でGroqを選択すると、保存済みGroq APIキー・モデルを使用。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応（Groqの直接接続のみ）
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
@@ -135,4 +135,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-72.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-75.dll`
