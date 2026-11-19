@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.70.0）
+## 現在の機能（0.71.0）
 
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
@@ -58,7 +58,12 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 
 ## Groq／Workers AIモデル一覧の更新
 
-設定画面の「AIサービス」タブにある各「モデル一覧取得」ボタンから、保存前の入力値を使って公式APIへ接続します。Groqは `GET https://api.groq.com/openai/v1/models`、Workers AIは `GET /accounts/{account_id}/ai/models/search?task=Text%20Generation` を使用します。Workers AIでは実験的・非推奨モデルを除外し、テキスト生成タスクに絞ります。取得処理はバックグラウンドで実行し、既存のモデルIDを保持したまま選択リストを更新します。どちらもモデルIDは手入力できます。\n\n重要：両APIのモデル一覧応答には、Freeプランでの利用可否を確定する情報が含まれません。そのため取得したモデルは「利用可能モデル」であり、「Free対象」とは表示しません。GroqのFree枠は公式モデル料金・Rate Limits情報、Workers AIのFree枠はCloudflareのプラン・Neurons利用量に基づき別途確認してください。\n\n## Gemini APIモデル一覧の更新
+設定画面の「AIサービス」タブにある各「モデル一覧取得」ボタンから、保存前の入力値を使って公式APIへ接続します。Groqは `GET https://api.groq.com/openai/v1/models`、Workers AIは `GET /accounts/{account_id}/ai/models/search?task=Text%20Generation` を使用します。Workers AIでは実験的・非推奨モデルを除外し、テキスト生成タスクに絞ります。取得処理はバックグラウンドで実行し、既存のモデルIDを保持したまま選択リストを更新します。どちらもモデルIDは手入力できます。\n\n重要：両APIのモデル一覧応答には、Freeプランでの利用可否を確定する情報が含まれません。そのため取得したモデルは「利用可能モデル」であり、「Free対象」とは表示しません。GroqのFree枠は公式モデル料金・Rate Limits情報、Workers AIのFree枠はCloudflareのプラン・Neurons利用量に基づき別途確認してください。\n\n
+### Groq／Workers AIモデル一覧の保存
+
+GroqとCloudflare Workers AIのモデル一覧は、%APPDATA%\Becky-AI-Assistant\groq-models-catalog.txt／workers-ai-models-catalog.txt にUTF-8で保存します。次回起動時は保存済み一覧を先に読み込むため、毎回APIから再取得する必要はありません。モデル一覧の取得に失敗した場合は、最後に正常取得した一覧を保持します。これらはモデルIDのみを含むキャッシュであり、APIキーやAccount IDは保存しません。
+
+## Gemini APIモデル一覧の更新
 
 設定画面の「APIモデルを更新」から、保存済みAPIキーでGemini APIの `models.list` を呼び出します。
 
@@ -129,4 +134,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-70.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-71.dll`
