@@ -271,7 +271,8 @@ namespace
                     mail.subject, mail.body, L"件名:", L"本文:");
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
-                    L"要約：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
+                    context->providerSettings.provider == AIProvider::Groq
+                        ? L"要約：Groq送信内容の確認" : L"要約：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
 
                 if (context->providerSettingsLoaded &&
                     context->providerSettings.provider == AIProvider::Groq)
