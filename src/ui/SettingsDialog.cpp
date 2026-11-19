@@ -653,7 +653,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
     {
         auto* state = reinterpret_cast<SettingsState*>(
             GetWindowLongPtrW(dialog, DWLP_USER));
-        if (state != nullptr && (state->testRunning || state->modelUpdateRunning)) return TRUE;
+        if (state != nullptr && (state->testRunning || state->modelUpdateRunning || state->providerModelUpdateRunning)) return TRUE;
         EndDialog(dialog, IDCANCEL);
         return TRUE;
     }
