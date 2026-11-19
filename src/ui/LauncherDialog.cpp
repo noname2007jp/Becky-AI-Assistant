@@ -12,6 +12,8 @@
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiModels.h"
 #include "gemini/GeminiFallback.h"
+#include "settings/AIProviderSettings.h"
+#include "providers/GroqMailSummary.h"
 #include <utility>
 #include <commctrl.h>
 
@@ -73,6 +75,8 @@ namespace
         MailContext* mail;
         HINSTANCE instance;
         std::vector<GeminiModelOption> models;
+        AIProviderSettings providerSettings;
+        bool providerSettingsLoaded = false;
         bool busy = false;
         bool closeAfterCancel = false;
         GeminiAsync::WorkItem* work = nullptr;
@@ -81,10 +85,32 @@ namespace
     void InitializeModelCombo(HWND dialog, DialogContext* context)
     {
         if (!context) return;
+        HWND combo = GetDlgItem(dialog, IDC_GEMINI_MODEL);
+        if (context->providerSettingsLoaded &&
+            context->providerSettings.provider != AIProvider::Gemini)
+        {
+            const AIProvider provider = context->providerSettings.provider;
+            const std::wstring model = provider == AIProvider::Groq
+                ? context->providerSettings.groqModel
+                : context->providerSettings.workersModel;
+            SetDlgItemTextW(dialog, IDC_LAUNCHER_MODEL_LABEL,
+                provider == AIProvider::Groq ? L"Groqモデル" : L"Workers AIモデル");
+            if (!model.empty())
+            {
+                SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(model.c_str()));
+                SendMessageW(combo, CB_SETCURSEL, 0, 0);
+            }
+            else
+            {
+                SetWindowTextW(combo, L"設定画面でモデルを指定してください");
+            }
+            return;
+        }
+
+        SetDlgItemTextW(dialog, IDC_LAUNCHER_MODEL_LABEL, L"Geminiモデル");
         std::wstring error;
         if (!LoadGeminiModelCatalog(context->models, error) || context->models.empty())
             context->models = DefaultGeminiModels();
-        HWND combo = GetDlgItem(dialog, IDC_GEMINI_MODEL);
         GeminiReliabilityOptions reliability;
         std::wstring settingsError;
         const std::wstring preferred = LoadGeminiReliabilityOptions(reliability, settingsError)
@@ -109,6 +135,14 @@ namespace
         {
             auto* context = reinterpret_cast<DialogContext*>(lParam);
             SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
+            if (context)
+            {
+                std::wstring providerError;
+                context->providerSettingsLoaded =
+                    LoadAIProviderSettings(context->providerSettings, providerError);
+                if (!context->providerSettingsLoaded && !providerError.empty())
+                    SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, providerError.c_str());
+            }
             InitializeModelCombo(dialog, context);
             InitializeReplyToneTrackbar(dialog);
             PiiMaskOptions maskOptions;
@@ -175,7 +209,9 @@ namespace
                 if (!result.notice.empty())
                     SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, result.notice.c_str());
                 if (!result.success) {
-                    MessageBoxW(dialog, result.error.c_str(), L"Gemini APIエラー", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(dialog, result.error.c_str(),
+                        context->providerSettings.provider == AIProvider::Groq ? L"Groq APIエラー" : L"Gemini APIエラー",
+                        MB_OK | MB_ICONWARNING);
                 } else if (wParam == 1) {
                     if (!result.notice.empty())
                         SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, result.notice.c_str());
@@ -224,7 +260,20 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
+                if (!context->providerSettingsLoaded)
+                {
+                    MessageBoxW(dialog, L"AIサービス設定を読み込めません。設定ファイルを確認してから再試行してください。",
+                        L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
                 const MailContext& mail = *context->mail;
+                if (context->providerSettingsLoaded &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                {
+                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                        L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 PiiMasker masker;
                 if (!masker.IsReady())
                 {
@@ -235,7 +284,65 @@ namespace
                     mail.subject, mail.body, L"件名:", L"本文:");
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
-                    L"要約：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
+                    context->providerSettings.provider == AIProvider::Groq
+                        ? L"要約：Groq送信内容の確認" : L"要約：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
+
+                if (context->providerSettingsLoaded &&
+                    context->providerSettings.provider == AIProvider::Groq)
+                {
+                    const auto settings = context->providerSettings;
+                    if (settings.groqApiKey.empty() || settings.groqModel.empty())
+                    {
+                        MessageBoxW(dialog, L"Groq APIキーとモデルIDを設定画面で保存してください。",
+                            L"Groq設定", MB_OK | MB_ICONWARNING);
+                        return TRUE;
+                    }
+                    if (settings.route != AIConnectionRoute::Direct)
+                    {
+                        MessageBoxW(dialog, L"GroqのCloudflare AI Gateway経由はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                            L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                        return TRUE;
+                    }
+                    const std::wstring subject = mail.subject, body = mail.body;
+                    context->busy = true;
+                    ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), TRUE);
+                    ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
+                        L"Groqでメールを要約中です。しばらくお待ちください...");
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
+                    if (!GeminiAsync::Start(dialog, std::move(settings.groqApiKey),
+                        [modelId = settings.groqModel, subject, body, masker]
+                        (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
+                            return GenerateGroqMailSummary(key, modelId, subject, body, &masker, &cancelState);
+                        }, 1, &context->work))
+                    {
+                        context->busy = false;
+                        context->work = nullptr;
+                        ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                        SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
+                        MessageBoxW(dialog, L"Groqのバックグラウンド処理を開始できませんでした。",
+                            L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    }
+                    return TRUE;
+                }
+                if (context->providerSettingsLoaded &&
+                    context->providerSettings.provider == AIProvider::WorkersAI)
+                {
+                    MessageBoxW(dialog, L"Cloudflare Workers AIのメール処理は次の開発段階で対応します。現在はGeminiまたはGroqを選択してください。",
+                        L"Workers AI", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
 
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
                 if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
@@ -302,6 +409,24 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr || context->busy) return TRUE;
+                if (!context->providerSettingsLoaded)
+                {
+                    MessageBoxW(dialog, L"AIサービス設定を読み込めません。設定ファイルを確認してから再試行してください。",
+                        L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                if (context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                {
+                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                        L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
+                if (context->providerSettingsLoaded && context->providerSettings.provider != AIProvider::Gemini)
+                {
+                    MessageBoxW(dialog, L"返信文案は現在Geminiのみ対応しています。AIサービス設定でGeminiを選択してください。",
+                        L"未対応の機能", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 const MailContext& mail = *context->mail;
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
                 if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
@@ -404,6 +529,24 @@ namespace
                 auto* context = reinterpret_cast<DialogContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (context == nullptr || context->mail == nullptr) return TRUE;
+                if (!context->providerSettingsLoaded)
+                {
+                    MessageBoxW(dialog, L"AIサービス設定を読み込めません。設定ファイルを確認してから再試行してください。",
+                        L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
+                if (context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                {
+                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                        L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
+                if (context->providerSettingsLoaded && context->providerSettings.provider != AIProvider::Gemini)
+                {
+                    MessageBoxW(dialog, L"AIへの相談は現在Geminiのみ対応しています。AIサービス設定でGeminiを選択してください。",
+                        L"未対応の機能", MB_OK | MB_ICONINFORMATION);
+                    return TRUE;
+                }
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
                 if (selected < 0 || selected >= static_cast<LRESULT>(context->models.size()))
                 {
