@@ -22,7 +22,7 @@ namespace MarkdownRenderer
         for (size_t i = first; i < line.size(); ++i)
         {
             const wchar_t ch = line[i];
-            if (ch == L' ' || ch == L'\\t') continue;
+            if (ch == L' ' || ch == L'\t') continue;
             if (ch != L'-' && ch != L'*' && ch != L'_') return false;
             if (!marker) marker = ch;
             if (marker != ch) return false;
@@ -114,13 +114,13 @@ namespace MarkdownRenderer
         bool fencedCode = false;
         while (pos < source.size())
         {
-            size_t end = source.find(L'\\n', pos);
+            size_t end = source.find(L'\n', pos);
             if (end == std::wstring::npos) end = source.size();
             size_t lineEnd = end;
-            if (lineEnd > pos && source[lineEnd - 1] == L'\\r') --lineEnd;
+            if (lineEnd > pos && source[lineEnd - 1] == L'\r') --lineEnd;
             const std::wstring line = source.substr(pos, lineEnd - pos);
             size_t first = 0;
-            while (first < line.size() && (line[first] == L' ' || line[first] == L'\\t')) ++first;
+            while (first < line.size() && (line[first] == L' ' || line[first] == L'\t')) ++first;
             const bool fence = first + 2 < line.size() && line.compare(first, 3, L"```") == 0;
             if (fence) fencedCode = !fencedCode;
             else if (fencedCode) AppendInline(line, 0, line.size(), result, true);
@@ -164,7 +164,7 @@ namespace MarkdownRenderer
                 if (heading && formattedLength > 0)
                     result.headings.push_back({ formattedStart, formattedLength });
             }
-            if (end < source.size()) result.text += L"\\r\\n";
+            if (end < source.size()) result.text += L"\r\n";
             pos = end + (end < source.size() ? 1 : 0);
         }
         return result;
