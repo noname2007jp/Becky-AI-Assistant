@@ -21,7 +21,7 @@ jobs:
       - name: Upload plugin DLL
         uses: actions/upload-artifact@v4
         with:
-          name: Becky-AI-Assistant-65-win32
-          path: build/Release/Becky-AI-Assistant-65.dll
+          name: Becky-AI-Assistant-66-win32
+          path: build/Release/Becky-AI-Assistant-66.dll
           if-no-files-found: error
           retention-days: 14

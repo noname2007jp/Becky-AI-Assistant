@@ -2,6 +2,7 @@
 #include "resource.h"
 #include "ProgressIndicator.h"
 #include "settings/ApiKeyStore.h"
+#include "settings/AIProviderSettings.h"
 #include "gemini/GeminiConnection.h"
 #include "gemini/GeminiModels.h"
 
@@ -33,6 +34,15 @@ void ShowSettingsTab(HWND dialog, int selected)
         IDC_GROQ_APIKEY_LINK, IDC_CF_WORKERS_AI_LINK, IDC_CF_AI_GATEWAY_LINK,
         IDC_SETTINGS_DEFAULT_MODEL, IDC_SETTINGS_PRICING_LINK, IDC_SETTINGS_UPDATE_MODELS,
         IDC_SETTINGS_TEST };
+    const int provider[] = { IDC_PROVIDER_LABEL, IDC_PROVIDER_SELECT, IDC_PROVIDER_ROUTE_LABEL,
+        IDC_PROVIDER_ROUTE, IDC_PROVIDER_STATUS_NOTE, IDC_PROVIDER_GROQ_KEY_LABEL,
+        IDC_PROVIDER_GROQ_KEY, IDC_PROVIDER_GROQ_MODEL_LABEL, IDC_PROVIDER_GROQ_MODEL,
+        IDC_PROVIDER_WORKERS_ACCOUNT_LABEL, IDC_PROVIDER_WORKERS_ACCOUNT,
+        IDC_PROVIDER_WORKERS_TOKEN_LABEL, IDC_PROVIDER_WORKERS_TOKEN,
+        IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL };
+    const int gateway[] = { IDC_GATEWAY_ACCOUNT_LABEL, IDC_GATEWAY_ACCOUNT, IDC_GATEWAY_ID_LABEL,
+        IDC_GATEWAY_ID, IDC_GATEWAY_TOKEN_LABEL, IDC_GATEWAY_TOKEN, IDC_GATEWAY_LOGGING,
+        IDC_GATEWAY_CACHE, IDC_GATEWAY_PRIVACY_NOTE };
     const int masking[] = { IDC_SETTINGS_LABEL_MASK, IDC_MASK_EMAIL, IDC_MASK_PHONE,
         IDC_MASK_POSTAL, IDC_MASK_IP, IDC_MASK_COMPANY, IDC_MASK_PERSON, IDC_MASK_ADDRESS,
         IDC_MASK_ACCOUNT, IDC_MASK_CUSTOM, IDC_SETTINGS_LABEL_MASK_TERMS,
@@ -42,6 +52,8 @@ void ShowSettingsTab(HWND dialog, int selected)
     for (int id : basic) ShowWindow(GetDlgItem(dialog, id), selected == 0 ? SW_SHOW : SW_HIDE);
     for (int id : masking) ShowWindow(GetDlgItem(dialog, id), selected == 1 ? SW_SHOW : SW_HIDE);
     for (int id : advanced) ShowWindow(GetDlgItem(dialog, id), selected == 2 ? SW_SHOW : SW_HIDE);
+    for (int id : provider) ShowWindow(GetDlgItem(dialog, id), selected == 3 ? SW_SHOW : SW_HIDE);
+    for (int id : gateway) ShowWindow(GetDlgItem(dialog, id), selected == 4 ? SW_SHOW : SW_HIDE);
 }
 
 void PopulateDefaultModelCombo(HWND dialog, SettingsState* state, const std::wstring& preferred)
@@ -149,6 +161,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         tab.pszText = const_cast<wchar_t*>(L"\u57FA\u672C"); SendMessageW(tabs, TCM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&tab));
         tab.pszText = const_cast<wchar_t*>(L"\u30DE\u30B9\u30AD\u30F3\u30B0"); SendMessageW(tabs, TCM_INSERTITEMW, 1, reinterpret_cast<LPARAM>(&tab));
         tab.pszText = const_cast<wchar_t*>(L"\u8A73\u7D30"); SendMessageW(tabs, TCM_INSERTITEMW, 2, reinterpret_cast<LPARAM>(&tab));
+        tab.pszText = const_cast<wchar_t*>(L"AIサービス"); SendMessageW(tabs, TCM_INSERTITEMW, 3, reinterpret_cast<LPARAM>(&tab));
+        tab.pszText = const_cast<wchar_t*>(L"AI Gateway"); SendMessageW(tabs, TCM_INSERTITEMW, 4, reinterpret_cast<LPARAM>(&tab));
         TabCtrl_SetCurSel(tabs, 0);
         ShowSettingsTab(dialog, 0);
         std::wstring key, error;
@@ -167,6 +181,44 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         else if (!key.empty())
             SetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, key.c_str());
         if (!key.empty()) SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
+        AIProviderSettings providerSettings;
+        std::wstring providerError;
+        if (LoadAIProviderSettings(providerSettings, providerError))
+        {
+            HWND providerCombo = GetDlgItem(dialog, IDC_PROVIDER_SELECT);
+            SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Gemini"));
+            SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Groq"));
+            SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare Workers AI"));
+            SendMessageW(providerCombo, CB_SETCURSEL, static_cast<WPARAM>(providerSettings.provider), 0);
+            HWND routeCombo = GetDlgItem(dialog, IDC_PROVIDER_ROUTE);
+            SendMessageW(routeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"直接接続"));
+            SendMessageW(routeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare AI Gateway経由"));
+            SendMessageW(routeCombo, CB_SETCURSEL, static_cast<WPARAM>(providerSettings.route), 0);
+            SetDlgItemTextW(dialog, IDC_PROVIDER_GROQ_KEY, providerSettings.groqApiKey.c_str());
+            SetDlgItemTextW(dialog, IDC_PROVIDER_GROQ_MODEL, providerSettings.groqModel.c_str());
+            SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_ACCOUNT, providerSettings.workersAccountId.c_str());
+            SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_TOKEN, providerSettings.workersApiToken.c_str());
+            SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_MODEL, providerSettings.workersModel.c_str());
+            SetDlgItemTextW(dialog, IDC_GATEWAY_ACCOUNT, providerSettings.cloudflareAccountId.c_str());
+            SetDlgItemTextW(dialog, IDC_GATEWAY_ID, providerSettings.cloudflareGatewayId.c_str());
+            SetDlgItemTextW(dialog, IDC_GATEWAY_TOKEN, providerSettings.cloudflareApiToken.c_str());
+            CheckDlgButton(dialog, IDC_GATEWAY_LOGGING, providerSettings.gatewayRequestLogging ? BST_CHECKED : BST_UNCHECKED);
+            CheckDlgButton(dialog, IDC_GATEWAY_CACHE, providerSettings.gatewayCacheEnabled ? BST_CHECKED : BST_UNCHECKED);
+            for (auto* secret : { &providerSettings.geminiApiKey, &providerSettings.groqApiKey,
+                &providerSettings.workersApiToken, &providerSettings.cloudflareApiToken })
+                if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
+        }
+        else
+        {
+            SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, providerError.c_str());
+            SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Gemini"));
+            SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Groq"));
+            SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare Workers AI"));
+            SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_SETCURSEL, 0, 0);
+            SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"直接接続"));
+            SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare AI Gateway経由"));
+            SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_SETCURSEL, 0, 0);
+        }
         std::vector<std::wstring> maskTerms;
         std::wstring maskError;
         if (LoadPiiMaskTerms(maskTerms, maskError))
@@ -382,9 +434,35 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             if (state && modelIndex >= 0 && modelIndex < static_cast<LRESULT>(state->models.size()))
                 reliability.defaultModel = state->models[static_cast<size_t>(modelIndex)].id;
             const bool reliabilitySaved = SaveGeminiReliabilityOptions(reliability, error);
+            AIProviderSettings providerSettings;
+            providerSettings.provider = static_cast<AIProvider>(SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_GETCURSEL, 0, 0));
+            providerSettings.route = static_cast<AIConnectionRoute>(SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_GETCURSEL, 0, 0));
+            auto readSetting = [dialog](int id) {
+                const int length = GetWindowTextLengthW(GetDlgItem(dialog, id));
+                std::wstring value(static_cast<size_t>(length) + 1, L'\0');
+                if (length > 0) GetDlgItemTextW(dialog, id, value.data(), length + 1);
+                value.resize(static_cast<size_t>(length));
+                return value;
+            };
+            providerSettings.geminiApiKey = readSetting(IDC_GEMINI_API_KEY);
+            providerSettings.groqApiKey = readSetting(IDC_PROVIDER_GROQ_KEY);
+            providerSettings.groqModel = readSetting(IDC_PROVIDER_GROQ_MODEL);
+            providerSettings.workersAccountId = readSetting(IDC_PROVIDER_WORKERS_ACCOUNT);
+            providerSettings.workersApiToken = readSetting(IDC_PROVIDER_WORKERS_TOKEN);
+            providerSettings.workersModel = readSetting(IDC_PROVIDER_WORKERS_MODEL);
+            providerSettings.cloudflareAccountId = readSetting(IDC_GATEWAY_ACCOUNT);
+            providerSettings.cloudflareGatewayId = readSetting(IDC_GATEWAY_ID);
+            providerSettings.cloudflareApiToken = readSetting(IDC_GATEWAY_TOKEN);
+            providerSettings.gatewayRequestLogging = IsDlgButtonChecked(dialog, IDC_GATEWAY_LOGGING) == BST_CHECKED;
+            providerSettings.gatewayCacheEnabled = IsDlgButtonChecked(dialog, IDC_GATEWAY_CACHE) == BST_CHECKED;
+            const bool providerSettingsSaved = SaveAIProviderSettings(providerSettings, error);
+            for (auto* secret : { &providerSettings.geminiApiKey, &providerSettings.groqApiKey,
+                &providerSettings.workersApiToken, &providerSettings.cloudflareApiToken })
+                if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
+
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
-                keySaved && termsSaved && optionsSaved && reliabilitySaved
-                    ? L"設定を暗号化して保存しました。"
+                keySaved && termsSaved && optionsSaved && reliabilitySaved && providerSettingsSaved
+                    ? L"設定を暗号化して保存しました。なお、メール処理の接続先は現時点ではGemini固定です。"
                     : (error.empty() ? L"設定を保存できませんでした。" : error.c_str()));
             return TRUE;
         }
