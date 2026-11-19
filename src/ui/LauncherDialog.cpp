@@ -284,6 +284,12 @@ namespace
                             L"Groq設定", MB_OK | MB_ICONWARNING);
                         return TRUE;
                     }
+                    if (settings.route != AIConnectionRoute::Direct)
+                    {
+                        MessageBoxW(dialog, L"GroqのCloudflare AI Gateway経由はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                            L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                        return TRUE;
+                    }
                     const std::wstring subject = mail.subject, body = mail.body;
                     context->busy = true;
                     ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
