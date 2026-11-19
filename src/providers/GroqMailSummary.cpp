@@ -3,6 +3,8 @@
 #include "GroqClient.h"
 #include "gemini/PiiMasker.h"
 #include "mail/MailPromptContent.h"
+#include "gemini/GeminiDebugLog.h"
+#include <windows.h>
 
 GeminiGenerateResult GenerateGroqMailSummary(
     const std::wstring& apiKey,
@@ -49,8 +51,12 @@ GeminiGenerateResult GenerateGroqMailSummary(
     const std::wstring userPrompt = masker.Mask(
         MailPromptContent::BuildEmailContext(subject, body, L"件名:", L"本文:"));
 
+    const ULONGLONG started = GetTickCount64();
+    LogProviderEvent(L"Groq", L"summary", modelId, L"START", 0, false, 0, L"");
     result = GenerateGroqChatCompletion(apiKey, modelId, systemPrompt,
         userPrompt, 1024, cancelState);
+    LogProviderEvent(L"Groq", L"summary", modelId, L"END", result.httpStatus,
+        result.success, GetTickCount64() - started, result.error);
     if (result.success)
         result.text = masker.Restore(result.text);
     result.modelUsed = modelId;

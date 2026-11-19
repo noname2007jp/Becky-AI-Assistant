@@ -98,3 +98,20 @@ void LogGeminiResponse(const std::wstring& operation, const std::wstring& modelI
     if (!error.empty()) entry += "error=" + ToUtf8(error) + "\r\n";
     Append(entry);
 }
+
+void LogProviderEvent(const std::wstring& provider, const std::wstring& operation,
+    const std::wstring& modelId, const std::wstring& phase, unsigned long httpStatus,
+    bool success, unsigned long long elapsedMs, const std::wstring& error)
+{
+    GeminiReliabilityOptions options;
+    std::wstring loadError;
+    if (!LoadGeminiReliabilityOptions(options, loadError) || !options.debugLogging) return;
+    std::string entry = Header("PROVIDER", operation, modelId);
+    entry += "provider=" + ToUtf8(provider) +
+        " phase=" + ToUtf8(phase) +
+        " http_status=" + std::to_string(httpStatus) +
+        " success=" + std::string(success ? "true" : "false") +
+        " elapsed_ms=" + std::to_string(elapsedMs) + "\r\n";
+    if (!error.empty()) entry += "error=" + ToUtf8(error) + "\r\n";
+    Append(entry);
+}

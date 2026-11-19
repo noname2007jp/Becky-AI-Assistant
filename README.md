@@ -2,9 +2,9 @@
 
 Becky! Internet Mail向けのGemini／Groq API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.72.0）
+## 現在の機能（0.73.0）
 
-- メール要約：AIサービス設定でGroqを選択すると、保存済みGroq APIキー・モデルを使用。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応（Groqの直接接続のみ）
+- メール要約・返信文案：AIサービス設定でGroqを選択すると、保存済みGroq APIキー・モデルを使用。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応（Groqの直接接続のみ）
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
 
@@ -32,7 +32,7 @@ Becky! Internet Mail向けのGemini／Groq API連携AIアシスタントプラ�
 
 ## 複数AIサービス設定
 
-設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約をGroqで実行できます。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Workers AIのメール処理とCloudflare AI Gateway経由の接続は今後の段階で実装します。Gatewayのリクエストログ・キャッシュは初期値OFFです。
+設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約と返信文案をGroqで実行できます。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Workers AIのメール処理とCloudflare AI Gateway経由の接続は今後の段階で実装します。Gatewayのリクエストログ・キャッシュは初期値OFFです。
 
 ## 個人情報のマスキング
 
@@ -95,10 +95,10 @@ GroqとCloudflare Workers AIのモデル一覧は、%APPDATA%\Becky-AI-Assistant
 
 ## デバッグログ
 
-設定画面の「詳細デバッグログ」を明示的にONにすると、Gemini API送信内容と応答の診断情報を記録します。
+設定画面の「詳細デバッグログ」を明示的にONにすると、Gemini API送信内容と応答、およびGroqのプロバイダー・操作・モデルID・処理結果・HTTPステータス・処理時間を記録します。
 
 - 保存先: `%APPDATA%\\Becky-AI-Assistant\\debug.log`
-- 記録項目: 操作種別、モデルID、マスキング状態、置換語句数、送信データサイズ、HTTPステータス、エラー
+- 記録項目: プロバイダー名、操作種別、モデルID、処理開始・終了、HTTPステータス、成否、処理時間、エラー。Geminiでは従来どおりマスキング状態・置換語句数・送信データサイズも記録
 - マスキングがONの場合のみ、APIへ送信する直前のJSONペイロードを記録
 - マスキングがOFFの場合は本文・プロンプトを記録せず、メタデータのみ記録
 - ログは最大約2MBでローテーションし、旧ログを `debug.log.1` に保存
