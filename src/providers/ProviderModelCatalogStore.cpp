@@ -97,12 +97,12 @@ bool SaveProviderModelCatalog(int provider, const std::vector<std::wstring>& mod
     }
     std::string bytes = "BAIMC1\n";
     for (const auto& id : modelIds) {
-        if (id.empty() || id.size() > 4096 || id.find_first_of(L"\\r\\n") != std::wstring::npos) {
+        if (id.empty() || id.size() > 4096 || id.find_first_of(L"\r\n") != std::wstring::npos) {
             error = L"モデルIDに保存できない文字が含まれています。";
             return false;
         }
         std::string line;
-        if (!ToUtf8(id, line) || line.find_first_of("\\r\\n") != std::string::npos) {
+        if (!ToUtf8(id, line) || line.find_first_of("\r\n") != std::string::npos) {
             error = L"モデルIDをUTF-8に変換できません。";
             return false;
         }
