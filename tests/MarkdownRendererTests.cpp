@@ -32,5 +32,31 @@ int main()
     const auto plain = MarkdownRenderer::Render(L"通常の文章です。\r\n次の行です。");
     check(plain.text.find(L"通常の文章です。") != std::wstring::npos &&
         plain.text.find(L"次の行です。") != std::wstring::npos, "plain text and line breaks are retained");
+
+    const auto codeMarker = MarkdownRenderer::Render(L"**重要な説明 `**` の続き**");
+    check(codeMarker.text == L"重要な説明 ** の続き", "bold markers inside inline code are preserved");
+    check(codeMarker.bold.size() == 1, "bold span closes after inline code");
+    check(codeMarker.code.size() == 1, "inline code span is formatted independently");
+
+    const auto unmatchedBold = MarkdownRenderer::Render(L"通常の文 **閉じていない太字");
+    check(unmatchedBold.text == L"通常の文 **閉じていない太字", "unmatched bold marker remains literal");
+    check(unmatchedBold.bold.empty(), "unmatched bold marker does not format trailing text");
+
+    const auto unmatchedCode = MarkdownRenderer::Render(L"通常の文 `閉じていないコード");
+    check(unmatchedCode.text == L"通常の文 `閉じていないコード", "unmatched code marker remains literal");
+    check(unmatchedCode.code.empty(), "unmatched code marker does not format trailing text");
+
+    const auto afterLines = MarkdownRenderer::Render(
+        L"1行目\r\n2行目 **重要な単語** の後\r\n3行目 **最後**");
+    check(afterLines.text.find(L"\r\n") == std::wstring::npos,
+        "RichEdit output uses single-character paragraph breaks");
+    check(afterLines.bold.size() == 2, "bold ranges after paragraph breaks are retained");
+    if (afterLines.bold.size() == 2) {
+        check(afterLines.text.substr(afterLines.bold[0].start, afterLines.bold[0].length) == L"重要な単語",
+            "first bold range after a paragraph break aligns with the complete word");
+        check(afterLines.text.substr(afterLines.bold[1].start, afterLines.bold[1].length) == L"最後",
+            "later bold range remains aligned after multiple paragraph breaks");
+    }
+
     return failures == 0 ? 0 : 1;
 }

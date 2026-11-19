@@ -31,6 +31,25 @@ namespace MarkdownRenderer
         return count >= 3;
     }
 
+    // Find a matching ** or __ marker outside inline-code spans.
+    // A marker inside `...` must not accidentally close an outer bold span.
+    inline size_t FindClosingBoldMarker(const std::wstring& line, size_t begin,
+        size_t end, wchar_t marker)
+    {
+        bool inCode = false;
+        for (size_t i = begin; i + 1 < end; ++i)
+        {
+            if (line[i] == static_cast<wchar_t>(96))
+            {
+                inCode = !inCode;
+                continue;
+            }
+            if (!inCode && line[i] == marker && line[i + 1] == marker)
+                return i;
+        }
+        return std::wstring::npos;
+    }
+
     inline void AppendInline(const std::wstring& line, size_t begin, size_t end,
         Result& result, bool codeLine = false)
     {
@@ -51,8 +70,8 @@ namespace MarkdownRenderer
                  (line[i] == L'_' && line[i + 1] == L'_')))
             {
                 const wchar_t marker = line[i];
-                const size_t close = line.find(std::wstring(2, marker), i + 2);
-                if ((!bold && close != std::wstring::npos && close < end) || (bold && marker == boldMarker))
+                const size_t close = FindClosingBoldMarker(line, i + 2, end, marker);
+                if ((!bold && close != std::wstring::npos) || (bold && marker == boldMarker))
                 {
                     if (!bold) { bold = true; boldMarker = marker; boldStart = result.text.size(); }
                     else
@@ -84,10 +103,8 @@ namespace MarkdownRenderer
             }
             result.text += line[i++];
         }
-        if (bold && result.text.size() > boldStart)
-            result.bold.push_back({ boldStart, result.text.size() - boldStart });
-        if (code && result.text.size() > codeStart)
-            result.code.push_back({ codeStart, result.text.size() - codeStart });
+        // Unmatched delimiters are left as literal text; they must not style
+        // the remainder of the line accidentally.
     }
 
     inline Result Render(const std::wstring& source)
@@ -147,7 +164,9 @@ namespace MarkdownRenderer
                 if (heading && formattedLength > 0)
                     result.headings.push_back({ formattedStart, formattedLength });
             }
-            if (end < source.size()) result.text += L"\r\n";
+            // RichEdit stores a paragraph break as one character (CR). Keeping CRLF
+            // here makes every formatting range after the first line drift by one.
+            if (end < source.size()) result.text += L"\r";
             pos = end + (end < source.size() ? 1 : 0);
         }
         return result;
