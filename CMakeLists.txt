@@ -141,6 +141,12 @@ if(BUILD_TESTING)
   target_compile_options(ConsultHistoryStoreTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME ConsultHistoryStoreTests COMMAND ConsultHistoryStoreTests)
 
+  add_executable(ModelDescriptionsTests tests/ModelDescriptionsTests.cpp)
+  target_include_directories(ModelDescriptionsTests PRIVATE src)
+  target_compile_features(ModelDescriptionsTests PRIVATE cxx_std_17)
+  target_compile_options(ModelDescriptionsTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME ModelDescriptionsTests COMMAND ModelDescriptionsTests)
+
   add_executable(AIProviderSettingsCodecTests
     tests/AIProviderSettingsCodecTests.cpp
     src/settings/AIProviderSettingsCodec.cpp
