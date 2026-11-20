@@ -270,8 +270,10 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
-    const std::wstring gatewayPath = L"/v1/" + providerSettings->cloudflareAccountId +
-        L"/" + providerSettings->cloudflareGatewayId + L"/groq/chat/completions";
+    const std::wstring gatewayPath = useGateway
+        ? L"/v1/" + providerSettings->cloudflareAccountId +
+            L"/" + providerSettings->cloudflareGatewayId + L"/groq/chat/completions"
+        : L"";
     HINTERNET connection = WinHttpConnect(session,
         useGateway ? L"gateway.ai.cloudflare.com" : L"api.groq.com",
         INTERNET_DEFAULT_HTTPS_PORT, 0);
