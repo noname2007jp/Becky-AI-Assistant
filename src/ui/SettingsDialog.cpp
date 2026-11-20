@@ -8,6 +8,7 @@
 #include "providers/ProviderModelCatalog.h"
 #include "providers/ProviderModelCatalogStore.h"
 #include "providers/ModelDescriptions.h"
+#include "providers/ModelCatalogPolicy.h"
 
 #include <string>
 #include <vector>
@@ -68,8 +69,11 @@ void UpdateGeminiModelDescription(HWND dialog, SettingsState* state)
     if (!state) return;
     const LRESULT selected = SendDlgItemMessageW(dialog, IDC_SETTINGS_DEFAULT_MODEL, CB_GETCURSEL, 0, 0);
     if (selected >= 0 && selected < static_cast<LRESULT>(state->models.size()))
-        SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS,
-            GetModelDescription(0, state->models[static_cast<size_t>(selected)].id).c_str());
+        {
+            const auto& modelId = state->models[static_cast<size_t>(selected)].id;
+            SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS,
+                (GetModelDescription(0, modelId) + L"\\r\\n" + GetModelCatalogPolicyNote(0, modelId)).c_str());
+        }
     else
         SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS, L"モデルを選択すると特徴を表示します。");
 }
@@ -82,7 +86,7 @@ void UpdateProviderModelDescription(HWND dialog, int provider)
     if (length > 0) GetDlgItemTextW(dialog, control, model.data(), length + 1);
     model.resize(static_cast<size_t>(length));
     SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
-        GetModelDescription(provider, model).c_str());
+        (GetModelDescription(provider, model) + L"\\r\\n" + GetModelCatalogPolicyNote(provider, model)).c_str());
 }
 
 void UpdateCurrentProviderModelDescription(HWND dialog)
@@ -171,6 +175,12 @@ DWORD WINAPI ProviderModelsThread(void* parameter)
         result->success = FetchGroqModelCatalog(args->apiKey, result->models, result->message);
     else
         result->success = FetchWorkersAIModelCatalog(args->accountId, args->apiToken, result->models, result->message);
+    if (result->success)
+    {
+        std::wstring policyError;
+        if (!RefreshModelCatalogPolicy(policyError))
+            result->message = L"モデル一覧は取得しました。評価情報は保存済みデータを使用します。";
+    }
     for (auto* secret : { &args->apiKey, &args->apiToken })
         if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
     if (result->success)
@@ -198,6 +208,12 @@ DWORD WINAPI ModelUpdateThread(void* parameter)
     {
         result->success = FetchGeminiModelCatalog(key, args->includePaid, result->models, error);
         SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
+        if (result->success)
+        {
+            std::wstring policyError;
+            if (!RefreshModelCatalogPolicy(policyError))
+                result->message = L"モデル一覧は取得しました。評価情報は保存済みデータを使用します。";
+        }
         if (result->success)
         {
             if (!SaveGeminiModelCatalog(result->models, error))
@@ -252,6 +268,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         TabCtrl_SetCurSel(tabs, 0);
         ShowSettingsTab(dialog, 0);
         std::wstring key, error;
+        std::wstring policyCacheError;
+        LoadModelCatalogPolicy(policyCacheError);
         SetDlgItemTextW(dialog, IDC_GEMINI_APIKEY_LINK,
             L"<a href=\"https://aistudio.google.com/api-keys\">Google AI StudioでAPIキーを取得</a>");
         SetDlgItemTextW(dialog, IDC_SETTINGS_PRICING_LINK,
@@ -425,6 +443,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                     preferred = state->models[static_cast<size_t>(previous)].id;
                 state->models = std::move(result->models);
                 PopulateDefaultModelCombo(dialog, state, preferred);
+                UpdateGeminiModelDescription(dialog, state);
             }
             delete result;
         }
