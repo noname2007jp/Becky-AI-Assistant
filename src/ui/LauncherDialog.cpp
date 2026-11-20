@@ -465,9 +465,10 @@ namespace
                         L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                if (context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                if (context->providerSettings.provider == AIProvider::Gemini &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
                 {
-                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                    MessageBoxW(dialog, L"GeminiのAI Gateway経由接続は次の開発段階で対応します。現在はGroq／Workers AIで利用できます。",
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
@@ -517,16 +518,16 @@ namespace
                 if (context->providerSettings.provider == AIProvider::WorkersAI)
                 {
                     const auto settings = context->providerSettings;
-                    if (settings.workersAccountId.empty() || settings.workersApiToken.empty() ||
-                        settings.workersModel.empty()) {
-                        MessageBoxW(dialog, L"Cloudflare Account ID、Workers AI APIトークン、モデルIDを設定画面で保存してください。",
+                    const bool useGateway = settings.route == AIConnectionRoute::CloudflareAIGateway;
+                    if (settings.workersModel.empty() ||
+                        (useGateway
+                            ? (settings.cloudflareAccountId.empty() || settings.cloudflareGatewayId.empty() ||
+                               settings.cloudflareApiToken.empty())
+                            : (settings.workersAccountId.empty() || settings.workersApiToken.empty()))) {
+                        MessageBoxW(dialog, useGateway
+                            ? L"AI GatewayのAccount ID、Gateway ID、Cloudflare APIトークン、Workers AIモデルを設定してください。"
+                            : L"Cloudflare Account ID、Workers AI APIトークン、モデルIDを設定してください。",
                             L"Workers AI設定", MB_OK | MB_ICONWARNING);
-                        return TRUE;
-                    }
-                    if (settings.route != AIConnectionRoute::Direct)
-                    {
-                        MessageBoxW(dialog, L"Workers AIのAI Gateway経由接続はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
-                            L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                         return TRUE;
                     }
                     const std::wstring subject = mail.subject, body = mail.body;
@@ -542,12 +543,16 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
                     EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
-                    if (!GeminiAsync::Start(dialog, std::move(settings.workersApiToken),
-                        [accountId = settings.workersAccountId, modelId = settings.workersModel,
-                            tone, subject, body, replyRequirements, masker]
+                    const std::wstring accountId = useGateway
+                        ? settings.cloudflareAccountId : settings.workersAccountId;
+                    std::wstring requestToken = useGateway
+                        ? settings.cloudflareApiToken : settings.workersApiToken;
+                    if (!GeminiAsync::Start(dialog, std::move(requestToken),
+                        [accountId, modelId = settings.workersModel, tone, subject, body,
+                            replyRequirements, masker, settings]
                         (const std::wstring& token, const std::atomic<int>& cancelState) mutable {
                             return GenerateWorkersAIMailReplyDraft(accountId, token, modelId,
-                                tone, subject, body, replyRequirements, &masker, &cancelState);
+                                tone, subject, body, replyRequirements, &masker, &cancelState, &settings);
                         }, 2, &context->work)) {
                         context->busy = false;
                         context->work = nullptr;
@@ -588,10 +593,10 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                     if (!GeminiAsync::Start(dialog, std::move(settings.groqApiKey),
-                        [modelId = settings.groqModel, tone, subject, body, replyRequirements, masker]
+                        [modelId = settings.groqModel, tone, subject, body, replyRequirements, masker, settings]
                         (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                             return GenerateGroqMailReplyDraft(key, modelId, tone, subject, body,
-                                replyRequirements, &masker, &cancelState);
+                                replyRequirements, &masker, &cancelState, &settings);
                         }, 2, &context->work)) {
                         context->busy = false;
                         context->work = nullptr;
@@ -680,9 +685,10 @@ namespace
                         L"設定読み込みエラー", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                if (context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
+                if (context->providerSettings.provider == AIProvider::Gemini &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
                 {
-                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                    MessageBoxW(dialog, L"GeminiのAI Gateway経由接続は次の開発段階で対応します。現在はGroq／Workers AIで利用できます。",
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
