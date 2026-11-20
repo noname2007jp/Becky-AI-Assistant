@@ -9,6 +9,7 @@
 #include "providers/ProviderModelCatalogStore.h"
 #include "providers/ModelDescriptions.h"
 #include "providers/ModelCatalogPolicy.h"
+#include "providers/ModelCatalogTimestamps.h"
 
 #include <string>
 #include <vector>
@@ -39,7 +40,7 @@ void ShowSettingsTab(HWND dialog, int selected)
         IDC_GEMINI_APIKEY_LINK, IDC_SETTINGS_LABEL_API_NOTE, IDC_SETTINGS_LABEL_MODEL,
         IDC_GROQ_APIKEY_LINK, IDC_CF_WORKERS_AI_LINK, IDC_CF_AI_GATEWAY_LINK,
         IDC_SETTINGS_DEFAULT_MODEL, IDC_SETTINGS_PRICING_LINK, IDC_SETTINGS_UPDATE_MODELS,
-        IDC_SETTINGS_TEST, IDC_GEMINI_MODEL_DETAILS };
+        IDC_SETTINGS_TEST, IDC_GEMINI_MODEL_DETAILS, IDC_GEMINI_CATALOG_UPDATED_AT };
     const int provider[] = { IDC_PROVIDER_LABEL, IDC_PROVIDER_SELECT, IDC_PROVIDER_ROUTE_LABEL,
         IDC_PROVIDER_ROUTE, IDC_PROVIDER_STATUS_NOTE, IDC_PROVIDER_GROQ_KEY_LABEL,
         IDC_PROVIDER_GROQ_KEY, IDC_PROVIDER_GROQ_MODEL_LABEL, IDC_PROVIDER_GROQ_MODEL,
@@ -72,7 +73,7 @@ void UpdateGeminiModelDescription(HWND dialog, SettingsState* state)
         {
             const auto& modelId = state->models[static_cast<size_t>(selected)].id;
             SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS,
-                (GetModelDescription(0, modelId) + L"\r\n" + GetModelCatalogPolicyNote(0, modelId)).c_str());
+                (GetModelDescription(0, modelId) + L"\r\n" + GetModelCatalogPolicyNote(0, modelId) + L"\r\n" + GetModelPolicyUpdatedAtText()).c_str());
         }
     else
         SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS, L"モデルを選択すると特徴を表示します。");
@@ -86,7 +87,8 @@ void UpdateProviderModelDescription(HWND dialog, int provider)
     if (length > 0) GetDlgItemTextW(dialog, control, model.data(), length + 1);
     model.resize(static_cast<size_t>(length));
     SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
-        (GetModelDescription(provider, model) + L"\r\n" + GetModelCatalogPolicyNote(provider, model)).c_str());
+        (GetModelCatalogUpdatedAtText(provider) + L"　" + GetModelPolicyUpdatedAtText() + L"\r\n" +
+         GetModelDescription(provider, model) + L"\r\n" + GetModelCatalogPolicyNote(provider, model)).c_str());
 }
 
 void UpdateCurrentProviderModelDescription(HWND dialog)
@@ -381,6 +383,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         PopulateDefaultModelCombo(dialog, state, reliability.defaultModel);
         UpdateGeminiModelDescription(dialog, state);
         UpdateCurrentProviderModelDescription(dialog);
+        SetDlgItemTextW(dialog, IDC_GEMINI_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(0).c_str());
         return TRUE;
     }
 
@@ -446,6 +449,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 state->models = std::move(result->models);
                 PopulateDefaultModelCombo(dialog, state, preferred);
                 UpdateGeminiModelDescription(dialog, state);
+                SetDlgItemTextW(dialog, IDC_GEMINI_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(0).c_str());
             }
             delete result;
         }
@@ -473,12 +477,14 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 if (len > 0) GetWindowTextW(combo, preferred.data(), len + 1);
                 preferred.resize(static_cast<size_t>(len));
                 PopulateProviderModelCombo(dialog, result->provider, result->models, preferred);
-                UpdateProviderModelDescription(dialog, result->provider);
                 std::wstring saveError;
                 if (SaveProviderModelCatalog(result->provider, result->models, saveError))
+                {
                     result->message += L" 次回起動時もこの一覧を利用できます。";
+                }
                 else
                     result->message += L" ただし、一覧の保存に失敗しました：" + saveError;
+                UpdateProviderModelDescription(dialog, result->provider);
             }
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, result->message.c_str());
             delete result;
