@@ -22,3 +22,7 @@ bool RefreshModelCatalogPolicy(std::wstring& error);
 
 // Returns a concise Japanese advisory. Unknown models are explicitly unassessed.
 std::wstring GetModelCatalogPolicyNote(int provider, const std::wstring& modelId);
+
+// Parses and validates a policy document without touching disk or the network.
+bool ParseModelCatalogPolicyJson(const std::string& json,
+    std::vector<ModelCatalogPolicyEntry>& entries);
