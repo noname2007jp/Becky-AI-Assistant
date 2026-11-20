@@ -154,7 +154,8 @@ bool IsSafeGatewayPart(const std::wstring& value, size_t maxLength)
 {
     if (value.empty() || value.size() > maxLength) return false;
     for (wchar_t c : value)
-        if (!(iswalnum(c) || c == L'-' || c == L'_')) return false;
+        if (!((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') ||
+              (c >= L'0' && c <= L'9') || c == L'-' || c == L'_')) return false;
     return true;
 }
 
@@ -369,7 +370,9 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
             }
             else
             {
-                result.error = HttpError(status);
+                result.error = useGateway && status == 401
+                    ? L"Cloudflare AI Gateway用APIトークンが無効か、Workers AI Read権限がありません。"
+                    : HttpError(status);
                 result.retryable = status == 408 || status == 429 || status >= 500;
                 std::wstring providerMessage;
                 if (ExtractStringProperty(response, "message", providerMessage) && !providerMessage.empty())
