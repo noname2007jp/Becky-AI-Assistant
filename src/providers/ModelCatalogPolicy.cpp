@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iterator>
 #include <regex>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -16,6 +17,7 @@ namespace
 {
 std::vector<ModelCatalogPolicyEntry> g_entries;
 bool g_loaded = false;
+std::mutex g_policyMutex;
 
 std::wstring CachePath(bool createDirectory)
 {
@@ -212,8 +214,11 @@ bool LoadFromBytes(const std::string& bytes, std::wstring& error)
         error = L"モデル評価情報の形式またはスキーマが正しくありません。";
         return false;
     }
-    g_entries.swap(parsed);
-    g_loaded = true;
+    {
+        std::lock_guard<std::mutex> lock(g_policyMutex);
+        g_entries.swap(parsed);
+        g_loaded = true;
+    }
     return true;
 }
 }
@@ -241,14 +246,18 @@ bool RefreshModelCatalogPolicy(std::wstring& error)
         return false;
     }
     if (!SaveCache(bytes, error)) return false;
-    g_entries.swap(parsed);
-    g_loaded = true;
+    {
+        std::lock_guard<std::mutex> lock(g_policyMutex);
+        g_entries.swap(parsed);
+        g_loaded = true;
+    }
     return true;
 }
 
 std::wstring GetModelCatalogPolicyNote(int provider, const std::wstring& modelId)
 {
     if (!g_loaded) { std::wstring ignored; LoadModelCatalogPolicy(ignored); }
+    std::lock_guard<std::mutex> lock(g_policyMutex);
     for (const auto& entry : g_entries)
     {
         if (entry.provider != provider || entry.modelId != modelId) continue;
