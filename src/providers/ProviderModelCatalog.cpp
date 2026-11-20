@@ -71,7 +71,7 @@ std::vector<std::string> Objects(const std::string& json,const char* arrayName) 
 }
 bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& token,
     const wchar_t* extraHeader,std::string& body,std::wstring& error) {
-    HINTERNET session=WinHttpOpen(L"Becky-AI-Assistant/0.82.0",
+    HINTERNET session=WinHttpOpen(L"Becky-AI-Assistant/0.83.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0);
     if(!session){error=L"モデル一覧の通信を開始できません。";return false;}
     WinHttpSetTimeouts(session,10000,10000,15000,30000);
