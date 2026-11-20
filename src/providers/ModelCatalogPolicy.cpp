@@ -86,7 +86,9 @@ bool ParsePolicy(const std::string& json, std::vector<ModelCatalogPolicyEntry>& 
 
     const char* providers[] = { "gemini", "groq", "workers_ai" };
     std::vector<ModelCatalogPolicyEntry> parsed;
-    for (const char* provider : providers)
+    for (int providerIndex = 0; providerIndex < 3; ++providerIndex)
+    {
+        const char* provider = providers[providerIndex];
     {
         const std::regex arrayPattern(std::string("\\"") + provider + "\\"\\s*:\\s*\\[");
         std::smatch arrayMatch;
@@ -113,6 +115,7 @@ bool ParsePolicy(const std::string& json, std::vector<ModelCatalogPolicyEntry>& 
                 {
                     const std::string object = json.substr(objectStart, pos - objectStart + 1);
                     ModelCatalogPolicyEntry entry;
+                    entry.provider = providerIndex;
                     entry.modelId = Wide(JsonString(object, "id"));
                     entry.status = Wide(JsonString(object, "status"));
                     entry.quality = Wide(JsonString(object, "quality"));
@@ -124,7 +127,7 @@ bool ParsePolicy(const std::string& json, std::vector<ModelCatalogPolicyEntry>& 
                     if (entry.quality != L"unverified" && entry.quality != L"tested" &&
                         entry.quality != L"poor") return false;
                     if (std::any_of(parsed.begin(), parsed.end(), [&](const auto& x) {
-                        return x.modelId == entry.modelId && x.reason == entry.reason;
+                        return x.provider == entry.provider && x.modelId == entry.modelId;
                     })) return false;
                     parsed.push_back(std::move(entry));
                     objectStart = std::string::npos;
@@ -245,13 +248,10 @@ bool RefreshModelCatalogPolicy(std::wstring& error)
 std::wstring GetModelCatalogPolicyNote(int provider, const std::wstring& modelId)
 {
     if (!g_loaded) { std::wstring ignored; LoadModelCatalogPolicy(ignored); }
-    const wchar_t* providerName = provider == 0 ? L"gemini" : provider == 1 ? L"groq" : L"workers_ai";
     const std::wstring id = modelId;
     for (const auto& entry : g_entries)
     {
-        // IDs are globally namespaced by provider in policy; the provider field is
-        // validated by the caller's selected catalog, and model IDs are exact-match only.
-        if (entry.modelId != id) continue;
+        if (entry.provider != provider || entry.modelId != id) continue;
         std::wstring note = L"評価：";
         if (entry.status == L"recommended") note += L"推奨";
         else if (entry.status == L"allowed") note += L"利用可";
@@ -265,6 +265,5 @@ std::wstring GetModelCatalogPolicyNote(int provider, const std::wstring& modelId
         if (!entry.replacementModelId.empty()) note += L"\r\n代替候補：" + entry.replacementModelId;
         return note;
     }
-    (void)providerName;
     return L"評価：未登録（品質未評価）";
 }
