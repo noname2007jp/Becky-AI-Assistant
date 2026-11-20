@@ -1,4 +1,5 @@
 #include "WorkersAIMailConsultation.h"
+#include "settings/AIProviderSettings.h"
 #include "WorkersAIClient.h"
 #include "gemini/GeminiDebugLog.h"
 #include "gemini/PiiMasker.h"
@@ -15,7 +16,8 @@ GeminiGenerateResult GenerateWorkersAIMailConsultation(
     const std::wstring& question,
     PiiMasker* externalMasker,
     const std::atomic<int>* cancelState,
-    const WorkersAIProgressCallback& progress)
+    const WorkersAIProgressCallback& progress,
+    const AIProviderSettings* providerSettings)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
     if (accountId.empty()) { result.error = L"Cloudflare Account IDが設定されていません。"; return result; }
@@ -69,7 +71,7 @@ GeminiGenerateResult GenerateWorkersAIMailConsultation(
     const ULONGLONG started = GetTickCount64();
     LogProviderEvent(L"Cloudflare Workers AI", L"consultation", modelId, L"START", 0, false, 0, L"");
     result = GenerateWorkersAIChatCompletion(apiToken, accountId, modelId,
-        systemPrompt, maskedPrompt, 768, cancelState, progress);
+        systemPrompt, maskedPrompt, 768, cancelState, progress, providerSettings);
     LogProviderEvent(L"Cloudflare Workers AI", L"consultation", modelId, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success) result.text = masker.Restore(result.text);

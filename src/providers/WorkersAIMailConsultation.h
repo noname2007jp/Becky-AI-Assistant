@@ -1,5 +1,6 @@
 #pragma once
 #include "gemini/GeminiGenerate.h"
+#include "settings/AIProviderSettings.h"
 #include "WorkersAIClient.h"
 #include <atomic>
 #include <string>
@@ -17,4 +18,5 @@ GeminiGenerateResult GenerateWorkersAIMailConsultation(
     const std::wstring& question,
     PiiMasker* masker = nullptr,
     const std::atomic<int>* cancelState = nullptr,
-    const WorkersAIProgressCallback& progress = {});
+    const WorkersAIProgressCallback& progress = {},
+    const AIProviderSettings* providerSettings = nullptr);

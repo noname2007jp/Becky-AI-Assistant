@@ -5,6 +5,7 @@
 #include <winhttp.h>
 #include <string>
 #include <cwchar>
+#include <cwctype>
 
 #include "gemini/GeminiError.h"
 #include "gemini/GeminiTextContinuation.h"
@@ -149,6 +150,15 @@ bool ExtractStringProperty(const std::string& json, const char* property, std::w
     return false;
 }
 
+bool IsSafeGatewayPart(const std::wstring& value, size_t maxLength)
+{
+    if (value.empty() || value.size() > maxLength) return false;
+    for (wchar_t c : value)
+        if (!((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') ||
+              (c >= L'0' && c <= L'9') || c == L'-' || c == L'_')) return false;
+    return true;
+}
+
 bool IsOtpRateLimitError(const std::wstring& error)
 {
     return error.find(L"OTPM") != std::wstring::npos ||
@@ -217,11 +227,24 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
     const std::wstring& assistantContinuation,
     unsigned int maxOutputTokens,
     std::string* finishReason,
-    const std::atomic<int>* cancelState)
+    const std::atomic<int>* cancelState,
+    const AIProviderSettings* providerSettings)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
-    if (apiKey.empty()) { result.error = L"Cloudflare Workers AI APIトークンが設定されていません。"; return result; }
-    if (!IsValidWorkersAIAccountId(accountId)) {
+    const bool useGateway = providerSettings &&
+        providerSettings->route == AIConnectionRoute::CloudflareAIGateway;
+    const std::wstring effectiveAccountId = useGateway
+        ? providerSettings->cloudflareAccountId : accountId;
+    if (apiKey.empty()) { result.error = useGateway
+        ? L"Cloudflare AI Gateway用APIトークンが設定されていません。"
+        : L"Cloudflare Workers AI APIトークンが設定されていません。"; return result; }
+    if (useGateway &&
+        (!IsSafeGatewayPart(providerSettings->cloudflareGatewayId, 64) ||
+         !IsSafeGatewayPart(effectiveAccountId, 32) || effectiveAccountId.size() != 32)) {
+        result.error = L"AI GatewayのAccount ID（32桁の16進数）またはGateway IDが正しく設定されていません。";
+        return result;
+    }
+    if (!IsValidWorkersAIAccountId(effectiveAccountId)) {
         result.error = L"Cloudflare Account IDは32桁の16進数で指定してください。"; return result;
     }
     if (modelId.empty()) { result.error = L"Workers AIモデルIDが設定されていません。"; return result; }
@@ -251,12 +274,12 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
         "\",\"messages\":" + messages + ",\"max_tokens\":" +
         std::to_string(maxOutputTokens) + "}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.83.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.84.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Cloudflare Workers AI APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
     HINTERNET connection = WinHttpConnect(session, L"api.cloudflare.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring requestPath = BuildWorkersAIChatCompletionsPath(accountId);
+    const std::wstring requestPath = BuildWorkersAIChatCompletionsPath(effectiveAccountId);
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
         requestPath.c_str(), nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
@@ -270,6 +293,15 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
 
     std::wstring headers = L"Authorization: Bearer " + apiKey +
         L"\r\nContent-Type: application/json; charset=utf-8\r\nAccept: application/json\r\n";
+    if (useGateway)
+    {
+        headers += L"cf-aig-gateway-id: " + providerSettings->cloudflareGatewayId + L"\r\n";
+        headers += std::wstring(L"cf-aig-collect-log: ") +
+            (providerSettings->gatewayRequestLogging ? L"true\r\n" : L"false\r\n");
+        headers += L"cf-aig-collect-log-payload: false\r\n";
+        if (!providerSettings->gatewayCacheEnabled)
+            headers += L"cf-aig-skip-cache: true\r\n";
+    }
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), static_cast<DWORD>(headers.size()),
         const_cast<char*>(payload.data()), static_cast<DWORD>(payload.size()),
         static_cast<DWORD>(payload.size()), 0);
@@ -338,7 +370,9 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
             }
             else
             {
-                result.error = HttpError(status);
+                result.error = useGateway && status == 401
+                    ? L"Cloudflare AI Gateway用APIトークンが無効か、Workers AI Read権限がありません。"
+                    : HttpError(status);
                 result.retryable = status == 408 || status == 429 || status >= 500;
                 std::wstring providerMessage;
                 if (ExtractStringProperty(response, "message", providerMessage) && !providerMessage.empty())
@@ -371,7 +405,8 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
     const std::wstring& userPrompt,
     unsigned int maxOutputTokens,
     const std::atomic<int>* cancelState,
-    const WorkersAIProgressCallback& progress)
+    const WorkersAIProgressCallback& progress,
+    const AIProviderSettings* providerSettings)
 {
     constexpr int kMaxContinuationAttempts = 2;
     GeminiGenerateResult result{ false, 0, {}, L"" };
@@ -401,7 +436,7 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
                     progress(L"Cloudflare Workers AI API応答待ち");
             }
             result = GenerateWorkersAIChatCompletionOnce(apiKey, accountId, modelId, systemPrompt,
-                userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
+                userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState, providerSettings);
             if (result.success || !IsOtpRateLimitError(result.error) ||
                 otpRetryAttempt >= kMaxOtpRetryAttempts)
                 break;

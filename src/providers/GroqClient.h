@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gemini/GeminiGenerate.h"
+#include "settings/AIProviderSettings.h"
 #include <atomic>
 #include <functional>
 #include <string>
@@ -16,4 +17,5 @@ GeminiGenerateResult GenerateGroqChatCompletion(
     const std::wstring& userPrompt,
     unsigned int maxOutputTokens,
     const std::atomic<int>* cancelState = nullptr,
-    const GroqProgressCallback& progress = {});
+    const GroqProgressCallback& progress = {},
+    const AIProviderSettings* providerSettings = nullptr);

@@ -99,11 +99,11 @@ BEGIN
     EDITTEXT        IDC_GATEWAY_ACCOUNT, 20, 71, 380, 20, ES_AUTOHSCROLL | WS_TABSTOP | WS_BORDER
     LTEXT           "AI Gateway ID", IDC_GATEWAY_ID_LABEL, 20, 105, 220, 12
     EDITTEXT        IDC_GATEWAY_ID, 20, 121, 380, 20, ES_AUTOHSCROLL | WS_TABSTOP | WS_BORDER
-    LTEXT           "Cloudflare API Token", IDC_GATEWAY_TOKEN_LABEL, 20, 155, 220, 12
+    LTEXT           "Cloudflare API Token（Gateway認証／Workers AI Read）", IDC_GATEWAY_TOKEN_LABEL, 20, 155, 380, 12
     EDITTEXT        IDC_GATEWAY_TOKEN, 20, 171, 380, 20, ES_AUTOHSCROLL | ES_PASSWORD | WS_TABSTOP | WS_BORDER
     CONTROL         "Gatewayリクエストログを有効にする（初期値OFF）", IDC_GATEWAY_LOGGING, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 20, 210, 380, 18
     CONTROL         "Gatewayキャッシュを有効にする（初期値OFF）", IDC_GATEWAY_CACHE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 20, 238, 380, 18
-    LTEXT           "ログ／キャッシュを有効にすると、メール本文等がCloudflare側に保持される可能性があります。", IDC_GATEWAY_PRIVACY_NOTE, 20, 270, 400, 32
+    LTEXT           "ログONでもメール本文・AI回答の保存はOFFにします。キャッシュON時はGateway側のキャッシュ設定も必要で、内容がCloudflare側に保持される場合があります。", IDC_GATEWAY_PRIVACY_NOTE, 20, 270, 400, 32
     LTEXT           "", IDC_SETTINGS_STATUS, 12, 490, 436, 32
     DEFPUSHBUTTON   "保存", IDC_SETTINGS_SAVE, 310, 525, 62, 22
     PUSHBUTTON      "閉じる", IDCANCEL, 382, 525, 66, 22

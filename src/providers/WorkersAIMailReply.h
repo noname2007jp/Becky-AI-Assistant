@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gemini/GeminiGenerate.h"
+#include "settings/AIProviderSettings.h"
 
 #include <atomic>
 #include <string>
@@ -18,4 +19,5 @@ GeminiGenerateResult GenerateWorkersAIMailReplyDraft(
     const std::wstring& body,
     const std::wstring& replyRequirements,
     PiiMasker* masker,
-    const std::atomic<int>* cancelState = nullptr);
+    const std::atomic<int>* cancelState = nullptr,
+    const AIProviderSettings* providerSettings = nullptr);

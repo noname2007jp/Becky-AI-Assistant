@@ -1,4 +1,5 @@
 #include "GroqMailConsultation.h"
+#include "settings/AIProviderSettings.h"
 #include "GroqClient.h"
 #include "gemini/GeminiDebugLog.h"
 #include "gemini/PiiMasker.h"
@@ -14,7 +15,8 @@ GeminiGenerateResult GenerateGroqMailConsultation(
     const std::wstring& question,
     PiiMasker* externalMasker,
     const std::atomic<int>* cancelState,
-    const GroqProgressCallback& progress)
+    const GroqProgressCallback& progress,
+    const AIProviderSettings* providerSettings)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
     if (apiKey.empty()) { result.error = L"Groq APIキーが設定されていません。"; return result; }
@@ -67,7 +69,7 @@ GeminiGenerateResult GenerateGroqMailConsultation(
     const ULONGLONG started = GetTickCount64();
     LogProviderEvent(L"Groq", L"consultation", modelId, L"START", 0, false, 0, L"");
     result = GenerateGroqChatCompletion(apiKey, modelId, systemPrompt,
-        maskedPrompt, 768, cancelState, progress);
+        maskedPrompt, 768, cancelState, progress, providerSettings);
     LogProviderEvent(L"Groq", L"consultation", modelId, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success) result.text = masker.Restore(result.text);

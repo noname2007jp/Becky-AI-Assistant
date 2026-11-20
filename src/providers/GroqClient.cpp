@@ -4,6 +4,7 @@
 #include <winhttp.h>
 #include <string>
 #include <cwchar>
+#include <cwctype>
 
 #include "gemini/GeminiError.h"
 #include "gemini/GeminiTextContinuation.h"
@@ -148,6 +149,24 @@ bool ExtractStringProperty(const std::string& json, const char* property, std::w
     return false;
 }
 
+bool IsSafeGatewayPart(const std::wstring& value, size_t maxLength)
+{
+    if (value.empty() || value.size() > maxLength) return false;
+    for (wchar_t c : value)
+        if (!((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') ||
+              (c >= L'0' && c <= L'9') || c == L'-' || c == L'_')) return false;
+    return true;
+}
+
+bool IsValidCloudflareAccountId(const std::wstring& value)
+{
+    if (value.size() != 32) return false;
+    for (wchar_t c : value)
+        if (!((c >= L'a' && c <= L'f') || (c >= L'A' && c <= L'F') ||
+              (c >= L'0' && c <= L'9'))) return false;
+    return true;
+}
+
 bool IsOtpRateLimitError(const std::wstring& error)
 {
     return error.find(L"OTPM") != std::wstring::npos ||
@@ -215,7 +234,8 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
     const std::wstring& assistantContinuation,
     unsigned int maxOutputTokens,
     std::string* finishReason,
-    const std::atomic<int>* cancelState)
+    const std::atomic<int>* cancelState,
+    const AIProviderSettings* providerSettings)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
     if (apiKey.empty()) { result.error = L"Groq APIキーが設定されていません。"; return result; }
@@ -246,13 +266,34 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
         "\",\"messages\":" + messages + ",\"max_tokens\":" +
         std::to_string(maxOutputTokens) + "}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.83.0",
+    const bool useGateway = providerSettings &&
+        providerSettings->route == AIConnectionRoute::CloudflareAIGateway;
+    if (useGateway &&
+        (!IsValidCloudflareAccountId(providerSettings->cloudflareAccountId) ||
+         !IsSafeGatewayPart(providerSettings->cloudflareGatewayId, 64)))
+    {
+        result.error = L"AI GatewayのAccount ID（32桁の16進数）またはGateway IDが正しく設定されていません。";
+        return result;
+    }
+    if (useGateway && providerSettings->cloudflareApiToken.empty())
+    {
+        result.error = L"Cloudflare AI Gateway認証用APIトークンが設定されていません。";
+        return result;
+    }
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.84.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
-    HINTERNET connection = WinHttpConnect(session, L"api.groq.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    const std::wstring gatewayPath = useGateway
+        ? L"/v1/" + providerSettings->cloudflareAccountId +
+            L"/" + providerSettings->cloudflareGatewayId + L"/groq/chat/completions"
+        : L"";
+    HINTERNET connection = WinHttpConnect(session,
+        useGateway ? L"gateway.ai.cloudflare.com" : L"api.groq.com",
+        INTERNET_DEFAULT_HTTPS_PORT, 0);
+    const std::wstring requestPath = useGateway ? gatewayPath : L"/openai/v1/chat/completions";
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
-        L"/openai/v1/chat/completions", nullptr, WINHTTP_NO_REFERER,
+        requestPath.c_str(), nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
     if (!request)
     {
@@ -264,6 +305,16 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
 
     std::wstring headers = L"Authorization: Bearer " + apiKey +
         L"\r\nContent-Type: application/json; charset=utf-8\r\nAccept: application/json\r\n";
+    if (useGateway)
+    {
+        if (!providerSettings->cloudflareApiToken.empty())
+            headers += L"cf-aig-authorization: Bearer " + providerSettings->cloudflareApiToken + L"\r\n";
+        headers += std::wstring(L"cf-aig-collect-log: ") +
+            (providerSettings->gatewayRequestLogging ? L"true\r\n" : L"false\r\n");
+        headers += L"cf-aig-collect-log-payload: false\r\n";
+        if (!providerSettings->gatewayCacheEnabled)
+            headers += L"cf-aig-skip-cache: true\r\n";
+    }
     BOOL sent = WinHttpSendRequest(request, headers.c_str(), static_cast<DWORD>(headers.size()),
         const_cast<char*>(payload.data()), static_cast<DWORD>(payload.size()),
         static_cast<DWORD>(payload.size()), 0);
@@ -332,7 +383,9 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
             }
             else
             {
-                result.error = HttpError(status);
+                result.error = useGateway && status == 401
+                    ? L"Groq APIキーまたはAI Gateway認証トークンが無効です。両方の設定を確認してください。"
+                    : HttpError(status);
                 result.retryable = status == 408 || status == 429 || status >= 500;
                 std::wstring providerMessage;
                 if (ExtractStringProperty(response, "message", providerMessage) && !providerMessage.empty())
@@ -364,7 +417,8 @@ GeminiGenerateResult GenerateGroqChatCompletion(
     const std::wstring& userPrompt,
     unsigned int maxOutputTokens,
     const std::atomic<int>* cancelState,
-    const GroqProgressCallback& progress)
+    const GroqProgressCallback& progress,
+    const AIProviderSettings* providerSettings)
 {
     constexpr int kMaxContinuationAttempts = 2;
     GeminiGenerateResult result{ false, 0, {}, L"" };
@@ -394,7 +448,7 @@ GeminiGenerateResult GenerateGroqChatCompletion(
                     progress(L"Groq API応答待ち");
             }
             result = GenerateGroqChatCompletionOnce(apiKey, modelId, systemPrompt,
-                userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState);
+                userPrompt, accumulated, maxOutputTokens, &finishReason, cancelState, providerSettings);
             if (result.success || !IsOtpRateLimitError(result.error) ||
                 otpRetryAttempt >= kMaxOtpRetryAttempts)
                 break;

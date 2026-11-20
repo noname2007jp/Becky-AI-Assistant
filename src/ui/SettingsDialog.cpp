@@ -634,7 +634,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
 
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS,
                 keySaved && termsSaved && optionsSaved && reliabilitySaved && providerSettingsSaved
-                    ? L"設定を暗号化して保存しました。なお、メール処理の接続先は現時点ではGemini固定です。"
+                    ? L"AIサービス設定を暗号化して保存しました。"
                     : (error.empty() ? L"設定を保存できませんでした。" : error.c_str()));
             return TRUE;
         }

@@ -416,12 +416,21 @@ namespace
                         L"Groq設定", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
+                const bool useWorkersGatewayConfigured =
+                    context->providerSettings.provider == AIProvider::WorkersAI &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway;
                 if (context->providerSettings.provider == AIProvider::WorkersAI &&
-                    (context->providerSettings.workersAccountId.empty() ||
-                     context->providerSettings.workersApiToken.empty() ||
-                     context->providerSettings.workersModel.empty()))
+                    (context->providerSettings.workersModel.empty() ||
+                     (useWorkersGatewayConfigured
+                        ? (context->providerSettings.cloudflareAccountId.empty() ||
+                           context->providerSettings.cloudflareGatewayId.empty() ||
+                           context->providerSettings.cloudflareApiToken.empty())
+                        : (context->providerSettings.workersAccountId.empty() ||
+                           context->providerSettings.workersApiToken.empty()))))
                 {
-                    MessageBoxW(dialog, L"Cloudflare Account ID、Workers AI APIトークン、モデルIDが設定されていません。",
+                    MessageBoxW(dialog, useWorkersGatewayConfigured
+                        ? L"AI GatewayのAccount ID、Gateway ID、Cloudflare APIトークン、Workers AIモデルが設定されていません。"
+                        : L"Cloudflare Account ID、Workers AI APIトークン、モデルIDが設定されていません。",
                         L"Workers AI設定", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
@@ -484,14 +493,22 @@ namespace
                 {
                     ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
                 }
+                const bool useWorkersGateway = useWorkersAI &&
+                    context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway;
                 std::wstring workerKey = useGroq
                     ? context->providerSettings.groqApiKey
-                    : (useWorkersAI ? context->providerSettings.workersApiToken : std::move(context->apiKey));
+                    : (useWorkersAI
+                        ? (useWorkersGateway ? context->providerSettings.cloudflareApiToken
+                                             : context->providerSettings.workersApiToken)
+                        : std::move(context->apiKey));
                 if (!useGroq && !useWorkersAI) context->apiKey.clear();
-                const std::wstring workersAccountId = context->providerSettings.workersAccountId;
+                const std::wstring workersAccountId = useWorkersGateway
+                    ? context->providerSettings.cloudflareAccountId
+                    : context->providerSettings.workersAccountId;
+                const AIProviderSettings providerSettings = context->providerSettings;
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
                     [dialog, useGroq, useWorkersAI, workersAccountId, modelId, thinking, models, autoFallback,
-                        subject, body, history, question, masker]
+                        subject, body, history, question, masker, providerSettings]
                     (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         if (useGroq)
                         {
@@ -502,7 +519,7 @@ namespace
                                     delete copy;
                             };
                             return GenerateGroqMailConsultation(key, modelId, subject, body,
-                                history, question, &masker, &cancelState, progress);
+                                history, question, &masker, &cancelState, progress, &providerSettings);
                         }
                         if (useWorkersAI)
                         {
@@ -513,7 +530,7 @@ namespace
                                     delete copy;
                             };
                             return GenerateWorkersAIMailConsultation(workersAccountId, key, modelId,
-                                subject, body, history, question, &masker, &cancelState, progress);
+                                subject, body, history, question, &masker, &cancelState, progress, &providerSettings);
                         }
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
