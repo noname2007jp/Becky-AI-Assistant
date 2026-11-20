@@ -86,7 +86,7 @@ void UpdateProviderModelDescription(HWND dialog, int provider)
     if (length > 0) GetDlgItemTextW(dialog, control, model.data(), length + 1);
     model.resize(static_cast<size_t>(length));
     SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
-        (GetModelDescription(provider, model) + L"\\r\\n" + GetModelCatalogPolicyNote(provider, model)).c_str());
+        (GetModelDescription(provider, model) + L"\r\n" + GetModelCatalogPolicyNote(provider, model)).c_str());
 }
 
 void UpdateCurrentProviderModelDescription(HWND dialog)
