@@ -241,7 +241,7 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
     if (useGateway &&
         (!IsSafeGatewayPart(providerSettings->cloudflareGatewayId, 64) ||
          !IsSafeGatewayPart(effectiveAccountId, 32) || effectiveAccountId.size() != 32)) {
-        result.error = L"AI GatewayのAccount ID（32桁の英数字）またはGateway IDが正しく設定されていません。";
+        result.error = L"AI GatewayのAccount ID（32桁の16進数）またはGateway IDが正しく設定されていません。";
         return result;
     }
     if (!IsValidWorkersAIAccountId(effectiveAccountId)) {
