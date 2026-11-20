@@ -446,7 +446,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 state->models = std::move(result->models);
                 PopulateDefaultModelCombo(dialog, state, preferred);
                 UpdateGeminiModelDescription(dialog, state);
-                UpdateGeminiModelDescription(dialog, state);
             }
             delete result;
         }
