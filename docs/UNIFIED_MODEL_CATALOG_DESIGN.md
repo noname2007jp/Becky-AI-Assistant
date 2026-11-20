@@ -18,7 +18,7 @@ The provider API remains authoritative for whether an account can call a model. 
 4. Filter out models that cannot perform text generation / chat completion used by this plugin.
 5. Fetch the policy JSON from this repository's raw-content URL with a bounded timeout and size limit.
 6. Merge policy metadata by exact provider + model ID. Unknown IDs remain visible as 未評価 if they pass API capability filtering.
-7. Save provider API catalogs and last-known-good policy JSON atomically. A failed refresh must not erase working cached data.
+7. Save provider API catalogs and last-known-good policy JSON atomically. Display each catalog's local file last-write time as the last successful fetch time, and display the cached policy file's last-write time separately. A failed refresh must not erase working cached data.
 8. A model's first actual generation request is the final account-level availability test. Record sanitized results only; never persist prompts, email content, generated text, or credentials.
 
 ## Common normalized record
