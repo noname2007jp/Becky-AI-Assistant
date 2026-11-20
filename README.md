@@ -2,10 +2,10 @@
 
 Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.79.0）
+## 現在の機能（0.80.0）
 
 - メール要約：Gemini／Groq／Cloudflare Workers AIに対応。Workers AIは保存済みAccount ID・APIトークン・モデルを使用し、直接接続で実行。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応
-- 返信文案・複数ターンのAI相談：Gemini／Groqに対応。Workers AIは今後の開発段階で対応予定
+- 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。複数ターンのAI相談：Gemini／Groqに対応。Workers AIのAI相談は今後の開発段階で対応予定
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
 
@@ -33,7 +33,7 @@ Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AI�
 
 ## 複数AIサービス設定
 
-設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約・返信文案・複数ターンのAI相談をGroqで実行できます。Cloudflare Workers AIは公式のOpenAI互換Chat Completions APIを使用し、メール要約に対応しました。Workers AIの返信文案・AI相談とCloudflare AI Gateway経由の接続は今後の段階で実装します。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Gatewayのリクエストログ・キャッシュは初期値OFFです。
+設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約・返信文案・複数ターンのAI相談をGroqで実行できます。Cloudflare Workers AIは公式のOpenAI互換Chat Completions APIを使用し、メール要約・返信文案に対応しました。Workers AIのAI相談とCloudflare AI Gateway経由の接続は今後の段階で実装します。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Gatewayのリクエストログ・キャッシュは初期値OFFです。
 
 ## 個人情報のマスキング
 
