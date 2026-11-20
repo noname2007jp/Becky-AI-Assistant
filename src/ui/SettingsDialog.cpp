@@ -477,7 +477,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 if (len > 0) GetWindowTextW(combo, preferred.data(), len + 1);
                 preferred.resize(static_cast<size_t>(len));
                 PopulateProviderModelCombo(dialog, result->provider, result->models, preferred);
-                UpdateProviderModelDescription(dialog, result->provider);
                 std::wstring saveError;
                 if (SaveProviderModelCatalog(result->provider, result->models, saveError))
                 {
@@ -485,6 +484,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 }
                 else
                     result->message += L" ただし、一覧の保存に失敗しました：" + saveError;
+                UpdateProviderModelDescription(dialog, result->provider);
             }
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, result->message.c_str());
             delete result;
