@@ -72,7 +72,7 @@ void UpdateGeminiModelDescription(HWND dialog, SettingsState* state)
         {
             const auto& modelId = state->models[static_cast<size_t>(selected)].id;
             SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS,
-                (GetModelDescription(0, modelId) + L"\\r\\n" + GetModelCatalogPolicyNote(0, modelId)).c_str());
+                (GetModelDescription(0, modelId) + L"\r\n" + GetModelCatalogPolicyNote(0, modelId)).c_str());
         }
     else
         SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS, L"モデルを選択すると特徴を表示します。");
@@ -175,16 +175,19 @@ DWORD WINAPI ProviderModelsThread(void* parameter)
         result->success = FetchGroqModelCatalog(args->apiKey, result->models, result->message);
     else
         result->success = FetchWorkersAIModelCatalog(args->accountId, args->apiToken, result->models, result->message);
+    bool policyUpdated = false;
     if (result->success)
     {
         std::wstring policyError;
-        if (!RefreshModelCatalogPolicy(policyError))
-            result->message = L"モデル一覧は取得しました。評価情報は保存済みデータを使用します。";
+        policyUpdated = RefreshModelCatalogPolicy(policyError);
     }
     for (auto* secret : { &args->apiKey, &args->apiToken })
         if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
     if (result->success)
+    {
         result->message = L"モデル一覧を取得しました（" + std::to_wstring(result->models.size()) + L"件）。Free枠の対象かどうかはこのAPIでは判定できません。";
+        if (!policyUpdated) result->message += L" 評価情報は保存済みデータを使用します。";
+    }
     if (!PostMessageW(args->dialog, WM_PROVIDER_MODELS_FINISHED, 0, reinterpret_cast<LPARAM>(result))) delete result;
     return 0;
 }
@@ -208,20 +211,19 @@ DWORD WINAPI ModelUpdateThread(void* parameter)
     {
         result->success = FetchGeminiModelCatalog(key, args->includePaid, result->models, error);
         SecureZeroMemory(key.data(), key.size() * sizeof(wchar_t));
+        bool policyUpdated = false;
         if (result->success)
         {
             std::wstring policyError;
-            if (!RefreshModelCatalogPolicy(policyError))
-                result->message = L"モデル一覧は取得しました。評価情報は保存済みデータを使用します。";
-        }
-        if (result->success)
-        {
+            policyUpdated = RefreshModelCatalogPolicy(policyError);
             if (!SaveGeminiModelCatalog(result->models, error))
                 result->success = false;
         }
         result->message = result->success
             ? L"Google公式料金ページを照合し、モデル一覧を更新しました（" + std::to_wstring(result->models.size()) + L"件）。"
             : error;
+        if (result->success && !policyUpdated)
+            result->message += L" 評価情報は保存済みデータを使用します。";
     }
     if (!PostMessageW(args->dialog, WM_MODEL_UPDATE_FINISHED, 0, reinterpret_cast<LPARAM>(result)))
         delete result;
@@ -443,6 +445,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                     preferred = state->models[static_cast<size_t>(previous)].id;
                 state->models = std::move(result->models);
                 PopulateDefaultModelCombo(dialog, state, preferred);
+                UpdateGeminiModelDescription(dialog, state);
                 UpdateGeminiModelDescription(dialog, state);
             }
             delete result;
