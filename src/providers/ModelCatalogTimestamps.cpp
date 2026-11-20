@@ -2,6 +2,7 @@
 
 #include <windows.h>
 #include <shlobj.h>
+#include <cwchar>
 
 namespace
 {
@@ -28,7 +29,7 @@ std::wstring FormatLastWrite(const std::wstring& path, const wchar_t* label)
         return std::wstring(label) + L"不明";
 
     wchar_t buffer[80] = {};
-    swprintf_s(buffer, L"%s%04u/%02u/%02u %02u:%02u",
+    swprintf_s(buffer, _countof(buffer), L"%ls%04u/%02u/%02u %02u:%02u",
         label, time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute);
     return buffer;
 }
