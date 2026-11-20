@@ -2,10 +2,10 @@
 
 Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.82.0）
+## 現在の機能（0.83.0）
 
 - メール要約：Gemini／Groq／Cloudflare Workers AIに対応。Workers AIは保存済みAccount ID・APIトークン・モデルを使用し、直接接続で実行。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応
-- 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。複数ターンのAI相談：Gemini／Groqに対応。Workers AIのAI相談は今後の開発段階で対応予定
+- 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。複数ターンのAI相談：Gemini／Groq／Cloudflare Workers AIに対応
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
 
@@ -33,7 +33,7 @@ Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AI�
 
 ## 複数AIサービス設定
 
-設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約・返信文案・複数ターンのAI相談をGroqで実行できます。Cloudflare Workers AIは公式のOpenAI互換Chat Completions APIを使用し、メール要約・返信文案に対応しました。Workers AIのAI相談とCloudflare AI Gateway経由の接続は今後の段階で実装します。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Gemini／Groq／Workers AI共通のモデル評価ポリシーをGitHub上のJSONから取得し、推奨・注意・品質未評価をモデル説明欄に表示します。評価情報はローカルにキャッシュし、取得失敗時は保存済み情報を維持します。モデル一覧の最終取得日時と評価情報の更新日時も設定画面に表示します。モデル一覧APIに掲載されていることと、品質・Free枠・実アカウントでの利用可否は別々に扱います。Gatewayのリクエストログ・キャッシュは初期値OFFです。
+設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約・返信文案・複数ターンのAI相談をGroqで実行できます。Cloudflare Workers AIは公式のOpenAI互換Chat Completions APIを使用し、メール要約・返信文案に対応しました。Cloudflare AI Gateway経由の接続は今後の段階で実装します。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Gemini／Groq／Workers AI共通のモデル評価ポリシーをGitHub上のJSONから取得し、推奨・注意・品質未評価をモデル説明欄に表示します。評価情報はローカルにキャッシュし、取得失敗時は保存済み情報を維持します。モデル一覧の最終取得日時と評価情報の更新日時も設定画面に表示します。モデル一覧APIに掲載されていることと、品質・Free枠・実アカウントでの利用可否は別々に扱います。Gatewayのリクエストログ・キャッシュは初期値OFFです。
 
 ## 個人情報のマスキング
 
@@ -81,7 +81,7 @@ GroqとCloudflare Workers AIのモデル一覧は、%APPDATA%\Becky-AI-Assistant
 
 ## 応答待ち・エラー処理
 
-- Gemini API通信のタイムアウトは全機能で統一（名前解決・接続・送信は各10秒、応答受信は15秒）。代替モデルも各候補15秒の応答待ちで順次試行。Gemini／GroqのAI相談およびGroqの返信・要約は、出力上限に達した場合に最大3回のAPIリクエスト（初回＋継続2回）を行う場合があります。Groqは1回の出力要求を768トークンに制限。OTPM制限に達した場合はGroqが返す再試行可能時間を読み取り、少し余裕を加えて待機後、同じリクエストを最大2回自動再試行。待機中もキャンセル可能。AI相談画面ではAPI応答待ちの経過時間と、OTPM回復待ちの残り秒数を表示
+- Gemini API通信のタイムアウトは全機能で統一（名前解決・接続・送信は各10秒、応答受信は15秒）。代替モデルも各候補15秒の応答待ちで順次試行。Gemini／Groq／Workers AIのAI相談およびGroqの返信・要約は、出力上限に達した場合に最大3回のAPIリクエスト（初回＋継続2回）を行う場合があります。Groqは1回の出力要求を768トークンに制限。OTPM制限に達した場合はGroqが返す再試行可能時間を読み取り、少し余裕を加えて待機後、同じリクエストを最大2回自動再試行。待機中もキャンセル可能。AI相談画面ではAPI応答待ちの経過時間と、OTPM回復待ちの残り秒数を表示
 - 400 / 401 / 403 / 404 / 408 / 413 / 429 / 5xxを原因別に案内
 - 404 / 408 / 429 / 5xx / 一時的な通信障害（タイムアウト・接続失敗・DNS一時失敗）時は、設定ONなら無料枠ありと公式料金ページで確認済みの新しいFlashモデルへ最大2候補まで自動切り替え。2.5系はプロジェクトごとの利用制限があるため自動切り替え先から除外（403 / TLS・認証・設定エラーは対象外）
 - HTTP 0 の通信失敗も一時的な接続障害として判定し、次の代替候補を試行。最終エラーには選択モデルと各代替モデルの通信・HTTPエラー内容を表示
