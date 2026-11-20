@@ -18,6 +18,7 @@ namespace
 std::vector<ModelCatalogPolicyEntry> g_entries;
 bool g_loaded = false;
 std::mutex g_policyMutex;
+std::mutex g_refreshMutex;
 
 std::wstring CachePath(bool createDirectory)
 {
@@ -242,6 +243,7 @@ bool LoadModelCatalogPolicy(std::wstring& error)
 
 bool RefreshModelCatalogPolicy(std::wstring& error)
 {
+    std::lock_guard<std::mutex> refreshLock(g_refreshMutex);
     error.clear();
     std::string bytes;
     if (!DownloadPolicy(bytes, error)) return false;
