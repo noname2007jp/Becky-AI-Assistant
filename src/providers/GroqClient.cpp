@@ -272,7 +272,12 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
         (!IsValidCloudflareAccountId(providerSettings->cloudflareAccountId) ||
          !IsSafeGatewayPart(providerSettings->cloudflareGatewayId, 64)))
     {
-        result.error = L"AI GatewayのAccount ID（32桁の英数字）またはGateway IDが正しく設定されていません。";
+        result.error = L"AI GatewayのAccount ID（32桁の16進数）またはGateway IDが正しく設定されていません。";
+        return result;
+    }
+    if (useGateway && providerSettings->cloudflareApiToken.empty())
+    {
+        result.error = L"Cloudflare AI Gateway認証用APIトークンが設定されていません。";
         return result;
     }
     HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.84.0",
