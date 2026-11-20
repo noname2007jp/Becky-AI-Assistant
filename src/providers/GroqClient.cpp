@@ -378,7 +378,9 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
             }
             else
             {
-                result.error = HttpError(status);
+                result.error = useGateway && status == 401
+                    ? L"Groq APIキーまたはAI Gateway認証トークンが無効です。両方の設定を確認してください。"
+                    : HttpError(status);
                 result.retryable = status == 408 || status == 429 || status >= 500;
                 std::wstring providerMessage;
                 if (ExtractStringProperty(response, "message", providerMessage) && !providerMessage.empty())
