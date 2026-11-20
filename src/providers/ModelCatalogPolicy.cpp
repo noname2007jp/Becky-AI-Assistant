@@ -9,6 +9,7 @@
 #include <regex>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #pragma comment(lib, "winhttp.lib")
