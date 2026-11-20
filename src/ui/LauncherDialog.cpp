@@ -342,17 +342,17 @@ namespace
                     context->providerSettings.provider == AIProvider::WorkersAI)
                 {
                     const auto settings = context->providerSettings;
-                    if (settings.workersAccountId.empty() || settings.workersApiToken.empty() ||
-                        settings.workersModel.empty())
+                    const bool useGateway = settings.route == AIConnectionRoute::CloudflareAIGateway;
+                    if (settings.workersModel.empty() ||
+                        (useGateway
+                            ? (settings.cloudflareAccountId.empty() || settings.cloudflareGatewayId.empty() ||
+                               settings.cloudflareApiToken.empty())
+                            : (settings.workersAccountId.empty() || settings.workersApiToken.empty())))
                     {
-                        MessageBoxW(dialog, L"Cloudflare Account ID、Workers AI APIトークン、モデルIDを設定画面で保存してください。",
+                        MessageBoxW(dialog, useGateway
+                            ? L"AI GatewayのAccount ID、Gateway ID、Cloudflare APIトークン、Workers AIモデルを設定してください。"
+                            : L"Cloudflare Account ID、Workers AI APIトークン、モデルIDを設定してください。",
                             L"Workers AI設定", MB_OK | MB_ICONWARNING);
-                        return TRUE;
-                    }
-                    if (settings.route != AIConnectionRoute::Direct)
-                    {
-                        MessageBoxW(dialog, L"Workers AIのAI Gateway経由接続はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
-                            L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                         return TRUE;
                     }
                     const std::wstring subject = mail.subject, body = mail.body;
@@ -367,12 +367,15 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
                     EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
-                    if (!GeminiAsync::Start(dialog, std::move(settings.workersApiToken),
-                        [accountId = settings.workersAccountId, modelId = settings.workersModel,
-                            subject, body, masker]
+                    const std::wstring accountId = useGateway
+                        ? settings.cloudflareAccountId : settings.workersAccountId;
+                    std::wstring requestToken = useGateway
+                        ? settings.cloudflareApiToken : settings.workersApiToken;
+                    if (!GeminiAsync::Start(dialog, std::move(requestToken),
+                        [accountId, modelId = settings.workersModel, subject, body, masker, settings]
                         (const std::wstring& token, const std::atomic<int>& cancelState) mutable {
                             return GenerateWorkersAIMailSummary(accountId, token, modelId,
-                                subject, body, &masker, &cancelState);
+                                subject, body, &masker, &cancelState, &settings);
                         }, 1, &context->work))
                     {
                         context->busy = false;
