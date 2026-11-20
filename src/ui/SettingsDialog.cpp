@@ -74,7 +74,7 @@ void UpdateGeminiModelDescription(HWND dialog, SettingsState* state)
         {
             const auto& modelId = state->models[static_cast<size_t>(selected)].id;
             SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS,
-                (GetModelDescription(0, modelId) + L"\r\n" + GetModelCatalogPolicyNote(0, modelId)).c_str());
+                (GetModelDescription(0, modelId) + L"\r\n" + GetModelCatalogPolicyNote(0, modelId) + L"\r\n" + GetModelPolicyUpdatedAtText()).c_str());
         }
     else
         SetDlgItemTextW(dialog, IDC_GEMINI_MODEL_DETAILS, L"モデルを選択すると特徴を表示します。");
@@ -88,7 +88,7 @@ void UpdateProviderModelDescription(HWND dialog, int provider)
     if (length > 0) GetDlgItemTextW(dialog, control, model.data(), length + 1);
     model.resize(static_cast<size_t>(length));
     SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
-        (GetModelDescription(provider, model) + L"\r\n" + GetModelCatalogPolicyNote(provider, model)).c_str());
+        (GetModelDescription(provider, model) + L"\r\n" + GetModelCatalogPolicyNote(provider, model) + L"\r\n" + GetModelPolicyUpdatedAtText()).c_str());
 }
 
 void UpdateCurrentProviderModelDescription(HWND dialog)
