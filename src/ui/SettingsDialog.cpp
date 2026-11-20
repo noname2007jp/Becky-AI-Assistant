@@ -48,8 +48,7 @@ void ShowSettingsTab(HWND dialog, int selected)
         IDC_PROVIDER_WORKERS_TOKEN_LABEL, IDC_PROVIDER_WORKERS_TOKEN,
         IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL,
         IDC_PROVIDER_GROQ_MODELS_UPDATE, IDC_PROVIDER_WORKERS_MODELS_UPDATE,
-        IDC_PROVIDER_MODEL_DETAILS, IDC_PROVIDER_GROQ_CATALOG_UPDATED_AT,
-        IDC_PROVIDER_WORKERS_CATALOG_UPDATED_AT };
+        IDC_PROVIDER_MODEL_DETAILS };
     const int gateway[] = { IDC_GATEWAY_ACCOUNT_LABEL, IDC_GATEWAY_ACCOUNT, IDC_GATEWAY_ID_LABEL,
         IDC_GATEWAY_ID, IDC_GATEWAY_TOKEN_LABEL, IDC_GATEWAY_TOKEN, IDC_GATEWAY_LOGGING,
         IDC_GATEWAY_CACHE, IDC_GATEWAY_PRIVACY_NOTE };
@@ -88,7 +87,8 @@ void UpdateProviderModelDescription(HWND dialog, int provider)
     if (length > 0) GetDlgItemTextW(dialog, control, model.data(), length + 1);
     model.resize(static_cast<size_t>(length));
     SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
-        (GetModelDescription(provider, model) + L"\r\n" + GetModelCatalogPolicyNote(provider, model) + L"\r\n" + GetModelPolicyUpdatedAtText()).c_str());
+        (GetModelCatalogUpdatedAtText(provider) + L"　" + GetModelPolicyUpdatedAtText() + L"\r\n" +
+         GetModelDescription(provider, model) + L"\r\n" + GetModelCatalogPolicyNote(provider, model)).c_str());
 }
 
 void UpdateCurrentProviderModelDescription(HWND dialog)
@@ -384,8 +384,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         UpdateGeminiModelDescription(dialog, state);
         UpdateCurrentProviderModelDescription(dialog);
         SetDlgItemTextW(dialog, IDC_GEMINI_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(0).c_str());
-        SetDlgItemTextW(dialog, IDC_PROVIDER_GROQ_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(1).c_str());
-        SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(2).c_str());
         return TRUE;
     }
 
@@ -484,10 +482,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 if (SaveProviderModelCatalog(result->provider, result->models, saveError))
                 {
                     result->message += L" 次回起動時もこの一覧を利用できます。";
-                    const int timestampControl = result->provider == 1
-                        ? IDC_PROVIDER_GROQ_CATALOG_UPDATED_AT : IDC_PROVIDER_WORKERS_CATALOG_UPDATED_AT;
-                    SetDlgItemTextW(dialog, timestampControl,
-                        GetModelCatalogUpdatedAtText(result->provider).c_str());
                 }
                 else
                     result->message += L" ただし、一覧の保存に失敗しました：" + saveError;
