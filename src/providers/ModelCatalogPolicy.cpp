@@ -223,6 +223,12 @@ bool LoadFromBytes(const std::string& bytes, std::wstring& error)
 }
 }
 
+bool ParseModelCatalogPolicyJson(const std::string& json,
+    std::vector<ModelCatalogPolicyEntry>& entries)
+{
+    return ParsePolicy(json, entries);
+}
+
 bool LoadModelCatalogPolicy(std::wstring& error)
 {
     error.clear();
