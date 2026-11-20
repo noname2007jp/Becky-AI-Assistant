@@ -477,8 +477,8 @@ namespace
                     context->progressStartedTick = GetTickCount64();
                     context->progressCountdown = false;
                     SetTimer(dialog, TIMER_GROQ_PROGRESS, 1000, nullptr);
-                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
-                        context->progressMessage + L"（経過 0秒）");
+                    const std::wstring initialStatus = context->progressMessage + L"（経過 0秒）";
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, initialStatus.c_str());
                 }
                 else
                 {
@@ -614,9 +614,10 @@ namespace
                 auto* context = reinterpret_cast<ConsultContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (!context || !context->mail || context->busy) return TRUE;
-                if (context->providerSettings.provider == AIProvider::Groq)
+                if (context->providerSettings.provider == AIProvider::Groq ||
+                    context->providerSettings.provider == AIProvider::WorkersAI)
                 {
-                    MessageBoxW(dialog, L"相談内容からの返信文案作成は現在Geminiのみ対応しています。Groq対応は次の段階で追加します。",
+                    MessageBoxW(dialog, L"相談内容からの返信文案作成は現在Geminiのみ対応しています。",
                         L"未対応の機能", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
