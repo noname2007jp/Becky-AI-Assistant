@@ -161,6 +161,17 @@ if(BUILD_TESTING)
   target_compile_options(ModelDescriptionsTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME ModelDescriptionsTests COMMAND ModelDescriptionsTests)
 
+  add_executable(ModelCatalogPolicyTests
+    tests/ModelCatalogPolicyTests.cpp
+    src/providers/ModelCatalogPolicy.cpp
+  )
+  target_include_directories(ModelCatalogPolicyTests PRIVATE src)
+  target_compile_features(ModelCatalogPolicyTests PRIVATE cxx_std_17)
+  target_compile_definitions(ModelCatalogPolicyTests PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(ModelCatalogPolicyTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  target_link_libraries(ModelCatalogPolicyTests PRIVATE shell32 winhttp)
+  add_test(NAME ModelCatalogPolicyTests COMMAND ModelCatalogPolicyTests)
+
   add_executable(ProviderModelCatalogStoreTests
     tests/ProviderModelCatalogStoreTests.cpp
     src/providers/ProviderModelCatalogStore.cpp
