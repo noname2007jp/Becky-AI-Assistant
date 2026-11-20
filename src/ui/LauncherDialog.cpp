@@ -15,6 +15,7 @@
 #include "settings/AIProviderSettings.h"
 #include "providers/GroqMailSummary.h"
 #include "providers/WorkersAIMailSummary.h"
+#include "providers/WorkersAIMailReply.h"
 #include "providers/GroqMailReply.h"
 #include <utility>
 #include <commctrl.h>
@@ -516,7 +517,62 @@ namespace
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     context->providerSettings.provider == AIProvider::Groq
-                        ? L"返信文案：Groq送信内容の確認" : L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
+                        ? L"返信文案：Groq送信内容の確認"
+                        : context->providerSettings.provider == AIProvider::WorkersAI
+                            ? L"返信文案：Cloudflare Workers AI送信内容の確認"
+                            : L"返信文案：Gemini送信内容の確認", maskedPreview, masker)) return TRUE;
+
+                if (context->providerSettings.provider == AIProvider::WorkersAI)
+                {
+                    const auto settings = context->providerSettings;
+                    if (settings.workersAccountId.empty() || settings.workersApiToken.empty() ||
+                        settings.workersModel.empty()) {
+                        MessageBoxW(dialog, L"Cloudflare Account ID、Workers AI APIトークン、モデルIDを設定画面で保存してください。",
+                            L"Workers AI設定", MB_OK | MB_ICONWARNING);
+                        return TRUE;
+                    }
+                    if (settings.route != AIConnectionRoute::Direct)
+                    {
+                        MessageBoxW(dialog, L"Workers AIのAI Gateway経由接続はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                            L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
+                        return TRUE;
+                    }
+                    const std::wstring subject = mail.subject, body = mail.body;
+                    context->busy = true;
+                    ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), TRUE);
+                    ShowApiProcessingStatus(dialog, IDC_MAIL_BODY_STATUS,
+                        L"Cloudflare Workers AIで返信文案を作成中です。しばらくお待ちください...");
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
+                    EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
+                    if (!GeminiAsync::Start(dialog, std::move(settings.workersApiToken),
+                        [accountId = settings.workersAccountId, modelId = settings.workersModel,
+                            tone, subject, body, replyRequirements, masker]
+                        (const std::wstring& token, const std::atomic<int>& cancelState) mutable {
+                            return GenerateWorkersAIMailReplyDraft(accountId, token, modelId,
+                                tone, subject, body, replyRequirements, &masker, &cancelState);
+                        }, 2, &context->work)) {
+                        context->busy = false;
+                        context->work = nullptr;
+                        ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_HIDE);
+                        EnableWindow(GetDlgItem(dialog, IDC_REPLY_REQUIREMENTS), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_SUMMARY), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_REPLY), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_GEMINI_MODEL), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), TRUE);
+                        EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), TRUE);
+                        SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"バックグラウンド処理を開始できませんでした。");
+                        MessageBoxW(dialog, L"Workers AIのバックグラウンド処理を開始できませんでした。",
+                            L"Becky AI Assistant", MB_OK | MB_ICONWARNING);
+                    }
+                    return TRUE;
+                }
 
                 if (context->providerSettings.provider == AIProvider::Groq)
                 {
