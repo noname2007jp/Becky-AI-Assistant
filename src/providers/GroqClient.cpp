@@ -153,7 +153,17 @@ bool IsSafeGatewayPart(const std::wstring& value, size_t maxLength)
 {
     if (value.empty() || value.size() > maxLength) return false;
     for (wchar_t c : value)
-        if (!(iswalnum(c) || c == L'-' || c == L'_')) return false;
+        if (!((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') ||
+              (c >= L'0' && c <= L'9') || c == L'-' || c == L'_')) return false;
+    return true;
+}
+
+bool IsValidCloudflareAccountId(const std::wstring& value)
+{
+    if (value.size() != 32) return false;
+    for (wchar_t c : value)
+        if (!((c >= L'a' && c <= L'f') || (c >= L'A' && c <= L'F') ||
+              (c >= L'0' && c <= L'9'))) return false;
     return true;
 }
 
@@ -259,8 +269,7 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
     const bool useGateway = providerSettings &&
         providerSettings->route == AIConnectionRoute::CloudflareAIGateway;
     if (useGateway &&
-        (!IsSafeGatewayPart(providerSettings->cloudflareAccountId, 32) ||
-         providerSettings->cloudflareAccountId.size() != 32 ||
+        (!IsValidCloudflareAccountId(providerSettings->cloudflareAccountId) ||
          !IsSafeGatewayPart(providerSettings->cloudflareGatewayId, 64)))
     {
         result.error = L"AI GatewayのAccount ID（32桁の英数字）またはGateway IDが正しく設定されていません。";
