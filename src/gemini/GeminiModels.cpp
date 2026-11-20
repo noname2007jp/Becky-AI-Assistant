@@ -176,7 +176,7 @@ bool ReadFreeTierFromSection(const std::string& page, const std::string& modelId
 }
 bool DownloadPricingPage(std::string& response, std::wstring& error)
 {
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.82.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.83.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { error = L"Google公式料金ページへの通信を開始できません。"; return false; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
@@ -224,7 +224,7 @@ bool DownloadPricingPage(std::string& response, std::wstring& error)
 }
 bool DownloadModelPage(const std::wstring& apiKey, const std::wstring& path, std::string& response, std::wstring& error)
 {
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.82.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.83.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { error = L"モデル一覧の通信を開始できません。"; return false; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);

@@ -13,6 +13,7 @@
 #include "gemini/GeminiFallback.h"
 #include "settings/AIProviderSettings.h"
 #include "providers/GroqMailConsultation.h"
+#include "providers/WorkersAIMailConsultation.h"
 #include "settings/ApiKeyStore.h"
 #include "ConsultHistoryStore.h"
 
@@ -294,7 +295,9 @@ namespace
                     SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS,
                         wParam == 1 ? L"問い合わせに失敗しました。" : L"返信文案の作成に失敗しました。");
                     MessageBoxW(dialog, result.error.c_str(),
-                        context->providerSettings.provider == AIProvider::Groq ? L"Groq APIエラー" : L"Gemini APIエラー",
+                        context->providerSettings.provider == AIProvider::Groq ? L"Groq APIエラー" :
+                            (context->providerSettings.provider == AIProvider::WorkersAI
+                                ? L"Workers AI APIエラー" : L"Gemini APIエラー"),
                         MB_OK | MB_ICONWARNING);
                 } else if (wParam == 1) {
                     const std::wstring question = context->pendingQuestion;
@@ -413,6 +416,15 @@ namespace
                         L"Groq設定", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
+                if (context->providerSettings.provider == AIProvider::WorkersAI &&
+                    (context->providerSettings.workersAccountId.empty() ||
+                     context->providerSettings.workersApiToken.empty() ||
+                     context->providerSettings.workersModel.empty()))
+                {
+                    MessageBoxW(dialog, L"Cloudflare Account ID、Workers AI APIトークン、モデルIDが設定されていません。",
+                        L"Workers AI設定", MB_OK | MB_ICONWARNING);
+                    return TRUE;
+                }
                 PiiMasker masker;
                 if (!masker.IsReady())
                 {
@@ -435,7 +447,9 @@ namespace
                 const std::wstring maskedPreview = masker.Mask(previewRaw);
                 if (masker.IsEnabled() && !ShowPiiMaskPreviewDialog(dialog, context->instance,
                     context->providerSettings.provider == AIProvider::Groq
-                        ? L"AI相談：Groq送信内容の確認" : L"AI相談：Gemini送信内容の確認",
+                        ? L"AI相談：Groq送信内容の確認"
+                        : (context->providerSettings.provider == AIProvider::WorkersAI
+                            ? L"AI相談：Workers AI送信内容の確認" : L"AI相談：Gemini送信内容の確認"),
                     maskedPreview, masker)) return TRUE;
 
                 const MailContext& mail = *context->mail;
@@ -455,23 +469,29 @@ namespace
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_SESSIONS), FALSE);
                 EnableWindow(GetDlgItem(dialog, IDC_AI_CONSULT_NEW), FALSE);
                 const bool useGroq = context->providerSettings.provider == AIProvider::Groq;
-                if (useGroq)
+                const bool useWorkersAI = context->providerSettings.provider == AIProvider::WorkersAI;
+                if (useGroq || useWorkersAI)
                 {
-                    context->progressMessage = L"Groq API応答待ち";
+                    context->progressMessage = useGroq
+                        ? L"Groq API応答待ち" : L"Cloudflare Workers AI API応答待ち";
                     context->progressStartedTick = GetTickCount64();
                     context->progressCountdown = false;
                     SetTimer(dialog, TIMER_GROQ_PROGRESS, 1000, nullptr);
-                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, L"Groq API応答待ち（経過 0秒）");
+                    const std::wstring initialStatus = context->progressMessage + L"（経過 0秒）";
+                    SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, initialStatus.c_str());
                 }
                 else
                 {
                     ShowApiProcessingStatus(dialog, IDC_AI_CONSULT_STATUS, L"Geminiに問い合わせています...");
                 }
                 std::wstring workerKey = useGroq
-                    ? context->providerSettings.groqApiKey : std::move(context->apiKey);
-                if (!useGroq) context->apiKey.clear();
+                    ? context->providerSettings.groqApiKey
+                    : (useWorkersAI ? context->providerSettings.workersApiToken : std::move(context->apiKey));
+                if (!useGroq && !useWorkersAI) context->apiKey.clear();
+                const std::wstring workersAccountId = context->providerSettings.workersAccountId;
                 if (!GeminiAsync::Start(dialog, std::move(workerKey),
-                    [dialog, useGroq, modelId, thinking, models, autoFallback, subject, body, history, question, masker]
+                    [dialog, useGroq, useWorkersAI, workersAccountId, modelId, thinking, models, autoFallback,
+                        subject, body, history, question, masker]
                     (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
                         if (useGroq)
                         {
@@ -483,6 +503,17 @@ namespace
                             };
                             return GenerateGroqMailConsultation(key, modelId, subject, body,
                                 history, question, &masker, &cancelState, progress);
+                        }
+                        if (useWorkersAI)
+                        {
+                            WorkersAIProgressCallback progress = [dialog](const std::wstring& message) {
+                                auto* copy = new (std::nothrow) std::wstring(message);
+                                if (copy && !PostMessageW(dialog, WM_GROQ_PROGRESS, 0,
+                                    reinterpret_cast<LPARAM>(copy)))
+                                    delete copy;
+                            };
+                            return GenerateWorkersAIMailConsultation(workersAccountId, key, modelId,
+                                subject, body, history, question, &masker, &cancelState, progress);
                         }
                         return GenerateWithModelFallback(modelId, thinking, models, autoFallback,
                             [&](const std::wstring& candidateId, const std::wstring& candidateThinking) {
@@ -583,9 +614,10 @@ namespace
                 auto* context = reinterpret_cast<ConsultContext*>(
                     GetWindowLongPtrW(dialog, DWLP_USER));
                 if (!context || !context->mail || context->busy) return TRUE;
-                if (context->providerSettings.provider == AIProvider::Groq)
+                if (context->providerSettings.provider == AIProvider::Groq ||
+                    context->providerSettings.provider == AIProvider::WorkersAI)
                 {
-                    MessageBoxW(dialog, L"相談内容からの返信文案作成は現在Geminiのみ対応しています。Groq対応は次の段階で追加します。",
+                    MessageBoxW(dialog, L"相談内容からの返信文案作成は現在Geminiのみ対応しています。",
                         L"未対応の機能", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }

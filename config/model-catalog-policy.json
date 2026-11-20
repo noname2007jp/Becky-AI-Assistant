@@ -9,7 +9,11 @@
         "id": "qwen/qwen3.8-27b",
         "status": "recommended",
         "quality": "tested",
-        "operations": ["summary", "reply", "consultation"],
+        "operations": [
+          "summary",
+          "reply",
+          "consultation"
+        ],
         "tested_on": "2026-11-19",
         "reason": "Becky AI Assistantで要約・返信文案・複数ターン相談の実利用を確認。利用可能性や品質を将来にわたり保証するものではありません。"
       }
@@ -19,7 +23,11 @@
         "id": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
         "status": "caution",
         "quality": "unverified",
-        "operations": ["summary", "reply"],
+        "operations": [
+          "summary",
+          "reply",
+          "consultation"
+        ],
         "reason": "回答品質に懸念が報告されています。業務利用前に実際のメールで回答の正確性・指示遵守を確認してください。"
       }
     ]

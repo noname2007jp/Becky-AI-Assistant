@@ -688,12 +688,6 @@ namespace
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
-                if (context->providerSettings.provider == AIProvider::WorkersAI)
-                {
-                    MessageBoxW(dialog, L"AI相談は現在GeminiとGroqに対応しています。Workers AIは今後対応予定です。",
-                        L"未対応の機能", MB_OK | MB_ICONINFORMATION);
-                    return TRUE;
-                }
                 std::wstring modelId, thinking;
                 if (context->providerSettings.provider == AIProvider::Groq)
                 {
@@ -704,6 +698,18 @@ namespace
                         return TRUE;
                     }
                     modelId = context->providerSettings.groqModel;
+                }
+                else if (context->providerSettings.provider == AIProvider::WorkersAI)
+                {
+                    if (context->providerSettings.workersAccountId.empty() ||
+                        context->providerSettings.workersApiToken.empty() ||
+                        context->providerSettings.workersModel.empty())
+                    {
+                        MessageBoxW(dialog, L"Cloudflare Account ID、Workers AI APIトークン、モデルIDをAIサービス設定で保存してください。",
+                            L"Workers AI設定", MB_OK | MB_ICONWARNING);
+                        return TRUE;
+                    }
+                    modelId = context->providerSettings.workersModel;
                 }
                 else
                 {
