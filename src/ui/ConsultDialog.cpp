@@ -416,19 +416,19 @@ namespace
                         L"Groq設定", MB_OK | MB_ICONWARNING);
                     return TRUE;
                 }
-                const bool useWorkersGateway =
+                const bool useWorkersGatewayConfigured =
                     context->providerSettings.provider == AIProvider::WorkersAI &&
                     context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway;
                 if (context->providerSettings.provider == AIProvider::WorkersAI &&
                     (context->providerSettings.workersModel.empty() ||
-                     (useWorkersGateway
+                     (useWorkersGatewayConfigured
                         ? (context->providerSettings.cloudflareAccountId.empty() ||
                            context->providerSettings.cloudflareGatewayId.empty() ||
                            context->providerSettings.cloudflareApiToken.empty())
                         : (context->providerSettings.workersAccountId.empty() ||
                            context->providerSettings.workersApiToken.empty()))))
                 {
-                    MessageBoxW(dialog, useWorkersGateway
+                    MessageBoxW(dialog, useWorkersGatewayConfigured
                         ? L"AI GatewayのAccount ID、Gateway ID、Cloudflare APIトークン、Workers AIモデルが設定されていません。"
                         : L"Cloudflare Account ID、Workers AI APIトークン、モデルIDが設定されていません。",
                         L"Workers AI設定", MB_OK | MB_ICONWARNING);
