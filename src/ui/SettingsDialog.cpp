@@ -9,6 +9,7 @@
 #include "providers/ProviderModelCatalogStore.h"
 #include "providers/ModelDescriptions.h"
 #include "providers/ModelCatalogPolicy.h"
+#include "providers/ModelCatalogTimestamps.h"
 
 #include <string>
 #include <vector>
@@ -39,7 +40,7 @@ void ShowSettingsTab(HWND dialog, int selected)
         IDC_GEMINI_APIKEY_LINK, IDC_SETTINGS_LABEL_API_NOTE, IDC_SETTINGS_LABEL_MODEL,
         IDC_GROQ_APIKEY_LINK, IDC_CF_WORKERS_AI_LINK, IDC_CF_AI_GATEWAY_LINK,
         IDC_SETTINGS_DEFAULT_MODEL, IDC_SETTINGS_PRICING_LINK, IDC_SETTINGS_UPDATE_MODELS,
-        IDC_SETTINGS_TEST, IDC_GEMINI_MODEL_DETAILS };
+        IDC_SETTINGS_TEST, IDC_GEMINI_MODEL_DETAILS, IDC_GEMINI_CATALOG_UPDATED_AT };
     const int provider[] = { IDC_PROVIDER_LABEL, IDC_PROVIDER_SELECT, IDC_PROVIDER_ROUTE_LABEL,
         IDC_PROVIDER_ROUTE, IDC_PROVIDER_STATUS_NOTE, IDC_PROVIDER_GROQ_KEY_LABEL,
         IDC_PROVIDER_GROQ_KEY, IDC_PROVIDER_GROQ_MODEL_LABEL, IDC_PROVIDER_GROQ_MODEL,
@@ -47,7 +48,8 @@ void ShowSettingsTab(HWND dialog, int selected)
         IDC_PROVIDER_WORKERS_TOKEN_LABEL, IDC_PROVIDER_WORKERS_TOKEN,
         IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL,
         IDC_PROVIDER_GROQ_MODELS_UPDATE, IDC_PROVIDER_WORKERS_MODELS_UPDATE,
-        IDC_PROVIDER_MODEL_DETAILS };
+        IDC_PROVIDER_MODEL_DETAILS, IDC_PROVIDER_GROQ_CATALOG_UPDATED_AT,
+        IDC_PROVIDER_WORKERS_CATALOG_UPDATED_AT };
     const int gateway[] = { IDC_GATEWAY_ACCOUNT_LABEL, IDC_GATEWAY_ACCOUNT, IDC_GATEWAY_ID_LABEL,
         IDC_GATEWAY_ID, IDC_GATEWAY_TOKEN_LABEL, IDC_GATEWAY_TOKEN, IDC_GATEWAY_LOGGING,
         IDC_GATEWAY_CACHE, IDC_GATEWAY_PRIVACY_NOTE };
@@ -381,6 +383,9 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         PopulateDefaultModelCombo(dialog, state, reliability.defaultModel);
         UpdateGeminiModelDescription(dialog, state);
         UpdateCurrentProviderModelDescription(dialog);
+        SetDlgItemTextW(dialog, IDC_GEMINI_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(0).c_str());
+        SetDlgItemTextW(dialog, IDC_PROVIDER_GROQ_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(1).c_str());
+        SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(2).c_str());
         return TRUE;
     }
 
@@ -446,6 +451,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 state->models = std::move(result->models);
                 PopulateDefaultModelCombo(dialog, state, preferred);
                 UpdateGeminiModelDescription(dialog, state);
+                SetDlgItemTextW(dialog, IDC_GEMINI_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(0).c_str());
             }
             delete result;
         }
@@ -476,7 +482,13 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 UpdateProviderModelDescription(dialog, result->provider);
                 std::wstring saveError;
                 if (SaveProviderModelCatalog(result->provider, result->models, saveError))
+                {
                     result->message += L" 次回起動時もこの一覧を利用できます。";
+                    const int timestampControl = result->provider == 1
+                        ? IDC_PROVIDER_GROQ_CATALOG_UPDATED_AT : IDC_PROVIDER_WORKERS_CATALOG_UPDATED_AT;
+                    SetDlgItemTextW(dialog, timestampControl,
+                        GetModelCatalogUpdatedAtText(result->provider).c_str());
+                }
                 else
                     result->message += L" ただし、一覧の保存に失敗しました：" + saveError;
             }
