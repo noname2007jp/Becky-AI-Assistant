@@ -1,4 +1,5 @@
 #include "WorkersAIMailSummary.h"
+#include "settings/AIProviderSettings.h"
 
 #include "WorkersAIClient.h"
 #include "gemini/PiiMasker.h"
@@ -13,7 +14,8 @@ GeminiGenerateResult GenerateWorkersAIMailSummary(
     const std::wstring& subject,
     const std::wstring& body,
     PiiMasker* externalMasker,
-    const std::atomic<int>* cancelState)
+    const std::atomic<int>* cancelState,
+    const AIProviderSettings* providerSettings)
 {
     GeminiGenerateResult result{ false, 0, {}, L"" };
     if (accountId.empty()) {
@@ -59,7 +61,7 @@ GeminiGenerateResult GenerateWorkersAIMailSummary(
     const ULONGLONG started = GetTickCount64();
     LogProviderEvent(L"Cloudflare Workers AI", L"summary", modelId, L"START", 0, false, 0, L"");
     result = GenerateWorkersAIChatCompletion(apiToken, accountId, modelId,
-        systemPrompt, userPrompt, 768, cancelState);
+        systemPrompt, userPrompt, 768, cancelState, {}, providerSettings);
     LogProviderEvent(L"Cloudflare Workers AI", L"summary", modelId, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success)
