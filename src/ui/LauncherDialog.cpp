@@ -473,12 +473,6 @@ namespace
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
-                if (context->providerSettingsLoaded && context->providerSettings.provider == AIProvider::WorkersAI)
-                {
-                    MessageBoxW(dialog, L"返信文案は現在GeminiまたはGroqに対応しています。Workers AIは今後対応予定です。",
-                        L"未対応の機能", MB_OK | MB_ICONINFORMATION);
-                    return TRUE;
-                }
                 const MailContext& mail = *context->mail;
                 const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
                 if (context->providerSettings.provider == AIProvider::Gemini &&
