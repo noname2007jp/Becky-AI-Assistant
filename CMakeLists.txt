@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.78.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.79.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -16,7 +16,9 @@ add_library(BeckyAIAssistant SHARED
   src/settings/AIProviderSettings.cpp
   src/settings/AIProviderSettingsCodec.cpp
   src/providers/GroqClient.cpp
+  src/providers/WorkersAIClient.cpp
   src/providers/GroqMailSummary.cpp
+  src/providers/WorkersAIMailSummary.cpp
   src/providers/GroqMailReply.cpp
   src/providers/GroqMailConsultation.cpp
   src/providers/ProviderModelCatalog.cpp

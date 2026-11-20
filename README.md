@@ -1,10 +1,11 @@
 # Becky AI Assistant
 
-Becky! Internet Mail向けのGemini／Groq API連携AIアシスタントプラグインです。
+Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.78.0）
+## 現在の機能（0.79.0）
 
-- メール要約・返信文案・複数ターンのAI相談：AIサービス設定でGroqを選択すると、保存済みGroq APIキー・モデルを使用。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応（Groqの直接接続のみ）
+- メール要約：Gemini／Groq／Cloudflare Workers AIに対応。Workers AIは保存済みAccount ID・APIトークン・モデルを使用し、直接接続で実行。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応
+- 返信文案・複数ターンのAI相談：Gemini／Groqに対応。Workers AIは今後の開発段階で対応予定
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
 
@@ -32,11 +33,11 @@ Becky! Internet Mail向けのGemini／Groq API連携AIアシスタントプラ�
 
 ## 複数AIサービス設定
 
-設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約・返信文案・複数ターンのAI相談をGroqで実行できます。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Workers AIのメール処理とCloudflare AI Gateway経由の接続は今後の段階で実装します。Gatewayのリクエストログ・キャッシュは初期値OFFです。
+設定画面にGemini／Groq／Cloudflare Workers AIの選択欄、各サービスの資格情報、Cloudflare AI Gatewayの接続情報を追加。資格情報はWindows DPAPIで暗号化して保存します。GroqのOpenAI互換Chat Completions通信アダプターを実装し、メール要約・返信文案・複数ターンのAI相談をGroqで実行できます。Cloudflare Workers AIは公式のOpenAI互換Chat Completions APIを使用し、メール要約に対応しました。Workers AIの返信文案・AI相談とCloudflare AI Gateway経由の接続は今後の段階で実装します。Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応しました。Gatewayのリクエストログ・キャッシュは初期値OFFです。
 
 ## 個人情報のマスキング
 
-Gemini APIへ送信するプロンプトを作成する直前に、ローカルでマスキングします。
+選択中のAIサービスへ送信するプロンプトを作成する直前に、ローカルでマスキングします。
 
 - 自動検出の種類を設定画面で個別にON/OFF: メールアドレス、電話番号、郵便番号、IPv4アドレス、会社名、氏名、住所、口座・顧客・社員番号
 - 追加登録語句も個別にON/OFF可能。会社名・氏名・部署名などを1行に1件ずつ登録
@@ -49,7 +50,7 @@ Gemini APIへ送信するプロンプトを作成する直前に、ローカル�
 - プレビュー上でマウス選択した語句を手動マスキングでき、同じ語句が送信内容内に複数ある場合はすべてマスク
 - マスキング確認画面はWindowsの複数行入力欄に合わせて改行コードを表示用にCRLFへ統一。API送信プロンプトの改行コードやコピー・貼り付け用の返信文案には影響しない
 - 初期選択モデルはGemini 3.5 Flash-Lite（解除したい場合はプレビューをキャンセルして再表示）
-- プレビューで「この内容で送信」を選んだ場合だけGemini APIへ送信
+- プレビューで「この内容で送信」を選んだ場合だけ選択中のAIサービスへ送信
 - AIサービスから返った文案は、表示前にローカルで元の語句へ戻す
 - 要約・相談・返信文案では差出人情報をGeminiへ送らず、明確な署名も除外。校正では署名をローカル退避して結果に戻す
 - Gemini APIの応答待ちタイムアウトは15秒。選択モデルが利用できない場合や一時的な通信・サーバーエラー時は、料金情報で無料枠を確認済みのFlashモデルから最大2候補を優先順に順次試行
@@ -95,7 +96,7 @@ GroqとCloudflare Workers AIのモデル一覧は、%APPDATA%\Becky-AI-Assistant
 
 ## デバッグログ
 
-設定画面の「詳細デバッグログ」を明示的にONにすると、Gemini API送信内容と応答、およびGroqのプロバイダー・操作・モデルID・処理結果・HTTPステータス・処理時間を記録します。
+設定画面の「詳細デバッグログ」を明示的にONにすると、Gemini API送信内容と応答、およびGroq／Workers AIのプロバイダー・操作・モデルID・処理結果・HTTPステータス・処理時間を記録します。
 
 - 保存先: `%APPDATA%\\Becky-AI-Assistant\\debug.log`
 - 記録項目: プロバイダー名、操作種別、モデルID、処理開始・終了、HTTPステータス、成否、処理時間、エラー。Geminiでは従来どおりマスキング状態・置換語句数・送信データサイズも記録
@@ -135,4 +136,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-78.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-79.dll`
