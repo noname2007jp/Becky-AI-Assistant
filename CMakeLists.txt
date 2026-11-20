@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.80.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.81.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -23,6 +23,7 @@ add_library(BeckyAIAssistant SHARED
   src/providers/GroqMailReply.cpp
   src/providers/GroqMailConsultation.cpp
   src/providers/ProviderModelCatalog.cpp
+  src/providers/ModelCatalogPolicy.cpp
   src/providers/ProviderModelCatalogStore.cpp
   src/gemini/GeminiConnection.cpp
   src/gemini/GeminiModels.cpp
@@ -159,6 +160,17 @@ if(BUILD_TESTING)
   target_compile_features(ModelDescriptionsTests PRIVATE cxx_std_17)
   target_compile_options(ModelDescriptionsTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME ModelDescriptionsTests COMMAND ModelDescriptionsTests)
+
+  add_executable(ModelCatalogPolicyTests
+    tests/ModelCatalogPolicyTests.cpp
+    src/providers/ModelCatalogPolicy.cpp
+  )
+  target_include_directories(ModelCatalogPolicyTests PRIVATE src)
+  target_compile_features(ModelCatalogPolicyTests PRIVATE cxx_std_17)
+  target_compile_definitions(ModelCatalogPolicyTests PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_compile_options(ModelCatalogPolicyTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  target_link_libraries(ModelCatalogPolicyTests PRIVATE shell32 winhttp)
+  add_test(NAME ModelCatalogPolicyTests COMMAND ModelCatalogPolicyTests)
 
   add_executable(ProviderModelCatalogStoreTests
     tests/ProviderModelCatalogStoreTests.cpp

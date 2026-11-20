@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-11-20T00:00:00Z",
+  "description": "Public provider-neutral model policy for Becky AI Assistant. API availability is checked separately at runtime. Quality labels are based only on explicitly recorded tests.",
+  "providers": {
+    "gemini": [],
+    "groq": [
+      {
+        "id": "qwen/qwen3.8-27b",
+        "status": "recommended",
+        "quality": "tested",
+        "operations": ["summary", "reply", "consultation"],
+        "tested_on": "2026-11-19",
+        "reason": "Becky AI Assistantで要約・返信文案・複数ターン相談の実利用を確認。利用可能性や品質を将来にわたり保証するものではありません。"
+      }
+    ],
+    "workers_ai": [
+      {
+        "id": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        "status": "caution",
+        "quality": "unverified",
+        "operations": ["summary", "reply"],
+        "reason": "回答品質に懸念が報告されています。業務利用前に実際のメールで回答の正確性・指示遵守を確認してください。"
+      }
+    ]
+  }
+}
