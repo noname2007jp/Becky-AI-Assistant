@@ -145,7 +145,7 @@ bool ParsePolicy(const std::string& json, std::vector<ModelCatalogPolicyEntry>& 
 
 bool DownloadPolicy(std::string& body, std::wstring& error)
 {
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.81.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.82.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { error = L"モデル評価情報の通信を開始できません。"; return false; }
     WinHttpSetTimeouts(session, 5000, 5000, 7000, 10000);
