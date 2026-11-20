@@ -272,10 +272,10 @@ namespace
                     return TRUE;
                 }
                 const MailContext& mail = *context->mail;
-                if (context->providerSettingsLoaded &&
+                if (context->providerSettings.provider == AIProvider::Gemini &&
                     context->providerSettings.route == AIConnectionRoute::CloudflareAIGateway)
                 {
-                    MessageBoxW(dialog, L"Cloudflare AI Gateway経由の生成処理はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
+                    MessageBoxW(dialog, L"GeminiのAI Gateway経由接続は次の開発段階で対応します。現在はGroq／Workers AIで利用できます。",
                         L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
                     return TRUE;
                 }
@@ -304,12 +304,7 @@ namespace
                             L"Groq設定", MB_OK | MB_ICONWARNING);
                         return TRUE;
                     }
-                    if (settings.route != AIConnectionRoute::Direct)
-                    {
-                        MessageBoxW(dialog, L"GroqのCloudflare AI Gateway経由はまだ実装されていません。AIサービス設定で「直接接続」を選択してください。",
-                            L"接続方式未対応", MB_OK | MB_ICONINFORMATION);
-                        return TRUE;
-                    }
+
                     const std::wstring subject = mail.subject, body = mail.body;
                     context->busy = true;
                     ShowWindow(GetDlgItem(dialog, IDC_AI_CANCEL_GENERATION), SW_SHOW);
