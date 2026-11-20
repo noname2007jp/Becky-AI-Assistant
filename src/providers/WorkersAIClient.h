@@ -1,5 +1,6 @@
 #pragma once
 #include "gemini/GeminiGenerate.h"
+#include "settings/AIProviderSettings.h"
 #include <atomic>
 #include <functional>
 #include <string>
@@ -14,4 +15,5 @@ GeminiGenerateResult GenerateWorkersAIChatCompletion(
     const std::wstring& userPrompt,
     unsigned int maxOutputTokens,
     const std::atomic<int>* cancelState = nullptr,
-    const WorkersAIProgressCallback& progress = {});
+    const WorkersAIProgressCallback& progress = {},
+    const AIProviderSettings* providerSettings = nullptr);
