@@ -5,6 +5,7 @@
 
 struct ModelCatalogPolicyEntry
 {
+    int provider = 0; // 0=Gemini, 1=Groq, 2=Workers AI
     std::wstring modelId;
     std::wstring status;
     std::wstring quality;
