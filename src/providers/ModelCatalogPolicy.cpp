@@ -256,7 +256,12 @@ bool RefreshModelCatalogPolicy(std::wstring& error)
 
 std::wstring GetModelCatalogPolicyNote(int provider, const std::wstring& modelId)
 {
-    if (!g_loaded) { std::wstring ignored; LoadModelCatalogPolicy(ignored); }
+    bool needsLoad = false;
+    {
+        std::lock_guard<std::mutex> lock(g_policyMutex);
+        needsLoad = !g_loaded;
+    }
+    if (needsLoad) { std::wstring ignored; LoadModelCatalogPolicy(ignored); }
     std::lock_guard<std::mutex> lock(g_policyMutex);
     for (const auto& entry : g_entries)
     {
