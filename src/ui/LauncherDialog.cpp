@@ -318,9 +318,9 @@ namespace
                     EnableWindow(GetDlgItem(dialog, IDC_MASK_ENABLED), FALSE);
                     EnableWindow(GetDlgItem(dialog, IDC_REPLY_TONE), FALSE);
                     if (!GeminiAsync::Start(dialog, std::move(settings.groqApiKey),
-                        [modelId = settings.groqModel, subject, body, masker]
+                        [modelId = settings.groqModel, subject, body, masker, settings]
                         (const std::wstring& key, const std::atomic<int>& cancelState) mutable {
-                            return GenerateGroqMailSummary(key, modelId, subject, body, &masker, &cancelState);
+                            return GenerateGroqMailSummary(key, modelId, subject, body, &masker, &cancelState, &settings);
                         }, 1, &context->work))
                     {
                         context->busy = false;
