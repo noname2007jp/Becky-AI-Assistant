@@ -34,79 +34,76 @@ std::wstring Wide(const std::string& value)
     const int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
         static_cast<int>(value.size()), nullptr, 0);
     if (n <= 0) return {};
-    std::wstring out(static_cast<size_t>(n), L'\\0');
+    std::wstring out(static_cast<size_t>(n), L'\0');
     if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
         static_cast<int>(value.size()), out.data(), n) != n) return {};
     return out;
 }
 
-std::string Utf8(const std::wstring& value)
+std::string ReadJsonString(const std::string& object, const char* name)
 {
-    if (value.empty()) return {};
-    const int n = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value.data(),
-        static_cast<int>(value.size()), nullptr, 0, nullptr, nullptr);
-    if (n <= 0) return {};
-    std::string out(static_cast<size_t>(n), '\\0');
-    if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, value.data(),
-        static_cast<int>(value.size()), out.data(), n, nullptr, nullptr) != n) return {};
-    return out;
-}
-
-std::string JsonString(const std::string& object, const char* name)
-{
-    const std::regex pattern(std::string("\\"") + name +
-        "\\"\\s*:\\s*\\"((?:\\\\.|[^\\"\\\\])*)\\"");
-    std::smatch match;
-    if (!std::regex_search(object, match, pattern)) return {};
-    std::string value = match[1].str();
-    std::string decoded;
-    for (size_t i = 0; i < value.size(); ++i)
+    const std::string key = std::string("\"") + name + "\"";
+    size_t pos = object.find(key);
+    if (pos == std::string::npos) return {};
+    pos = object.find(':', pos + key.size());
+    if (pos == std::string::npos) return {};
+    ++pos;
+    while (pos < object.size() && (object[pos] == ' ' || object[pos] == '\t' ||
+        object[pos] == '\r' || object[pos] == '\n')) ++pos;
+    if (pos >= object.size() || object[pos++] != '"') return {};
+    std::string value;
+    while (pos < object.size())
     {
-        if (value[i] == '\\\\' && i + 1 < value.size())
+        const char c = object[pos++];
+        if (c == '"') return value;
+        if (c != '\\') { if (static_cast<unsigned char>(c) < 0x20) return {}; value.push_back(c); continue; }
+        if (pos >= object.size()) return {};
+        const char escaped = object[pos++];
+        switch (escaped)
         {
-            const char c = value[++i];
-            if (c == 'n' || c == 'r' || c == 't') decoded.push_back(' ');
-            else decoded.push_back(c);
+        case '"': value.push_back('"'); break;
+        case '\\': value.push_back('\\'); break;
+        case '/': value.push_back('/'); break;
+        case 'n': value.push_back(' '); break;
+        case 'r': value.push_back(' '); break;
+        case 't': value.push_back(' '); break;
+        default: return {}; // Policy text is UTF-8 and does not need escaped Unicode.
         }
-        else decoded.push_back(value[i]);
     }
-    return decoded;
+    return {};
 }
 
 bool ParsePolicy(const std::string& json, std::vector<ModelCatalogPolicyEntry>& entries)
 {
-    if (json.size() > 256 * 1024 || json.find("\\"schema_version\\"\\s*:\\s*1") != std::string::npos)
-    {
-        // Schema validation below is intentionally explicit; the string search above
-        // only rejects oversized data and does not determine the schema version.
-    }
-    if (json.size() > 256 * 1024 ||
-        !std::regex_search(json, std::regex("\\"schema_version\\"\\s*:\\s*1")))
+    if (json.empty() || json.size() > 256 * 1024 ||
+        !std::regex_search(json, std::regex(R"("schema_version"\s*:\s*1(?:\s*[,}]))")))
         return false;
 
     const char* providers[] = { "gemini", "groq", "workers_ai" };
     std::vector<ModelCatalogPolicyEntry> parsed;
     for (int providerIndex = 0; providerIndex < 3; ++providerIndex)
     {
-        const char* provider = providers[providerIndex];
-    {
-        const std::regex arrayPattern(std::string("\\"") + provider + "\\"\\s*:\\s*\\[");
-        std::smatch arrayMatch;
-        if (!std::regex_search(json, arrayMatch, arrayPattern)) return false;
-        size_t pos = static_cast<size_t>(arrayMatch.position() + arrayMatch.length());
+        const std::string key = std::string("\"") + providers[providerIndex] + "\"";
+        size_t pos = json.find(key);
+        if (pos == std::string::npos) return false;
+        pos = json.find('[', pos + key.size());
+        if (pos == std::string::npos) return false;
+        ++pos;
         int depth = 0;
         bool inString = false, escaped = false;
         size_t objectStart = std::string::npos;
+        bool arrayClosed = false;
         while (pos < json.size())
         {
             const char c = json[pos];
             if (inString)
             {
-                if (!escaped && c == '\\"') inString = false;
-                if (!escaped && c == '\\\\') escaped = true; else escaped = false;
-                ++pos; continue;
+                if (!escaped && c == '"') inString = false;
+                if (!escaped && c == '\\') escaped = true; else escaped = false;
+                ++pos;
+                continue;
             }
-            if (c == '\\"') { inString = true; ++pos; continue; }
+            if (c == '"') { inString = true; ++pos; continue; }
             if (c == '{') { if (depth++ == 0) objectStart = pos; }
             else if (c == '}')
             {
@@ -116,27 +113,27 @@ bool ParsePolicy(const std::string& json, std::vector<ModelCatalogPolicyEntry>& 
                     const std::string object = json.substr(objectStart, pos - objectStart + 1);
                     ModelCatalogPolicyEntry entry;
                     entry.provider = providerIndex;
-                    entry.modelId = Wide(JsonString(object, "id"));
-                    entry.status = Wide(JsonString(object, "status"));
-                    entry.quality = Wide(JsonString(object, "quality"));
-                    entry.reason = Wide(JsonString(object, "reason"));
-                    entry.replacementModelId = Wide(JsonString(object, "replacement_model_id"));
+                    entry.modelId = Wide(ReadJsonString(object, "id"));
+                    entry.status = Wide(ReadJsonString(object, "status"));
+                    entry.quality = Wide(ReadJsonString(object, "quality"));
+                    entry.reason = Wide(ReadJsonString(object, "reason"));
+                    entry.replacementModelId = Wide(ReadJsonString(object, "replacement_model_id"));
                     if (entry.modelId.empty() || entry.modelId.size() > 512) return false;
                     if (entry.status != L"recommended" && entry.status != L"allowed" &&
                         entry.status != L"caution" && entry.status != L"blocked") return false;
                     if (entry.quality != L"unverified" && entry.quality != L"tested" &&
                         entry.quality != L"poor") return false;
-                    if (std::any_of(parsed.begin(), parsed.end(), [&](const auto& x) {
-                        return x.provider == entry.provider && x.modelId == entry.modelId;
+                    if (std::any_of(parsed.begin(), parsed.end(), [&](const auto& item) {
+                        return item.provider == entry.provider && item.modelId == entry.modelId;
                     })) return false;
                     parsed.push_back(std::move(entry));
                     objectStart = std::string::npos;
                 }
             }
-            else if (c == ']' && depth == 0) break;
+            else if (c == ']' && depth == 0) { arrayClosed = true; break; }
             ++pos;
         }
-        if (depth != 0) return false;
+        if (!arrayClosed || depth != 0 || inString) return false;
     }
     entries.swap(parsed);
     return true;
@@ -210,7 +207,11 @@ bool SaveCache(const std::string& json, std::wstring& error)
 bool LoadFromBytes(const std::string& bytes, std::wstring& error)
 {
     std::vector<ModelCatalogPolicyEntry> parsed;
-    if (!ParsePolicy(bytes, parsed)) { error = L"モデル評価情報の形式またはスキーマが正しくありません。"; return false; }
+    if (!ParsePolicy(bytes, parsed))
+    {
+        error = L"モデル評価情報の形式またはスキーマが正しくありません。";
+        return false;
+    }
     g_entries.swap(parsed);
     g_loaded = true;
     return true;
@@ -248,10 +249,9 @@ bool RefreshModelCatalogPolicy(std::wstring& error)
 std::wstring GetModelCatalogPolicyNote(int provider, const std::wstring& modelId)
 {
     if (!g_loaded) { std::wstring ignored; LoadModelCatalogPolicy(ignored); }
-    const std::wstring id = modelId;
     for (const auto& entry : g_entries)
     {
-        if (entry.provider != provider || entry.modelId != id) continue;
+        if (entry.provider != provider || entry.modelId != modelId) continue;
         std::wstring note = L"評価：";
         if (entry.status == L"recommended") note += L"推奨";
         else if (entry.status == L"allowed") note += L"利用可";
