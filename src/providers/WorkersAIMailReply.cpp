@@ -1,4 +1,5 @@
 #include "WorkersAIMailReply.h"
+#include "WorkersAIReplyFormatting.h"
 #include "settings/AIProviderSettings.h"
 
 #include "WorkersAIClient.h"
@@ -8,28 +9,6 @@
 
 #include <windows.h>
 
-namespace
-{
-std::wstring EnsureReadableReplyLineBreaks(const std::wstring& text)
-{
-    if (text.find_first_of(L"\r\n") != std::wstring::npos)
-        return text;
-
-    std::wstring formatted;
-    formatted.reserve(text.size() + 16);
-    for (size_t i = 0; i < text.size(); ++i)
-    {
-        const wchar_t c = text[i];
-        formatted.push_back(c);
-        if ((c == L'。' || c == L'！' || c == L'？') &&
-            i + 1 < text.size() && text[i + 1] != L' ' && text[i + 1] != L'　')
-        {
-            formatted += L"\r\n";
-        }
-    }
-    return formatted;
-}
-}
 
 GeminiGenerateResult GenerateWorkersAIMailReplyDraft(
     const std::wstring& accountId,
@@ -101,7 +80,7 @@ GeminiGenerateResult GenerateWorkersAIMailReplyDraft(
     if (result.success)
     {
         result.text = masker.Restore(result.text);
-        result.text = EnsureReadableReplyLineBreaks(result.text);
+        result.text = WorkersAIReplyFormatting::EnsureReadableLineBreaks(result.text);
     }
     result.modelUsed = modelId;
     return result;
