@@ -147,20 +147,46 @@ namespace
         if (!context || !context->providerSettingsLoaded ||
             context->providerSettings.provider == AIProvider::Gemini)
             return;
+
         const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
         if (selected < 0 || selected >= static_cast<LRESULT>(context->providerModels.size()))
             return;
+
         const std::wstring model = context->providerModels[static_cast<size_t>(selected)];
+        std::wstring previousModel;
         if (context->providerSettings.provider == AIProvider::Groq)
+        {
+            previousModel = context->providerSettings.groqModel;
             context->providerSettings.groqModel = model;
+        }
         else
+        {
+            previousModel = context->providerSettings.workersModel;
             context->providerSettings.workersModel = model;
+        }
+
         std::wstring error;
         if (!SaveAIProviderSettings(context->providerSettings, error))
+        {
+            // Do not let the in-memory selection diverge from the persisted
+            // provider settings used by subsequent API operations.
+            if (context->providerSettings.provider == AIProvider::Groq)
+                context->providerSettings.groqModel = previousModel;
+            else
+                context->providerSettings.workersModel = previousModel;
+
+            const auto previous = std::find(context->providerModels.begin(),
+                context->providerModels.end(), previousModel);
+            const LRESULT previousIndex = previous == context->providerModels.end()
+                ? -1 : static_cast<LRESULT>(std::distance(context->providerModels.begin(), previous));
+            SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_SETCURSEL, previousIndex, 0);
             SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
-                (L"モデル選択を保存できませんでした: " + error).c_str());
-        else
-            SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"選択したモデルを保存しました。");
+                (L"モデル選択を保存できませんでした。以前のモデルに戻しました: " + error).c_str());
+            return;
+        }
+
+        SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
+            (L"使用モデルを切り替えました: " + model).c_str());
     }
 
     INT_PTR CALLBACK LauncherDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
