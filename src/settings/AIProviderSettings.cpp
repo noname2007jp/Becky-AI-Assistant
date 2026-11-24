@@ -109,15 +109,42 @@ bool LoadAIProviderSettings(AIProviderSettings& settings, std::wstring& error)
         error = L"AIサービス設定の形式またはバージョンが正しくありません。";
         return false;
     }
+
+    // v0.85.0 and later use direct provider connections only. Normalize
+    // legacy Gateway settings without discarding provider keys or models.
+    settings.route = AIConnectionRoute::Direct;
+    settings.cloudflareAccountId.clear();
+    settings.cloudflareGatewayId.clear();
+    if (!settings.cloudflareApiToken.empty())
+        SecureZeroMemory(settings.cloudflareApiToken.data(),
+            settings.cloudflareApiToken.size() * sizeof(wchar_t));
+    settings.cloudflareApiToken.clear();
+    settings.gatewayRequestLogging = false;
+    settings.gatewayCacheEnabled = false;
     return true;
 }
 
 bool SaveAIProviderSettings(const AIProviderSettings& settings, std::wstring& error)
 {
     error.clear();
+    AIProviderSettings normalized = settings;
+    normalized.route = AIConnectionRoute::Direct;
+    normalized.cloudflareAccountId.clear();
+    normalized.cloudflareGatewayId.clear();
+    if (!normalized.cloudflareApiToken.empty())
+        SecureZeroMemory(normalized.cloudflareApiToken.data(),
+            normalized.cloudflareApiToken.size() * sizeof(wchar_t));
+    normalized.cloudflareApiToken.clear();
+    normalized.gatewayRequestLogging = false;
+    normalized.gatewayCacheEnabled = false;
+
     std::vector<std::uint8_t> plain;
-    if (!AIProviderSettingsCodec::Encode(settings, plain))
+    const bool encoded = AIProviderSettingsCodec::Encode(normalized, plain);
+    for (auto* secret : { &normalized.geminiApiKey, &normalized.groqApiKey, &normalized.workersApiToken })
+        if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
+    if (!encoded)
     {
+        ClearBytes(plain);
         error = L"AIサービス設定に不正な値が含まれています（文字数または選択値を確認してください）。";
         return false;
     }

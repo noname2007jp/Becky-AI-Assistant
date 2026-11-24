@@ -36,33 +36,32 @@ struct SettingsState
 
 void ShowSettingsTab(HWND dialog, int selected)
 {
-    const int basic[] = { IDC_SETTINGS_LABEL_API, IDC_GEMINI_API_KEY, IDC_SETTINGS_TOGGLE_KEY,
+    const int providerIndex = static_cast<int>(SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_GETCURSEL, 0, 0));
+    const int common[] = { IDC_PROVIDER_LABEL, IDC_PROVIDER_SELECT, IDC_PROVIDER_STATUS_NOTE };
+    const int gemini[] = { IDC_SETTINGS_LABEL_API, IDC_GEMINI_API_KEY, IDC_SETTINGS_TOGGLE_KEY,
         IDC_GEMINI_APIKEY_LINK, IDC_SETTINGS_LABEL_API_NOTE, IDC_SETTINGS_LABEL_MODEL,
-        IDC_GROQ_APIKEY_LINK, IDC_CF_WORKERS_AI_LINK, IDC_CF_AI_GATEWAY_LINK,
         IDC_SETTINGS_DEFAULT_MODEL, IDC_SETTINGS_PRICING_LINK, IDC_SETTINGS_UPDATE_MODELS,
         IDC_SETTINGS_TEST, IDC_GEMINI_MODEL_DETAILS, IDC_GEMINI_CATALOG_UPDATED_AT };
-    const int provider[] = { IDC_PROVIDER_LABEL, IDC_PROVIDER_SELECT, IDC_PROVIDER_ROUTE_LABEL,
-        IDC_PROVIDER_ROUTE, IDC_PROVIDER_STATUS_NOTE, IDC_PROVIDER_GROQ_KEY_LABEL,
-        IDC_PROVIDER_GROQ_KEY, IDC_PROVIDER_GROQ_MODEL_LABEL, IDC_PROVIDER_GROQ_MODEL,
-        IDC_PROVIDER_WORKERS_ACCOUNT_LABEL, IDC_PROVIDER_WORKERS_ACCOUNT,
-        IDC_PROVIDER_WORKERS_TOKEN_LABEL, IDC_PROVIDER_WORKERS_TOKEN,
-        IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL,
-        IDC_PROVIDER_GROQ_MODELS_UPDATE, IDC_PROVIDER_WORKERS_MODELS_UPDATE,
-        IDC_PROVIDER_MODEL_DETAILS };
-    const int gateway[] = { IDC_GATEWAY_ACCOUNT_LABEL, IDC_GATEWAY_ACCOUNT, IDC_GATEWAY_ID_LABEL,
-        IDC_GATEWAY_ID, IDC_GATEWAY_TOKEN_LABEL, IDC_GATEWAY_TOKEN, IDC_GATEWAY_LOGGING,
-        IDC_GATEWAY_CACHE, IDC_GATEWAY_PRIVACY_NOTE };
+    const int groq[] = { IDC_PROVIDER_GROQ_KEY_LABEL, IDC_PROVIDER_GROQ_KEY, IDC_GROQ_APIKEY_LINK,
+        IDC_PROVIDER_GROQ_MODEL_LABEL, IDC_PROVIDER_GROQ_MODEL, IDC_PROVIDER_GROQ_MODELS_UPDATE };
+    const int workers[] = { IDC_PROVIDER_WORKERS_ACCOUNT_LABEL, IDC_PROVIDER_WORKERS_ACCOUNT,
+        IDC_PROVIDER_WORKERS_TOKEN_LABEL, IDC_PROVIDER_WORKERS_TOKEN, IDC_CF_WORKERS_AI_LINK,
+        IDC_PROVIDER_WORKERS_MODEL_LABEL, IDC_PROVIDER_WORKERS_MODEL, IDC_PROVIDER_WORKERS_MODELS_UPDATE };
     const int masking[] = { IDC_SETTINGS_LABEL_MASK, IDC_MASK_EMAIL, IDC_MASK_PHONE,
         IDC_MASK_POSTAL, IDC_MASK_IP, IDC_MASK_COMPANY, IDC_MASK_PERSON, IDC_MASK_ADDRESS,
         IDC_MASK_ACCOUNT, IDC_MASK_CUSTOM, IDC_SETTINGS_LABEL_MASK_TERMS,
         IDC_SETTINGS_MASK_TERMS, IDC_SETTINGS_LABEL_MASK_NOTE };
     const int advanced[] = { IDC_SETTINGS_AUTO_FALLBACK, IDC_SETTINGS_INCLUDE_PAID,
         IDC_SETTINGS_DEBUG_LOG, IDC_SETTINGS_LABEL_DEBUG_NOTE };
-    for (int id : basic) ShowWindow(GetDlgItem(dialog, id), selected == 0 ? SW_SHOW : SW_HIDE);
+    const bool serviceTab = selected == 0;
+    for (int id : common) ShowWindow(GetDlgItem(dialog, id), serviceTab ? SW_SHOW : SW_HIDE);
+    for (int id : gemini) ShowWindow(GetDlgItem(dialog, id), serviceTab && providerIndex == 0 ? SW_SHOW : SW_HIDE);
+    for (int id : groq) ShowWindow(GetDlgItem(dialog, id), serviceTab && providerIndex == 1 ? SW_SHOW : SW_HIDE);
+    for (int id : workers) ShowWindow(GetDlgItem(dialog, id), serviceTab && providerIndex == 2 ? SW_SHOW : SW_HIDE);
+    ShowWindow(GetDlgItem(dialog, IDC_PROVIDER_MODEL_DETAILS),
+        serviceTab && (providerIndex == 1 || providerIndex == 2) ? SW_SHOW : SW_HIDE);
     for (int id : masking) ShowWindow(GetDlgItem(dialog, id), selected == 1 ? SW_SHOW : SW_HIDE);
     for (int id : advanced) ShowWindow(GetDlgItem(dialog, id), selected == 2 ? SW_SHOW : SW_HIDE);
-    for (int id : provider) ShowWindow(GetDlgItem(dialog, id), selected == 3 ? SW_SHOW : SW_HIDE);
-    for (int id : gateway) ShowWindow(GetDlgItem(dialog, id), selected == 4 ? SW_SHOW : SW_HIDE);
 }
 
 void UpdateGeminiModelDescription(HWND dialog, SettingsState* state)
@@ -94,9 +93,13 @@ void UpdateProviderModelDescription(HWND dialog, int provider)
 void UpdateCurrentProviderModelDescription(HWND dialog)
 {
     const int provider = static_cast<int>(SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_GETCURSEL, 0, 0));
-    if (provider == 1 || provider == 2) UpdateProviderModelDescription(dialog, provider);
-    else SetDlgItemTextW(dialog, IDC_PROVIDER_MODEL_DETAILS,
-        L"Geminiのモデル説明は「基本」タブに表示します。");
+    if (provider == 0)
+    {
+        auto* state = reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER));
+        UpdateGeminiModelDescription(dialog, state);
+    }
+    else if (provider == 1 || provider == 2)
+        UpdateProviderModelDescription(dialog, provider);
 }
 
 void PopulateProviderModelCombo(HWND dialog, int provider,
@@ -264,13 +267,10 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(state));
         HWND tabs = GetDlgItem(dialog, IDC_SETTINGS_TABS);
         TCITEMW tab{}; tab.mask = TCIF_TEXT;
-        tab.pszText = const_cast<wchar_t*>(L"\u57FA\u672C"); SendMessageW(tabs, TCM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&tab));
+        tab.pszText = const_cast<wchar_t*>(L"AIサービス"); SendMessageW(tabs, TCM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(&tab));
         tab.pszText = const_cast<wchar_t*>(L"\u30DE\u30B9\u30AD\u30F3\u30B0"); SendMessageW(tabs, TCM_INSERTITEMW, 1, reinterpret_cast<LPARAM>(&tab));
         tab.pszText = const_cast<wchar_t*>(L"\u8A73\u7D30"); SendMessageW(tabs, TCM_INSERTITEMW, 2, reinterpret_cast<LPARAM>(&tab));
-        tab.pszText = const_cast<wchar_t*>(L"AIサービス"); SendMessageW(tabs, TCM_INSERTITEMW, 3, reinterpret_cast<LPARAM>(&tab));
-        tab.pszText = const_cast<wchar_t*>(L"AI Gateway"); SendMessageW(tabs, TCM_INSERTITEMW, 4, reinterpret_cast<LPARAM>(&tab));
         TabCtrl_SetCurSel(tabs, 0);
-        ShowSettingsTab(dialog, 0);
         std::wstring key, error;
         std::wstring policyCacheError;
         LoadModelCatalogPolicy(policyCacheError);
@@ -282,8 +282,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             L"<a href=\"https://console.groq.com/keys\">Groq APIキーを取得</a>");
         SetDlgItemTextW(dialog, IDC_CF_WORKERS_AI_LINK,
             L"<a href=\"https://developers.cloudflare.com/workers-ai/get-started/rest-api/\">Cloudflare Workers AI：API Token取得手順</a>");
-        SetDlgItemTextW(dialog, IDC_CF_AI_GATEWAY_LINK,
-            L"<a href=\"https://developers.cloudflare.com/ai-gateway/get-started/\">Cloudflare AI Gateway：セットアップ手順</a>");
         if (!LoadGeminiApiKey(key, error))
             SetDlgItemTextW(dialog, IDC_SETTINGS_STATUS, error.c_str());
         else if (!key.empty())
@@ -293,15 +291,13 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         std::wstring providerError;
         if (LoadAIProviderSettings(providerSettings, providerError))
         {
+            if (!providerSettings.geminiApiKey.empty())
+                SetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, providerSettings.geminiApiKey.c_str());
             HWND providerCombo = GetDlgItem(dialog, IDC_PROVIDER_SELECT);
             SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Gemini"));
             SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Groq"));
             SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare Workers AI"));
             SendMessageW(providerCombo, CB_SETCURSEL, static_cast<WPARAM>(providerSettings.provider), 0);
-            HWND routeCombo = GetDlgItem(dialog, IDC_PROVIDER_ROUTE);
-            SendMessageW(routeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"直接接続"));
-            SendMessageW(routeCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare AI Gateway経由"));
-            SendMessageW(routeCombo, CB_SETCURSEL, static_cast<WPARAM>(providerSettings.route), 0);
             SetDlgItemTextW(dialog, IDC_PROVIDER_GROQ_KEY, providerSettings.groqApiKey.c_str());
             SetDlgItemTextW(dialog, IDC_PROVIDER_GROQ_MODEL, providerSettings.groqModel.c_str());
             SetDlgItemTextW(dialog, IDC_PROVIDER_WORKERS_ACCOUNT, providerSettings.workersAccountId.c_str());
@@ -322,11 +318,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                     PopulateProviderModelCombo(dialog, provider, cachedModels, preferred);
                 }
             }
-            SetDlgItemTextW(dialog, IDC_GATEWAY_ACCOUNT, providerSettings.cloudflareAccountId.c_str());
-            SetDlgItemTextW(dialog, IDC_GATEWAY_ID, providerSettings.cloudflareGatewayId.c_str());
-            SetDlgItemTextW(dialog, IDC_GATEWAY_TOKEN, providerSettings.cloudflareApiToken.c_str());
-            CheckDlgButton(dialog, IDC_GATEWAY_LOGGING, providerSettings.gatewayRequestLogging ? BST_CHECKED : BST_UNCHECKED);
-            CheckDlgButton(dialog, IDC_GATEWAY_CACHE, providerSettings.gatewayCacheEnabled ? BST_CHECKED : BST_UNCHECKED);
             for (auto* secret : { &providerSettings.geminiApiKey, &providerSettings.groqApiKey,
                 &providerSettings.workersApiToken, &providerSettings.cloudflareApiToken })
                 if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
@@ -338,9 +329,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Groq"));
             SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare Workers AI"));
             SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_SETCURSEL, 0, 0);
-            SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"直接接続"));
-            SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Cloudflare AI Gateway経由"));
-            SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_SETCURSEL, 0, 0);
         }
         std::vector<std::wstring> maskTerms;
         std::wstring maskError;
@@ -384,6 +372,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         UpdateGeminiModelDescription(dialog, state);
         UpdateCurrentProviderModelDescription(dialog);
         SetDlgItemTextW(dialog, IDC_GEMINI_CATALOG_UPDATED_AT, GetModelCatalogUpdatedAtText(0).c_str());
+        ShowSettingsTab(dialog, 0);
         return TRUE;
     }
 
@@ -402,7 +391,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         if (tabNotification && tabNotification->idFrom == IDC_SETTINGS_TABS && tabNotification->code == TCN_SELCHANGE) {
             const int selectedTab = TabCtrl_GetCurSel(GetDlgItem(dialog, IDC_SETTINGS_TABS));
             ShowSettingsTab(dialog, selectedTab);
-            if (selectedTab == 3) UpdateCurrentProviderModelDescription(dialog);
+            if (selectedTab == 0) UpdateCurrentProviderModelDescription(dialog);
             return TRUE;
         }
         const auto* notification = reinterpret_cast<const NMHDR*>(lParam);
@@ -416,8 +405,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         if (notification != nullptr &&
             (notification->idFrom == IDC_GEMINI_APIKEY_LINK ||
              notification->idFrom == IDC_GROQ_APIKEY_LINK ||
-             notification->idFrom == IDC_CF_WORKERS_AI_LINK ||
-             notification->idFrom == IDC_CF_AI_GATEWAY_LINK) &&
+             notification->idFrom == IDC_CF_WORKERS_AI_LINK) &&
             (notification->code == NM_CLICK || notification->code == NM_RETURN))
         {
             const wchar_t* url = L"https://aistudio.google.com/api-keys";
@@ -425,8 +413,6 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 url = L"https://console.groq.com/keys";
             else if (notification->idFrom == IDC_CF_WORKERS_AI_LINK)
                 url = L"https://developers.cloudflare.com/workers-ai/get-started/rest-api/";
-            else if (notification->idFrom == IDC_CF_AI_GATEWAY_LINK)
-                url = L"https://developers.cloudflare.com/ai-gateway/get-started/";
             ShellExecuteW(dialog, L"open", url, nullptr, nullptr, SW_SHOWNORMAL);
             return TRUE;
         }
@@ -519,7 +505,10 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         if (LOWORD(wParam) == IDC_SETTINGS_DEFAULT_MODEL && HIWORD(wParam) == CBN_SELCHANGE)
             UpdateGeminiModelDescription(dialog, reinterpret_cast<SettingsState*>(GetWindowLongPtrW(dialog, DWLP_USER)));
         if (LOWORD(wParam) == IDC_PROVIDER_SELECT && HIWORD(wParam) == CBN_SELCHANGE)
+        {
             UpdateCurrentProviderModelDescription(dialog);
+            ShowSettingsTab(dialog, TabCtrl_GetCurSel(GetDlgItem(dialog, IDC_SETTINGS_TABS)));
+        }
         if ((LOWORD(wParam) == IDC_PROVIDER_GROQ_MODEL || LOWORD(wParam) == IDC_PROVIDER_WORKERS_MODEL) &&
             (HIWORD(wParam) == CBN_SELCHANGE || HIWORD(wParam) == EN_CHANGE))
             UpdateProviderModelDescription(dialog, LOWORD(wParam) == IDC_PROVIDER_GROQ_MODEL ? 1 : 2);
@@ -608,7 +597,7 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
             const bool reliabilitySaved = SaveGeminiReliabilityOptions(reliability, error);
             AIProviderSettings providerSettings;
             providerSettings.provider = static_cast<AIProvider>(SendDlgItemMessageW(dialog, IDC_PROVIDER_SELECT, CB_GETCURSEL, 0, 0));
-            providerSettings.route = static_cast<AIConnectionRoute>(SendDlgItemMessageW(dialog, IDC_PROVIDER_ROUTE, CB_GETCURSEL, 0, 0));
+            providerSettings.route = AIConnectionRoute::Direct;
             auto readSetting = [dialog](int id) {
                 const int length = GetWindowTextLengthW(GetDlgItem(dialog, id));
                 std::wstring value(static_cast<size_t>(length) + 1, L'\0');
@@ -617,16 +606,12 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
                 return value;
             };
             providerSettings.geminiApiKey = readSetting(IDC_GEMINI_API_KEY);
+            providerSettings.geminiModel = reliability.defaultModel;
             providerSettings.groqApiKey = readSetting(IDC_PROVIDER_GROQ_KEY);
             providerSettings.groqModel = readSetting(IDC_PROVIDER_GROQ_MODEL);
             providerSettings.workersAccountId = readSetting(IDC_PROVIDER_WORKERS_ACCOUNT);
             providerSettings.workersApiToken = readSetting(IDC_PROVIDER_WORKERS_TOKEN);
             providerSettings.workersModel = readSetting(IDC_PROVIDER_WORKERS_MODEL);
-            providerSettings.cloudflareAccountId = readSetting(IDC_GATEWAY_ACCOUNT);
-            providerSettings.cloudflareGatewayId = readSetting(IDC_GATEWAY_ID);
-            providerSettings.cloudflareApiToken = readSetting(IDC_GATEWAY_TOKEN);
-            providerSettings.gatewayRequestLogging = IsDlgButtonChecked(dialog, IDC_GATEWAY_LOGGING) == BST_CHECKED;
-            providerSettings.gatewayCacheEnabled = IsDlgButtonChecked(dialog, IDC_GATEWAY_CACHE) == BST_CHECKED;
             const bool providerSettingsSaved = SaveAIProviderSettings(providerSettings, error);
             for (auto* secret : { &providerSettings.geminiApiKey, &providerSettings.groqApiKey,
                 &providerSettings.workersApiToken, &providerSettings.cloudflareApiToken })
