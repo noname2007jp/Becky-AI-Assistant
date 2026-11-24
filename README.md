@@ -2,10 +2,10 @@
 
 Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.87.0）
+## 現在の機能（0.88.0）
 
 - メール要約：Gemini／Groq／Cloudflare Workers AIに直接接続して利用可能。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応
-- 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。複数ターンのAI相談：Gemini／Groq／Cloudflare Workers AIに対応
+- 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。Workers AIの返信文案は、API応答に改行がない場合も文末ごとに改行して読みやすく整形。複数ターンのAI相談：Gemini／Groq／Cloudflare Workers AIに対応
 - メール校正：文章レベルを1～10段階で調整可能（レベル1は誤字・文法中心、レベル10は意味・情報を維持した積極的な表現改善）
 
 
@@ -36,8 +36,8 @@ Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AI�
 設定画面の「AIサービス」タブで、Gemini／Groq／Cloudflare Workers AIのいずれかを選択します。選択したサービスに必要な設定項目だけを表示する構成です。
 
 - Gemini：APIキー、モデル選択、公式モデル一覧の更新、接続テスト
-- Groq：APIキー、モデル選択、公式モデル一覧の取得
-- Cloudflare Workers AI：Account ID、API Token、モデル選択、公式モデル一覧の取得
+- Groq：APIキー、モデル選択、公式モデル一覧の取得。メイン画面でもモデルを切り替えでき、選択内容は即時保存
+- Cloudflare Workers AI：Account ID、API Token、モデル選択、公式モデル一覧の取得。メイン画面でもモデルを切り替えでき、選択内容は即時保存
 
 各サービスのAPIキー・トークンはWindows DPAPIで暗号化して保存します。Cloudflare AI Gateway経由の接続機能と設定項目は廃止し、3サービスとも各社のAPIへ直接接続します。旧バージョンで保存したGateway経路設定は読み込み時に無効化し、Gemini／Groq／Workers AIのAPIキー・モデル設定は維持します。
 
@@ -144,4 +144,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-87.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-88.dll`

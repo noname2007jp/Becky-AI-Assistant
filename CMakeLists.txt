@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.87.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.88.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
+
 endif()
 
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
@@ -193,4 +194,10 @@ if(BUILD_TESTING)
   target_compile_features(AIProviderSettingsCodecTests PRIVATE cxx_std_17)
   target_compile_options(AIProviderSettingsCodecTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME AIProviderSettingsCodecTests COMMAND AIProviderSettingsCodecTests)
+  add_executable(WorkersAIReplyFormattingTests tests/WorkersAIReplyFormattingTests.cpp)
+  target_include_directories(WorkersAIReplyFormattingTests PRIVATE src/providers)
+  target_compile_features(WorkersAIReplyFormattingTests PRIVATE cxx_std_17)
+  target_compile_options(WorkersAIReplyFormattingTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME WorkersAIReplyFormattingTests COMMAND WorkersAIReplyFormattingTests)
+
 endif()
