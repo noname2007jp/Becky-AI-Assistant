@@ -12,7 +12,7 @@ namespace
 {
 std::wstring EnsureReadableReplyLineBreaks(const std::wstring& text)
 {
-    if (text.find_first_of(L"\\r\\n") != std::wstring::npos)
+    if (text.find_first_of(L"\r\n") != std::wstring::npos)
         return text;
 
     std::wstring formatted;
@@ -24,7 +24,7 @@ std::wstring EnsureReadableReplyLineBreaks(const std::wstring& text)
         if ((c == L'。' || c == L'！' || c == L'？') &&
             i + 1 < text.size() && text[i + 1] != L' ' && text[i + 1] != L'　')
         {
-            formatted += L"\\r\\n";
+            formatted += L"\r\n";
         }
     }
     return formatted;
