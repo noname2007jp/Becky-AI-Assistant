@@ -19,6 +19,7 @@
 #include "providers/ProviderModelCatalogStore.h"
 #include "providers/GroqMailReply.h"
 #include <utility>
+#include <algorithm>
 #include <commctrl.h>
 
 bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText);
