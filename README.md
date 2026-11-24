@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.86.0）
+## 現在の機能（0.87.0）
 
 - メール要約：Gemini／Groq／Cloudflare Workers AIに直接接続して利用可能。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応
 - 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。複数ターンのAI相談：Gemini／Groq／Cloudflare Workers AIに対応
@@ -144,4 +144,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-86.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-87.dll`

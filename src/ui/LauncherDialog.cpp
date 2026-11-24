@@ -16,8 +16,10 @@
 #include "providers/GroqMailSummary.h"
 #include "providers/WorkersAIMailSummary.h"
 #include "providers/WorkersAIMailReply.h"
+#include "providers/ProviderModelCatalogStore.h"
 #include "providers/GroqMailReply.h"
 #include <utility>
+#include <algorithm>
 #include <commctrl.h>
 
 bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText);
@@ -78,6 +80,7 @@ namespace
         MailContext* mail;
         HINSTANCE instance;
         std::vector<GeminiModelOption> models;
+        std::vector<std::wstring> providerModels;
         AIProviderSettings providerSettings;
         bool providerSettingsLoaded = false;
         bool busy = false;
@@ -89,24 +92,33 @@ namespace
     {
         if (!context) return;
         HWND combo = GetDlgItem(dialog, IDC_GEMINI_MODEL);
+        SendMessageW(combo, CB_RESETCONTENT, 0, 0);
         if (context->providerSettingsLoaded &&
             context->providerSettings.provider != AIProvider::Gemini)
         {
-            const AIProvider provider = context->providerSettings.provider;
-            const std::wstring model = provider == AIProvider::Groq
-                ? context->providerSettings.groqModel
-                : context->providerSettings.workersModel;
+            const int provider = context->providerSettings.provider == AIProvider::Groq ? 1 : 2;
+            const std::wstring preferred = provider == 1
+                ? context->providerSettings.groqModel : context->providerSettings.workersModel;
             SetDlgItemTextW(dialog, IDC_LAUNCHER_MODEL_LABEL,
-                provider == AIProvider::Groq ? L"Groqモデル" : L"Workers AIモデル");
-            if (!model.empty())
+                provider == 1 ? L"Groqモデル" : L"Workers AIモデル");
+
+            std::wstring catalogError;
+            if (!LoadProviderModelCatalog(provider, context->providerModels, catalogError))
+                context->providerModels.clear();
+            if (!preferred.empty() &&
+                std::find(context->providerModels.begin(), context->providerModels.end(), preferred) ==
+                    context->providerModels.end())
+                context->providerModels.insert(context->providerModels.begin(), preferred);
+
+            int selected = -1;
+            for (size_t i = 0; i < context->providerModels.size(); ++i)
             {
-                SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(model.c_str()));
-                SendMessageW(combo, CB_SETCURSEL, 0, 0);
+                SendMessageW(combo, CB_ADDSTRING, 0,
+                    reinterpret_cast<LPARAM>(context->providerModels[i].c_str()));
+                if (context->providerModels[i] == preferred) selected = static_cast<int>(i);
             }
-            else
-            {
-                SetWindowTextW(combo, L"設定画面でモデルを指定してください");
-            }
+            if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
+            else SetWindowTextW(combo, L"設定画面でモデルを指定してください");
             return;
         }
 
@@ -128,6 +140,27 @@ namespace
         }
         if (defaultIndex < 0 && !context->models.empty()) defaultIndex = 0;
         SendMessageW(combo, CB_SETCURSEL, defaultIndex, 0);
+    }
+
+    void SaveSelectedProviderModel(HWND dialog, DialogContext* context)
+    {
+        if (!context || !context->providerSettingsLoaded ||
+            context->providerSettings.provider == AIProvider::Gemini)
+            return;
+        const LRESULT selected = SendDlgItemMessageW(dialog, IDC_GEMINI_MODEL, CB_GETCURSEL, 0, 0);
+        if (selected < 0 || selected >= static_cast<LRESULT>(context->providerModels.size()))
+            return;
+        const std::wstring model = context->providerModels[static_cast<size_t>(selected)];
+        if (context->providerSettings.provider == AIProvider::Groq)
+            context->providerSettings.groqModel = model;
+        else
+            context->providerSettings.workersModel = model;
+        std::wstring error;
+        if (!SaveAIProviderSettings(context->providerSettings, error))
+            SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS,
+                (L"モデル選択を保存できませんでした: " + error).c_str());
+        else
+            SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, L"選択したモデルを保存しました。");
     }
 
     INT_PTR CALLBACK LauncherDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
@@ -239,6 +272,14 @@ namespace
         case WM_COMMAND:
             switch (LOWORD(wParam))
             {
+            case IDC_GEMINI_MODEL:
+                if (HIWORD(wParam) == CBN_SELCHANGE)
+                {
+                    auto* context = reinterpret_cast<DialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+                    SaveSelectedProviderModel(dialog, context);
+                }
+                return TRUE;
+
             case IDC_MASK_ENABLED:
             {
                 if (HIWORD(wParam) != BN_CLICKED) return TRUE;
