@@ -144,6 +144,7 @@ bool SaveAIProviderSettings(const AIProviderSettings& settings, std::wstring& er
         if (!secret->empty()) SecureZeroMemory(secret->data(), secret->size() * sizeof(wchar_t));
     if (!encoded)
     {
+        ClearBytes(plain);
         error = L"AIサービス設定に不正な値が含まれています（文字数または選択値を確認してください）。";
         return false;
     }
