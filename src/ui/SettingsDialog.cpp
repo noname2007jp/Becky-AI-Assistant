@@ -291,6 +291,8 @@ INT_PTR CALLBACK SettingsProc(HWND dialog, UINT message, WPARAM wParam, LPARAM l
         std::wstring providerError;
         if (LoadAIProviderSettings(providerSettings, providerError))
         {
+            if (!providerSettings.geminiApiKey.empty())
+                SetDlgItemTextW(dialog, IDC_GEMINI_API_KEY, providerSettings.geminiApiKey.c_str());
             HWND providerCombo = GetDlgItem(dialog, IDC_PROVIDER_SELECT);
             SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Gemini"));
             SendMessageW(providerCombo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L"Groq"));
