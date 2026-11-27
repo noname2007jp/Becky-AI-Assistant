@@ -66,7 +66,7 @@ GeminiGenerateResult GenerateWorkersAIMailSummary(
             return GenerateWorkersAIChatCompletion(apiToken, accountId, candidate,
                 systemPrompt, userPrompt, 768, cancelState, {}, providerSettings);
         });
-    LogProviderEvent(L"Cloudflare Workers AI", L"summary", modelId, L"END", result.httpStatus,
+    LogProviderEvent(L"Cloudflare Workers AI", L"summary", result.modelUsed, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success)
         result.text = masker.Restore(result.text);
