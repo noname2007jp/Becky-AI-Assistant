@@ -7,6 +7,8 @@ int main() {
     assert(IsGroqChatCompletionModelEligible("qwen/qwen3.8-27b"));
     assert(!IsGroqChatCompletionModelEligible("canopylabs/orpheus-v1-english"));
     assert(!IsGroqChatCompletionModelEligible("whisper-large-v3"));
+    assert(provider_model_eligibility::IsGroqChatCompletionModelEligible(std::wstring(L"allam-2-7b")));
+    assert(!provider_model_eligibility::IsGroqChatCompletionModelEligible(std::wstring(L"canopylabs/orpheus-v1-english")));
     assert(IsWorkersAIChatCompletionModelEligible("@cf/mistral/mistral-7b-instruct-v0.2"));
     assert(IsWorkersAIChatCompletionModelEligible("@cf/meta/llama-3.3-70b-instruct-fp8-fast"));
     assert(!IsWorkersAIChatCompletionModelEligible("@cf/cloudflare/clairic"));
@@ -19,5 +21,6 @@ int main() {
     assert(!IsWorkersAIChatCompletionModelEligible("@cf/utter-project/eurollm-9b-it"));
     assert(!IsWorkersAIChatCompletionModelEligible("@cf/zai-org/glm-4.7-flash"));
     assert(!IsWorkersAIChatCompletionModelEligible("@cf/zai-org/glm-5.3"));
+    assert(!provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(std::wstring(L"@cf/cloudflare/clairic-flash")));
     return 0;
 }
