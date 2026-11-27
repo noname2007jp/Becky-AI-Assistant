@@ -58,5 +58,20 @@ int main()
             "later bold range remains aligned after multiple paragraph breaks");
     }
 
+    const auto lfOnly = MarkdownRenderer::Render(
+        L"1行目\n2行目 **重要な単語**\n3行目 **最後**");
+    check(lfOnly.text.find(L"\n") == std::wstring::npos,
+        "LF-only input is normalized to RichEdit paragraph breaks");
+    check(lfOnly.text.find(L"\r\r") == std::wstring::npos,
+        "LF-only input does not create overlapping empty paragraphs");
+    check(lfOnly.bold.size() == 2,
+        "bold ranges remain aligned after LF-only paragraph breaks");
+    if (lfOnly.bold.size() == 2) {
+        check(lfOnly.text.substr(lfOnly.bold[0].start, lfOnly.bold[0].length) == L"重要な単語",
+            "first LF-only bold range is aligned");
+        check(lfOnly.text.substr(lfOnly.bold[1].start, lfOnly.bold[1].length) == L"最後",
+            "second LF-only bold range is aligned");
+    }
+
     return failures == 0 ? 0 : 1;
 }
