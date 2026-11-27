@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(BeckyAIAssistant VERSION 0.88.0 LANGUAGES CXX RC)
+project(BeckyAIAssistant VERSION 0.89.0 LANGUAGES CXX RC)
 
 if(NOT WIN32 OR NOT MSVC)
   message(FATAL_ERROR "Becky AI Assistant must be built with MSVC on Windows.")
@@ -163,6 +163,12 @@ if(BUILD_TESTING)
   target_compile_features(ModelDescriptionsTests PRIVATE cxx_std_17)
   target_compile_options(ModelDescriptionsTests PRIVATE /W4 /permissive- /EHsc /utf-8)
   add_test(NAME ModelDescriptionsTests COMMAND ModelDescriptionsTests)
+
+  add_executable(ProviderModelEligibilityTests tests/ProviderModelEligibilityTests.cpp)
+  target_include_directories(ProviderModelEligibilityTests PRIVATE src/providers)
+  target_compile_features(ProviderModelEligibilityTests PRIVATE cxx_std_17)
+  target_compile_options(ProviderModelEligibilityTests PRIVATE /W4 /permissive- /EHsc /utf-8)
+  add_test(NAME ProviderModelEligibilityTests COMMAND ProviderModelEligibilityTests)
 
   add_executable(ModelCatalogPolicyTests
     tests/ModelCatalogPolicyTests.cpp
