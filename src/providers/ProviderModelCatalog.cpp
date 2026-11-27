@@ -102,7 +102,12 @@ bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& t
         error=L"モデル一覧APIの取得に失敗しました";
         if(status)error+=L"（HTTP "+std::to_wstring(status)+L"）";
         else error+=L"（通信エラー "+std::to_wstring(last)+L"）";
-        if(status==401||status==403)error+=L"。API Token／APIキーと権限を確認してください。";
+        if(status==401)error+=L"。APIキー／API Tokenを確認してください。";
+        else if(status==403)error+=L"。APIキー／API Tokenの権限を確認してください。";
+        else if(status==404)error+=L"。API URLまたはAPIバージョンが変更・廃止された可能性があります。公式ドキュメントを確認してください。";
+        else if(status==429)error+=L"。APIの利用制限に達しています。時間をおいて再試行してください。";
+        else if(status>=500)error+=L"。提供元のAPI障害の可能性があります。時間をおいて再試行してください。";
+        else if(!status)error+=L"。DNS、ネットワーク、プロキシ、ファイアウォールを確認してください。";
         return false;
     }
     return true;
