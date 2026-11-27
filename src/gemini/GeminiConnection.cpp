@@ -135,9 +135,15 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
         result.status = GeminiConnectionStatus::RateLimited;
     else if (statusCode >= 500)
         result.status = GeminiConnectionStatus::ServerError;
+    else if (statusCode == 404)
+    {
+        result.status = GeminiConnectionStatus::UnexpectedResponse;
+        result.message = L"Gemini APIのエンドポイントが見つかりません（HTTP 404）。API URLまたはAPIバージョンが変更・廃止された可能性があります。Google公式ドキュメントを確認してください。";
+    }
     else
         result.status = GeminiConnectionStatus::UnexpectedResponse;
 
-    result.message = StatusMessage(result.status);
+    if (result.message.empty())
+        result.message = StatusMessage(result.status);
     return result;
 }
