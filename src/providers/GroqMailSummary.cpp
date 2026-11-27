@@ -61,7 +61,7 @@ GeminiGenerateResult GenerateGroqMailSummary(
             return GenerateGroqChatCompletion(apiKey, candidate, systemPrompt,
                 userPrompt, 768, cancelState, {}, providerSettings);
         });
-    LogProviderEvent(L"Groq", L"summary", modelId, L"END", result.httpStatus,
+    LogProviderEvent(L"Groq", L"summary", result.modelUsed, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success)
         result.text = masker.Restore(result.text);
