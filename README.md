@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.88.0）
+## 現在の機能（0.89.0）
 
 - メール要約：Gemini／Groq／Cloudflare Workers AIに直接接続して利用可能。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応
 - 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。Workers AIの返信文案は、API応答に改行がない場合も文末ごとに改行して読みやすく整形。複数ターンのAI相談：Gemini／Groq／Cloudflare Workers AIに対応
@@ -68,7 +68,7 @@ Groq／Cloudflare Workers AIの公式モデル一覧取得・保存にも対応�
 
 ## Groq／Workers AIモデル一覧の更新
 
-設定画面の「AIサービス」タブにある各「モデル一覧取得」ボタンから、保存前の入力値を使って公式APIへ接続します。Groqは `GET https://api.groq.com/openai/v1/models`、Workers AIは `GET /accounts/{account_id}/ai/models/search?task=Text%20Generation` を使用します。Workers AIでは実験的・非推奨モデルを除外し、テキスト生成タスクに絞ります。取得処理はバックグラウンドで実行し、既存のモデルIDを保持したまま選択リストを更新します。どちらもモデルIDは手入力できます。\n\n重要：両APIのモデル一覧応答には、Freeプランでの利用可否を確定する情報が含まれません。そのため取得したモデルは「利用可能モデル」であり、「Free対象」とは表示しません。GroqのFree枠は公式モデル料金・Rate Limits情報、Workers AIのFree枠はCloudflareのプラン・Neurons利用量に基づき別途確認してください。\n\n
+設定画面の「AIサービス」タブにある各「モデル一覧取得」ボタンから、保存前の入力値を使って公式APIへ接続します。Groqは `GET https://api.groq.com/openai/v1/models`、Workers AIは `GET /accounts/{account_id}/ai/models/search?task=Text%20Generation` を使用します。Workers AIでは実験的・非推奨モデルに加え、Chat Completions非対応・Freeプラン対象外・利用規約同意が必要・アカウント権限不足・応答形式未対応を確認したモデルを除外します。Groqでは音声系・埋め込み系・利用規約同意が必要なOrpheusモデルを除外します。取得処理はバックグラウンドで実行し、既存のモデルIDを保持したまま選択リストを更新します。どちらもモデルIDは手入力できます。\n\n重要：両APIのモデル一覧応答には、Freeプランでの利用可否を確定する情報が含まれません。そのため取得したモデルは「利用可能モデル」であり、「Free対象」とは表示しません。GroqのFree枠は公式モデル料金・Rate Limits情報、Workers AIのFree枠はCloudflareのプラン・Neurons利用量に基づき別途確認してください。\n\n
 ### Groq／Workers AIモデル一覧の保存
 
 GroqとCloudflare Workers AIのモデル一覧は、%APPDATA%\Becky-AI-Assistant\groq-models-catalog.txt／workers-ai-models-catalog.txt にUTF-8で保存します。次回起動時は保存済み一覧を先に読み込むため、毎回APIから再取得する必要はありません。モデル一覧の取得に失敗した場合は、最後に正常取得した一覧を保持します。これらはモデルIDのみを含むキャッシュであり、APIキーやAccount IDは保存しません。
@@ -89,7 +89,7 @@ GroqとCloudflare Workers AIのモデル一覧は、%APPDATA%\Becky-AI-Assistant
 
 ## 応答待ち・エラー処理
 
-- Gemini API通信のタイムアウトは全機能で統一（名前解決・接続・送信は各10秒、応答受信は15秒）。代替モデルも各候補15秒の応答待ちで順次試行。Gemini／Groq／Workers AIのAI相談およびGroqの返信・要約は、出力上限に達した場合に最大3回のAPIリクエスト（初回＋継続2回）を行う場合があります。Groqは1回の出力要求を768トークンに制限。OTPM制限に達した場合はGroq／Workers AIが返す再試行可能時間を読み取り、少し余裕を加えて待機後、同じリクエストを最大2回自動再試行。待機中もキャンセル可能。AI相談画面ではAPI応答待ちの経過時間と、OTPM回復待ちの残り秒数を表示
+- Gemini API通信のタイムアウトは全機能で統一（名前解決・接続・送信は各10秒、応答受信は15秒）。代替モデルも各候補15秒の応答待ちで順次試行。Gemini／Groq／Workers AIのAI相談およびGroqの返信・要約は、出力上限に達した場合に最大3回のAPIリクエスト（初回＋継続2回）を行う場合があります。Groqは1回の出力要求を768トークンに制限。TPM／OTPM制限に達した場合はGroq／Workers AIが返す再試行可能時間を読み取り、少し余裕を加えて待機後、同じリクエストを最大2回自動再試行。待機中もキャンセル可能。AI相談画面ではAPI応答待ちの経過時間と、TPM／OTPM回復待ちの残り秒数を表示
 - 400 / 401 / 403 / 404 / 408 / 413 / 429 / 5xxを原因別に案内
 - 404 / 408 / 429 / 5xx / 一時的な通信障害（タイムアウト・接続失敗・DNS一時失敗）時は、設定ONなら無料枠ありと公式料金ページで確認済みの新しいFlashモデルへ最大2候補まで自動切り替え。2.5系はプロジェクトごとの利用制限があるため自動切り替え先から除外（403 / TLS・認証・設定エラーは対象外）
 - HTTP 0 の通信失敗も一時的な接続障害として判定し、次の代替候補を試行。最終エラーには選択モデルと各代替モデルの通信・HTTPエラー内容を表示
@@ -144,4 +144,4 @@ cmake -S . -B build -G "Visual Studio 17 2022" -A Win32
 cmake --build build --config Release
 ```
 
-生成物: `build\\Release\\Becky-AI-Assistant-88.dll`
+生成物: `build\\Release\\Becky-AI-Assistant-89.dll`

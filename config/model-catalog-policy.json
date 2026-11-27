@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_utc": "2026-11-20T00:00:00Z",
+  "updated_utc": "2026-11-27T00:00:00Z",
   "description": "Public provider-neutral model policy for Becky AI Assistant. API availability is checked separately at runtime. Quality labels are based only on explicitly recorded tests.",
   "providers": {
     "gemini": [],

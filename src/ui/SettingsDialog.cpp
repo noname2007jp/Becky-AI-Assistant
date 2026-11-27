@@ -6,6 +6,7 @@
 #include "gemini/GeminiConnection.h"
 #include "gemini/GeminiModels.h"
 #include "providers/ProviderModelCatalog.h"
+#include "providers/ProviderModelEligibility.h"
 #include "providers/ProviderModelCatalogStore.h"
 #include "providers/ModelDescriptions.h"
 #include "providers/ModelCatalogPolicy.h"
@@ -111,11 +112,31 @@ void PopulateProviderModelCombo(HWND dialog, int provider,
     int selected = -1;
     for (size_t i = 0; i < models.size(); ++i)
     {
-        SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(models[i].c_str()));
-        if (models[i] == preferred) selected = static_cast<int>(i);
+        const std::wstring& modelId = models[i];
+        const bool eligible = provider == 1
+            ? provider_model_eligibility::IsGroqChatCompletionModelEligible(modelId)
+            : provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(modelId);
+        if (!eligible) continue;
+        const LRESULT index = SendMessageW(combo, CB_ADDSTRING, 0,
+            reinterpret_cast<LPARAM>(models[i].c_str()));
+        if (models[i] == preferred) selected = static_cast<int>(index);
     }
-    if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
-    else SetWindowTextW(combo, preferred.c_str());
+    if (selected >= 0)
+    {
+        SendMessageW(combo, CB_SETCURSEL, selected, 0);
+        return;
+    }
+
+    const std::wstring& preferredId = preferred;
+    const bool preferredEligible = provider == 1
+        ? provider_model_eligibility::IsGroqChatCompletionModelEligible(preferredId)
+        : provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(preferredId);
+    if (!preferred.empty() && preferredEligible)
+        SetWindowTextW(combo, preferred.c_str());
+    else if (SendMessageW(combo, CB_GETCOUNT, 0, 0) > 0)
+        SendMessageW(combo, CB_SETCURSEL, 0, 0);
+    else
+        SetWindowTextW(combo, L"");
 }
 
 void PopulateDefaultModelCombo(HWND dialog, SettingsState* state, const std::wstring& preferred)
