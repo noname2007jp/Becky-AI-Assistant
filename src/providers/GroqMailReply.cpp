@@ -39,7 +39,7 @@ GeminiGenerateResult GenerateGroqMailReplyDraft(
         [&](const std::wstring& candidate) {
             return GenerateGroqChatCompletion(apiKey, candidate, systemPrompt, prompt, 768, cancelState, {}, providerSettings);
         });
-    LogProviderEvent(L"Groq", L"reply", modelId, L"END", result.httpStatus,
+    LogProviderEvent(L"Groq", L"reply", result.modelUsed, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success) result.text = masker.Restore(result.text);
     if (result.modelUsed.empty()) result.modelUsed = modelId;
