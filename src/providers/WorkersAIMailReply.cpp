@@ -70,14 +70,14 @@ GeminiGenerateResult GenerateWorkersAIMailReplyDraft(
         toneInstruction, subject, body, L"", replyRequirements));
 
     const ULONGLONG started = GetTickCount64();
-    LogProviderEvent(L"Cloudflare Workers AI", L"reply", modelId,
+    LogProviderEvent(L"Cloudflare Workers AI", L"reply", result.modelUsed,
         L"START", 0, false, 0, L"");
     result = GenerateWithProviderModelFallback(2, modelId, cancelState, {},
         [&](const std::wstring& candidate) {
             return GenerateWorkersAIChatCompletion(apiToken, accountId, candidate,
                 systemPrompt, prompt, 768, cancelState, {}, providerSettings);
         });
-    LogProviderEvent(L"Cloudflare Workers AI", L"reply", modelId,
+    LogProviderEvent(L"Cloudflare Workers AI", L"reply", result.modelUsed,
         L"END", result.httpStatus, result.success,
         GetTickCount64() - started, result.error);
 
