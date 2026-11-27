@@ -1,4 +1,5 @@
 #include "GeminiConnection.h"
+#include "providers/ApiEndpoints.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -60,7 +61,7 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
 
     WinHttpSetTimeouts(session, 10000, 10000, 10000, 15000);
     HINTERNET connection = WinHttpConnect(session,
-        L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+        api_endpoints::kGeminiHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
     if (!connection)
     {
         WinHttpCloseHandle(session);
@@ -69,7 +70,7 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
     }
 
     HINTERNET request = WinHttpOpenRequest(connection, L"GET",
-        L"/v1beta/models?pageSize=100", nullptr, WINHTTP_NO_REFERER,
+        api_endpoints::kGeminiModelsListPath, nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     if (!request)
     {
