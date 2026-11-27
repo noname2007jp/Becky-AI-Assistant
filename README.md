@@ -2,7 +2,7 @@
 
 Becky! Internet Mail向けのGemini／Groq／Cloudflare Workers AI API連携AIアシスタントプラグインです。
 
-## 現在の機能（0.89.0）
+## 現在の機能（0.90.0）
 
 - メール要約：Gemini／Groq／Cloudflare Workers AIに直接接続して利用可能。個人情報マスキング、送信前プレビュー、キャンセル、マスク語句の復元に対応
 - 返信文案：Gemini／Groq／Cloudflare Workers AIに対応。Workers AIの返信文案は、API応答に改行がない場合も文末ごとに改行して読みやすく整形。複数ターンのAI相談：Gemini／Groq／Cloudflare Workers AIに対応
@@ -115,6 +115,18 @@ GroqとCloudflare Workers AIのモデル一覧は、%APPDATA%\Becky-AI-Assistant
 - APIキー、認証ヘッダー、Geminiからの回答本文は記録しません
 
 デバッグログは初期状態でOFFです。
+
+## APIエンドポイントの保守
+
+Gemini／Groq／Cloudflare Workers AIのAPIホスト名と主要パスは `src/providers/ApiEndpoints.h` に集約しています。API URLやAPIバージョンを変更する場合は、この定義を更新し、モデル一覧取得・接続テスト・要約・返信文案・相談の全経路を確認してください。
+
+- Geminiの「接続テスト」はモデル一覧APIへの認証付きリクエストを実行します。
+- Groq／Workers AIの「モデル一覧取得」は、認証・権限・API疎通・応答形式をまとめて確認するヘルスチェックとして利用できます。
+- HTTP 404はエンドポイントまたはAPIバージョン変更の可能性、401／403は認証・権限、429は利用制限、5xxは提供元障害として案内します。
+- DNS／接続失敗はネットワーク・プロキシ等の問題として扱い、API URL変更とは区別します。
+- API応答から接続先ホストを自動変更することはありません。APIキー／Tokenはアプリ側で定義したHTTPSホストにのみ送信します。
+
+詳細な変更・テスト・リリース手順は [APIエンドポイント保守手順](docs/API_ENDPOINT_MAINTENANCE.md) を参照してください。
 
 ## APIキー・マスキング設定の保存
 
