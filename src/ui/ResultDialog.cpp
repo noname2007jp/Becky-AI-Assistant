@@ -4,6 +4,7 @@
 
 #include <richedit.h>
 #include <cstring>
+#include <climits>
 #include <vector>
 #include <utility>
 
