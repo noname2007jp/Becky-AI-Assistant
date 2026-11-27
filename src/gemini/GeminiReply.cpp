@@ -1,4 +1,5 @@
 #include "GeminiReply.h"
+#include "providers/ApiEndpoints.h"
 #include "GeminiProofreadJson.h"
 #include <windows.h>
 #include <winhttp.h>
@@ -129,8 +130,8 @@ GeminiGenerateResult GenerateMailReplyDraft(
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
-    HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring path = L"/v1beta/models/" + modelId + L":generateContent";
+    HINTERNET connection = WinHttpConnect(session, api_endpoints::kGeminiHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
+    const std::wstring path = api_endpoints::kGeminiGeneratePathPrefix + modelId + api_endpoints::kGeminiGeneratePathSuffix";
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST", path.c_str(),
         nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
     if (!request)
