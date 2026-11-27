@@ -8,6 +8,7 @@
 #include <atomic>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Tries a small number of other models from the last successfully downloaded
