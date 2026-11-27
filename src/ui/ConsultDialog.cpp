@@ -24,6 +24,16 @@
 
 namespace
 {
+    const wchar_t* ConsultProviderDisplayName(AIProvider provider)
+    {
+        switch (provider)
+        {
+        case AIProvider::Groq: return L"Groq";
+        case AIProvider::WorkersAI: return L"Cloudflare Workers AI";
+        case AIProvider::Gemini: default: return L"Gemini";
+        }
+    }
+
     constexpr UINT WM_GROQ_PROGRESS = WM_APP + 0x352;
     constexpr UINT_PTR TIMER_GROQ_PROGRESS = 0x352;
 
@@ -343,7 +353,8 @@ namespace
                     bool replyAll = false;
                     if (!result.notice.empty())
                         SetDlgItemTextW(dialog, IDC_AI_CONSULT_STATUS, result.notice.c_str());
-                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll)) {
+                    const std::wstring title = std::wstring(ConsultProviderDisplayName(context->providerSettings.provider)) + L"による返信文案";
+                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll, title.c_str())) {
                         context->mail->replyDraft = std::move(edited);
                         context->mail->insertReplyRequested = true;
                         context->mail->replyAllRequested = replyAll;
