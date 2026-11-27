@@ -145,3 +145,8 @@ cmake --build build --config Release
 ```
 
 生成物: `build\\Release\\Becky-AI-Assistant-89.dll`
+
+
+## APIエンドポイントの保守
+
+APIのホスト名・パス・バージョン・認証方式・JSON形式は将来変更される可能性があります。現行URL一覧、変更時の安全方針、調査・修正・テスト手順は [docs/API_ENDPOINT_MAINTENANCE.md](docs/API_ENDPOINT_MAINTENANCE.md) にまとめています。接続先ホストはアプリケーション側で管理し、API応答からの自動変更やユーザー任意URLへのAPIキー送信は行いません。
