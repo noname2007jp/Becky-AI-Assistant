@@ -6,6 +6,7 @@
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiDebugLog.h"
 #include "gemini/PiiMasker.h"
+#include "ProviderModelFallback.h"
 
 #include <windows.h>
 
@@ -69,11 +70,14 @@ GeminiGenerateResult GenerateWorkersAIMailReplyDraft(
         toneInstruction, subject, body, L"", replyRequirements));
 
     const ULONGLONG started = GetTickCount64();
-    LogProviderEvent(L"Cloudflare Workers AI", L"reply", modelId,
+    LogProviderEvent(L"Cloudflare Workers AI", L"reply", result.modelUsed,
         L"START", 0, false, 0, L"");
-    result = GenerateWorkersAIChatCompletion(apiToken, accountId, modelId,
-        systemPrompt, prompt, 768, cancelState, {}, providerSettings);
-    LogProviderEvent(L"Cloudflare Workers AI", L"reply", modelId,
+    result = GenerateWithProviderModelFallback(2, modelId, cancelState, {},
+        [&](const std::wstring& candidate) {
+            return GenerateWorkersAIChatCompletion(apiToken, accountId, candidate,
+                systemPrompt, prompt, 768, cancelState, {}, providerSettings);
+        });
+    LogProviderEvent(L"Cloudflare Workers AI", L"reply", result.modelUsed,
         L"END", result.httpStatus, result.success,
         GetTickCount64() - started, result.error);
 
@@ -82,6 +86,6 @@ GeminiGenerateResult GenerateWorkersAIMailReplyDraft(
         result.text = masker.Restore(result.text);
         result.text = WorkersAIReplyFormatting::EnsureReadableLineBreaks(result.text);
     }
-    result.modelUsed = modelId;
+    if (result.modelUsed.empty()) result.modelUsed = modelId;
     return result;
 }
