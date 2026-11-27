@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "ApiEndpoints.h"
 
 inline bool IsValidWorkersAIAccountId(const std::wstring& accountId)
 {
@@ -9,5 +10,5 @@ inline bool IsValidWorkersAIAccountId(const std::wstring& accountId)
 
 inline std::wstring BuildWorkersAIChatCompletionsPath(const std::wstring& accountId)
 {
-    return L"/client/v4/accounts/" + accountId + L"/ai/v1/chat/completions";
+    return std::wstring(api_endpoints::kWorkersAIChatPathPrefix) + accountId + api_endpoints::kWorkersAIChatPathSuffix;
 }
