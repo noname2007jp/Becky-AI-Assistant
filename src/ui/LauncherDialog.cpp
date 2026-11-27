@@ -17,6 +17,7 @@
 #include "providers/WorkersAIMailSummary.h"
 #include "providers/WorkersAIMailReply.h"
 #include "providers/ProviderModelCatalogStore.h"
+#include "providers/ProviderModelEligibility.h"
 #include "providers/GroqMailReply.h"
 #include <utility>
 #include <algorithm>
@@ -106,20 +107,38 @@ namespace
             std::wstring catalogError;
             if (!LoadProviderModelCatalog(provider, context->providerModels, catalogError))
                 context->providerModels.clear();
-            if (!preferred.empty() &&
-                std::find(context->providerModels.begin(), context->providerModels.end(), preferred) ==
+
+            context->providerModels.erase(
+                std::remove_if(context->providerModels.begin(), context->providerModels.end(),
+                    [provider](const std::wstring& modelId) {
+                        return provider == 1
+                            ? !provider_model_eligibility::IsGroqChatCompletionModelEligible(modelId)
+                            : !provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(modelId);
+                    }),
+                context->providerModels.end());
+
+            std::wstring selectedModel = preferred;
+            const bool preferredEligible = provider == 1
+                ? provider_model_eligibility::IsGroqChatCompletionModelEligible(preferred)
+                : provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(preferred);
+            if (!preferred.empty() && !preferredEligible)
+                selectedModel.clear();
+            if (!selectedModel.empty() &&
+                std::find(context->providerModels.begin(), context->providerModels.end(), selectedModel) ==
                     context->providerModels.end())
-                context->providerModels.insert(context->providerModels.begin(), preferred);
+                context->providerModels.insert(context->providerModels.begin(), selectedModel);
+            if (selectedModel.empty() && !context->providerModels.empty())
+                selectedModel = context->providerModels.front();
 
             int selected = -1;
             for (size_t i = 0; i < context->providerModels.size(); ++i)
             {
                 SendMessageW(combo, CB_ADDSTRING, 0,
                     reinterpret_cast<LPARAM>(context->providerModels[i].c_str()));
-                if (context->providerModels[i] == preferred) selected = static_cast<int>(i);
+                if (context->providerModels[i] == selectedModel) selected = static_cast<int>(i);
             }
             if (selected >= 0) SendMessageW(combo, CB_SETCURSEL, selected, 0);
-            else SetWindowTextW(combo, L"設定画面でモデルを指定してください");
+            else SetWindowTextW(combo, L"設定画面でモデル一覧を更新してください");
             return;
         }
 
