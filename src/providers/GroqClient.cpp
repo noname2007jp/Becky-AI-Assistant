@@ -1,4 +1,5 @@
 #include "GroqClient.h"
+#include "ApiEndpoints.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -173,6 +174,18 @@ bool IsRateLimitError(const std::wstring& error)
         error.find(L"tokens per minute") != std::wstring::npos;
 }
 
+bool IsContextLengthError(const std::wstring& error)
+{
+    std::wstring normalized = error;
+    for (wchar_t& c : normalized) c = static_cast<wchar_t>(std::towlower(c));
+    return normalized.find(L"reduce the length of the messages") != std::wstring::npos ||
+        normalized.find(L"context_length_exceeded") != std::wstring::npos ||
+        normalized.find(L"maximum context length") != std::wstring::npos ||
+        normalized.find(L"prompt is too long") != std::wstring::npos ||
+        normalized.find(L"input is too long") != std::wstring::npos ||
+        normalized.find(L"too many tokens") != std::wstring::npos;
+}
+
 DWORD GetRateLimitRetryDelayMs(const std::wstring& error)
 {
     const std::wstring marker = L"try again in ";
@@ -280,18 +293,18 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
         result.error = L"Cloudflare AI Gateway認証用APIトークンが設定されていません。";
         return result;
     }
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.89.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.90.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
     const std::wstring gatewayPath = useGateway
-        ? L"/v1/" + providerSettings->cloudflareAccountId +
-            L"/" + providerSettings->cloudflareGatewayId + L"/groq/chat/completions"
+        ? std::wstring(api_endpoints::kCloudflareGatewayGroqPathPrefix) + providerSettings->cloudflareAccountId +
+            api_endpoints::kCloudflareGatewayGroqPathMiddle + providerSettings->cloudflareGatewayId + api_endpoints::kCloudflareGatewayGroqPathSuffix
         : L"";
     HINTERNET connection = WinHttpConnect(session,
-        useGateway ? L"gateway.ai.cloudflare.com" : L"api.groq.com",
+        useGateway ? api_endpoints::kCloudflareGatewayHost : api_endpoints::kGroqHost,
         INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring requestPath = useGateway ? gatewayPath : L"/openai/v1/chat/completions";
+    const std::wstring requestPath = useGateway ? gatewayPath : std::wstring(api_endpoints::kGroqChatCompletionsPath);
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
         requestPath.c_str(), nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
@@ -397,6 +410,13 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
                         result.error =
                             L"Groqのトークン処理量制限（TPM／OTPM）に達しました。"
                             L"使用枠が回復するまで待ってから自動再試行します。";
+                    }
+                    else if (status == 400 && IsContextLengthError(providerMessage))
+                    {
+                        result.error =
+                            L"Groqモデルのコンテキスト長上限を超えています。"
+                            L"メール本文・引用履歴・指示文が長すぎるか、生成トークン数が大きすぎます。"
+                            L"引用履歴を減らす、メールを分割する、または大きなコンテキスト長に対応したモデルへ変更してください。";
                     }
                     result.error += L"\n詳細: " + providerMessage;
                 }

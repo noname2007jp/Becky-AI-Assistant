@@ -1,4 +1,5 @@
 #include "GeminiConnection.h"
+#include "providers/ApiEndpoints.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -49,7 +50,7 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
         return result;
     }
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.87.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.90.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
         WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session)
@@ -60,7 +61,7 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
 
     WinHttpSetTimeouts(session, 10000, 10000, 10000, 15000);
     HINTERNET connection = WinHttpConnect(session,
-        L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+        api_endpoints::kGeminiHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
     if (!connection)
     {
         WinHttpCloseHandle(session);
@@ -69,7 +70,7 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
     }
 
     HINTERNET request = WinHttpOpenRequest(connection, L"GET",
-        L"/v1beta/models?pageSize=100", nullptr, WINHTTP_NO_REFERER,
+        api_endpoints::kGeminiModelsListPath, nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     if (!request)
     {
@@ -134,9 +135,15 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
         result.status = GeminiConnectionStatus::RateLimited;
     else if (statusCode >= 500)
         result.status = GeminiConnectionStatus::ServerError;
+    else if (statusCode == 404)
+    {
+        result.status = GeminiConnectionStatus::UnexpectedResponse;
+        result.message = L"Gemini APIのエンドポイントが見つかりません（HTTP 404）。API URLまたはAPIバージョンが変更・廃止された可能性があります。Google公式ドキュメントを確認してください。";
+    }
     else
         result.status = GeminiConnectionStatus::UnexpectedResponse;
 
-    result.message = StatusMessage(result.status);
+    if (result.message.empty())
+        result.message = StatusMessage(result.status);
     return result;
 }

@@ -1,4 +1,5 @@
 #include "WorkersAIClient.h"
+#include "ApiEndpoints.h"
 #include "WorkersAIEndpoint.h"
 
 #include <windows.h>
@@ -274,11 +275,11 @@ static GeminiGenerateResult GenerateWorkersAIChatCompletionOnce(
         "\",\"messages\":" + messages + ",\"max_tokens\":" +
         std::to_string(maxOutputTokens) + "}";
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.89.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.90.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Cloudflare Workers AI APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
-    HINTERNET connection = WinHttpConnect(session, L"api.cloudflare.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    HINTERNET connection = WinHttpConnect(session, api_endpoints::kWorkersAIHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
     const std::wstring requestPath = BuildWorkersAIChatCompletionsPath(effectiveAccountId);
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
         requestPath.c_str(), nullptr, WINHTTP_NO_REFERER,

@@ -1,4 +1,5 @@
 #include "GeminiProofread.h"
+#include "providers/ApiEndpoints.h"
 #include <windows.h>
 #include <winhttp.h>
 #include "GeminiError.h"
@@ -111,12 +112,12 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
         "\"}]}],\"generationConfig\":{" + config + "}}";
     LogGeminiRequest(L"proofread", model, masker.IsEnabled(), masker.ReplacementCount(), payload);
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.85.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.90.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { r.error = L"通信セッションを開始できません。"; return r; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
-    HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring path = L"/v1beta/models/" + model + L":generateContent";
+    HINTERNET connection = WinHttpConnect(session, api_endpoints::kGeminiHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
+    const std::wstring path = api_endpoints::kGeminiGeneratePathPrefix + model + api_endpoints::kGeminiGeneratePathSuffix;
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST", path.c_str(),
         nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
     if (!request) {

@@ -1,4 +1,5 @@
 #include "ProviderModelCatalog.h"
+#include "ApiEndpoints.h"
 #include "WorkersAIModelId.h"
 #include "ProviderModelEligibility.h"
 
@@ -72,7 +73,7 @@ std::vector<std::string> Objects(const std::string& json,const char* arrayName) 
 }
 bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& token,
     const wchar_t* extraHeader,std::string& body,std::wstring& error) {
-    HINTERNET session=WinHttpOpen(L"Becky-AI-Assistant/0.89.0",
+    HINTERNET session=WinHttpOpen(L"Becky-AI-Assistant/0.90.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,WINHTTP_NO_PROXY_NAME,WINHTTP_NO_PROXY_BYPASS,0);
     if(!session){error=L"モデル一覧の通信を開始できません。";return false;}
     WinHttpSetTimeouts(session,10000,10000,15000,30000);
@@ -101,7 +102,12 @@ bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& t
         error=L"モデル一覧APIの取得に失敗しました";
         if(status)error+=L"（HTTP "+std::to_wstring(status)+L"）";
         else error+=L"（通信エラー "+std::to_wstring(last)+L"）";
-        if(status==401||status==403)error+=L"。API Token／APIキーと権限を確認してください。";
+        if(status==401)error+=L"。APIキー／API Tokenを確認してください。";
+        else if(status==403)error+=L"。APIキー／API Tokenの権限を確認してください。";
+        else if(status==404)error+=L"。API URLまたはAPIバージョンが変更・廃止された可能性があります。公式ドキュメントを確認してください。";
+        else if(status==429)error+=L"。APIの利用制限に達しています。時間をおいて再試行してください。";
+        else if(status>=500)error+=L"。提供元のAPI障害の可能性があります。時間をおいて再試行してください。";
+        else if(!status)error+=L"。DNS、ネットワーク、プロキシ、ファイアウォールを確認してください。";
         return false;
     }
     return true;
@@ -111,7 +117,7 @@ bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& t
 bool FetchGroqModelCatalog(const std::wstring& apiKey,std::vector<std::wstring>& ids,std::wstring& error) {
     ids.clear();error.clear();if(apiKey.empty()){error=L"Groq APIキーを入力してから取得してください。";return false;}
     std::string json;
-    if(!Download(L"api.groq.com",L"/openai/v1/models",apiKey,nullptr,json,error))return false;
+    if(!Download(api_endpoints::kGroqHost,api_endpoints::kGroqModelsPath,apiKey,nullptr,json,error))return false;
     for(const auto& obj:Objects(json,"data")) {
         std::string id=Field(obj,"id");
         if(id.empty()||!provider_model_eligibility::IsGroqChatCompletionModelEligible(id))continue;
@@ -127,9 +133,9 @@ bool FetchWorkersAIModelCatalog(const std::wstring& accountId,const std::wstring
     ids.clear();error.clear();
     if(accountId.empty()||apiToken.empty()){error=L"Workers AIのAccount IDとAPI Tokenを入力してから取得してください。";return false;}
     const std::string account=Utf8(accountId);
-    std::wstring path=L"/client/v4/accounts/"+Wide(account)+L"/ai/models/search?task=Text%20Generation&hide_experimental=true&include_deprecated=false&per_page=100&page=1";
+    std::wstring path=std::wstring(api_endpoints::kWorkersAIModelsPathPrefix)+Wide(account)+api_endpoints::kWorkersAIModelsPathSuffix;
     std::string json;
-    if(!Download(L"api.cloudflare.com",path,apiToken,nullptr,json,error))return false;
+    if(!Download(api_endpoints::kWorkersAIHost,path,apiToken,nullptr,json,error))return false;
     for(const auto& obj:Objects(json,"result")) {
         const std::string name = Field(obj,"name");
         const std::string recordId = Field(obj,"id");

@@ -4,6 +4,7 @@
 #include "gemini/GeminiReply.h"
 #include "gemini/GeminiDebugLog.h"
 #include "gemini/PiiMasker.h"
+#include "ProviderModelFallback.h"
 #include <windows.h>
 GeminiGenerateResult GenerateGroqMailReplyDraft(
     const std::wstring& apiKey, const std::wstring& modelId,
@@ -34,10 +35,13 @@ GeminiGenerateResult GenerateGroqMailReplyDraft(
         toneInstruction, subject, body, L"", replyRequirements));
     const ULONGLONG started = GetTickCount64();
     LogProviderEvent(L"Groq", L"reply", modelId, L"START", 0, false, 0, L"");
-    result = GenerateGroqChatCompletion(apiKey, modelId, systemPrompt, prompt, 768, cancelState, {}, providerSettings);
-    LogProviderEvent(L"Groq", L"reply", modelId, L"END", result.httpStatus,
+    result = GenerateWithProviderModelFallback(1, modelId, cancelState, {},
+        [&](const std::wstring& candidate) {
+            return GenerateGroqChatCompletion(apiKey, candidate, systemPrompt, prompt, 768, cancelState, {}, providerSettings);
+        });
+    LogProviderEvent(L"Groq", L"reply", result.modelUsed, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success) result.text = masker.Restore(result.text);
-    result.modelUsed = modelId;
+    if (result.modelUsed.empty()) result.modelUsed = modelId;
     return result;
 }
