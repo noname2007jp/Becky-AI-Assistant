@@ -1,5 +1,6 @@
 #include "ResultDialog.h"
 #include "resource.h"
+#include "MarkdownRenderer.h"
 
 #include <richedit.h>
 #include <cstring>
@@ -8,7 +9,6 @@
 
 namespace
 {
-    struct FormatRange { LONG start; LONG length; };
     struct ResultDialogContext { const std::wstring* result; std::wstring* edited; const wchar_t* title; bool replyMode; bool* replyAll; };
 
     bool CopyToClipboard(HWND owner, const std::wstring& text)
@@ -32,76 +32,31 @@ namespace
         return true;
     }
 
-    std::wstring MakeDisplayText(const std::wstring& source, std::vector<FormatRange>& boldRanges)
-    {
-        std::wstring output;
-        size_t pos = 0;
-        while (pos < source.size())
-        {
-            size_t end = source.find(L'\n', pos);
-            if (end == std::wstring::npos) end = source.size();
-            size_t lineStart = output.size();
-            size_t p = pos;
-            while (p < end && (source[p] == L' ' || source[p] == L'\t')) ++p;
-            bool bullet = p + 1 < end &&
-                ((source[p] == L'*' || source[p] == L'-') && source[p + 1] == L' ');
-            if (bullet)
-            {
-                output.append(source, pos, p - pos);
-                output += L"・ ";
-                p += 2;
-            }
-
-            bool bold = false;
-            LONG boldStart = -1;
-            while (p < end)
-            {
-                if (p + 1 < end && source[p] == L'*' && source[p + 1] == L'*')
-                {
-                    if (!bold)
-                    {
-                        bold = true;
-                        boldStart = static_cast<LONG>(output.size());
-                    }
-                    else
-                    {
-                        LONG length = static_cast<LONG>(output.size()) - boldStart;
-                        if (length > 0) boldRanges.push_back({ boldStart, length });
-                        bold = false;
-                        boldStart = -1;
-                    }
-                    p += 2;
-                    continue;
-                }
-                output += source[p++];
-            }
-            if (bold && boldStart >= 0)
-            {
-                LONG length = static_cast<LONG>(output.size()) - boldStart;
-                if (length > 0) boldRanges.push_back({ boldStart, length });
-            }
-            if (end < source.size()) output += L'\n';
-            pos = end + (end < source.size() ? 1 : 0);
-        }
-        return output;
-    }
-
     void SetFormattedResult(HWND edit, const std::wstring& source)
     {
-        std::vector<FormatRange> ranges;
-        const std::wstring display = MakeDisplayText(source, ranges);
-        SetWindowTextW(edit, display.c_str());
+        // RichEdit uses CR as its paragraph separator. MarkdownRenderer normalizes
+        // CRLF/LF and calculates formatting ranges against the rendered text.
+        const MarkdownRenderer::Result rendered = MarkdownRenderer::Render(source);
+        SetWindowTextW(edit, rendered.text.c_str());
 
         CHARFORMAT2W format{};
         format.cbSize = sizeof(format);
         format.dwMask = CFM_BOLD;
         format.dwEffects = CFE_BOLD;
-        for (const auto& range : ranges)
-        {
-            SendMessageW(edit, EM_SETSEL, range.start, range.start + range.length);
+        const auto applyBold = [&](const MarkdownRenderer::Range& range) {
+            if (range.length == 0 ||
+                range.start > static_cast<size_t>(LONG_MAX) ||
+                range.length > static_cast<size_t>(LONG_MAX) ||
+                range.start + range.length > rendered.text.size())
+                return;
+            SendMessageW(edit, EM_SETSEL,
+                static_cast<WPARAM>(range.start),
+                static_cast<LPARAM>(range.start + range.length));
             SendMessageW(edit, EM_SETCHARFORMAT, SCF_SELECTION,
                 reinterpret_cast<LPARAM>(&format));
-        }
+        };
+        for (const auto& range : rendered.bold) applyBold(range);
+        for (const auto& range : rendered.headings) applyBold(range);
         SendMessageW(edit, EM_SETSEL, 0, 0);
     }
 
@@ -198,11 +153,11 @@ INT_PTR ShowResultDialog(HWND owner, HINSTANCE instance, const std::wstring& res
         owner, ResultDialogProc, reinterpret_cast<LPARAM>(&context));
 }
 
-bool ShowReplyDraftDialog(HWND owner, HINSTANCE instance, const std::wstring& draft, std::wstring& edited, bool& replyAll)
+bool ShowReplyDraftDialog(HWND owner, HINSTANCE instance, const std::wstring& draft, std::wstring& edited, bool& replyAll, const wchar_t* title)
 {
     LoadLibraryW(L"Msftedit.dll");
     replyAll = false;
-    ResultDialogContext context{ &draft, &edited, L"Geminiによる返信文案", true, &replyAll };
+    ResultDialogContext context{ &draft, &edited, title ? title : L"返信文案", true, &replyAll };
     const INT_PTR result = DialogBoxParamW(instance, MAKEINTRESOURCEW(IDD_AI_RESULT), owner,
         ResultDialogProc, reinterpret_cast<LPARAM>(&context));
     return result == IDC_AI_INSERT_REPLY || result == IDC_AI_INSERT_REPLY_ALL;
