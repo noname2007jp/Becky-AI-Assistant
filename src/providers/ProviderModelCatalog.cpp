@@ -106,6 +106,7 @@ bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& t
     }
     return true;
 }
+}
 
 bool FetchGroqModelCatalog(const std::wstring& apiKey,std::vector<std::wstring>& ids,std::wstring& error) {
     ids.clear();error.clear();if(apiKey.empty()){error=L"Groq APIキーを入力してから取得してください。";return false;}
