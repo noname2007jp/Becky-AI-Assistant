@@ -1,4 +1,5 @@
 #include "GroqClient.h"
+#include "ApiEndpoints.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -285,13 +286,13 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
     const std::wstring gatewayPath = useGateway
-        ? L"/v1/" + providerSettings->cloudflareAccountId +
-            L"/" + providerSettings->cloudflareGatewayId + L"/groq/chat/completions"
+        ? std::wstring(api_endpoints::kCloudflareGatewayGroqPathPrefix) + providerSettings->cloudflareAccountId +
+            api_endpoints::kCloudflareGatewayGroqPathMiddle + providerSettings->cloudflareGatewayId + api_endpoints::kCloudflareGatewayGroqPathSuffix"
         : L"";
     HINTERNET connection = WinHttpConnect(session,
-        useGateway ? L"gateway.ai.cloudflare.com" : L"api.groq.com",
+        useGateway ? api_endpoints::kCloudflareGatewayHost : api_endpoints::kGroqHost",
         INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring requestPath = useGateway ? gatewayPath : L"/openai/v1/chat/completions";
+    const std::wstring requestPath = useGateway ? gatewayPath : std::wstring(api_endpoints::kGroqChatCompletionsPath)";
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
         requestPath.c_str(), nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
