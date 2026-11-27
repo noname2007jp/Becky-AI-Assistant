@@ -28,6 +28,16 @@ bool OpenReplyComposer(const std::wstring& mailId, const std::wstring& replyText
 
 namespace
 {
+    const wchar_t* ProviderDisplayName(AIProvider provider)
+    {
+        switch (provider)
+        {
+        case AIProvider::Groq: return L"Groq";
+        case AIProvider::WorkersAI: return L"Cloudflare Workers AI";
+        case AIProvider::Gemini: default: return L"Gemini";
+        }
+    }
+
     const wchar_t* ReplyToneLabel(int level)
     {
         static const wchar_t* labels[] = {
@@ -299,11 +309,13 @@ namespace
                 } else if (wParam == 1) {
                     if (!result.notice.empty())
                         SetDlgItemTextW(dialog, IDC_MAIL_BODY_STATUS, result.notice.c_str());
-                    ShowResultDialog(dialog, context->instance, result.text);
+                    const std::wstring title = std::wstring(ProviderDisplayName(context->providerSettings.provider)) + L"によるメール要約";
+                    ShowResultDialog(dialog, context->instance, result.text, title.c_str());
                 } else if (wParam == 2) {
                     std::wstring edited;
                     bool replyAll = false;
-                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll)) {
+                    const std::wstring title = std::wstring(ProviderDisplayName(context->providerSettings.provider)) + L"による返信文案";
+                    if (ShowReplyDraftDialog(dialog, context->instance, result.text, edited, replyAll, title.c_str())) {
                         context->mail->replyDraft = std::move(edited);
                         context->mail->insertReplyRequested = true;
                         context->mail->replyAllRequested = replyAll;
