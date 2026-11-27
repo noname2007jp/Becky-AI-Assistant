@@ -117,7 +117,7 @@ GeminiGenerateResult GenerateEmailProofread(const std::wstring& key, const std::
     if (!session) { r.error = L"通信セッションを開始できません。"; return r; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 15000);
     HINTERNET connection = WinHttpConnect(session, api_endpoints::kGeminiHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
-    const std::wstring path = api_endpoints::kGeminiGeneratePathPrefix + model + api_endpoints::kGeminiGeneratePathSuffix";
+    const std::wstring path = api_endpoints::kGeminiGeneratePathPrefix + model + api_endpoints::kGeminiGeneratePathSuffix;
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST", path.c_str(),
         nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
     if (!request) {
