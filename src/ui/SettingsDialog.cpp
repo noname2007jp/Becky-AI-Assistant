@@ -112,7 +112,7 @@ void PopulateProviderModelCombo(HWND dialog, int provider,
     int selected = -1;
     for (size_t i = 0; i < models.size(); ++i)
     {
-        const std::string modelId = Utf8(models[i]);
+        const std::wstring& modelId = models[i];
         const bool eligible = provider == 1
             ? provider_model_eligibility::IsGroqChatCompletionModelEligible(modelId)
             : provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(modelId);
@@ -127,7 +127,7 @@ void PopulateProviderModelCombo(HWND dialog, int provider,
         return;
     }
 
-    const std::string preferredId = Utf8(preferred);
+    const std::wstring& preferredId = preferred;
     const bool preferredEligible = provider == 1
         ? provider_model_eligibility::IsGroqChatCompletionModelEligible(preferredId)
         : provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(preferredId);
