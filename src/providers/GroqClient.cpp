@@ -174,6 +174,18 @@ bool IsRateLimitError(const std::wstring& error)
         error.find(L"tokens per minute") != std::wstring::npos;
 }
 
+bool IsContextLengthError(const std::wstring& error)
+{
+    std::wstring normalized = error;
+    for (wchar_t& c : normalized) c = static_cast<wchar_t>(std::towlower(c));
+    return normalized.find(L"reduce the length of the messages") != std::wstring::npos ||
+        normalized.find(L"context_length_exceeded") != std::wstring::npos ||
+        normalized.find(L"maximum context length") != std::wstring::npos ||
+        normalized.find(L"prompt is too long") != std::wstring::npos ||
+        normalized.find(L"input is too long") != std::wstring::npos ||
+        normalized.find(L"too many tokens") != std::wstring::npos;
+}
+
 DWORD GetRateLimitRetryDelayMs(const std::wstring& error)
 {
     const std::wstring marker = L"try again in ";
@@ -398,6 +410,13 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
                         result.error =
                             L"Groqのトークン処理量制限（TPM／OTPM）に達しました。"
                             L"使用枠が回復するまで待ってから自動再試行します。";
+                    }
+                    else if (status == 400 && IsContextLengthError(providerMessage))
+                    {
+                        result.error =
+                            L"Groqモデルのコンテキスト長上限を超えています。"
+                            L"メール本文・引用履歴・指示文が長すぎるか、生成トークン数が大きすぎます。"
+                            L"引用履歴を減らす、メールを分割する、または大きなコンテキスト長に対応したモデルへ変更してください。";
                     }
                     result.error += L"\n詳細: " + providerMessage;
                 }
