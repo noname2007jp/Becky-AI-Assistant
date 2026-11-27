@@ -4,6 +4,7 @@
 #include "gemini/GeminiDebugLog.h"
 #include "gemini/PiiMasker.h"
 #include "mail/MailPromptContent.h"
+#include "ProviderModelFallback.h"
 #include <windows.h>
 
 GeminiGenerateResult GenerateWorkersAIMailConsultation(
@@ -70,11 +71,15 @@ GeminiGenerateResult GenerateWorkersAIMailConsultation(
     const std::wstring maskedPrompt = masker.Mask(prompt);
     const ULONGLONG started = GetTickCount64();
     LogProviderEvent(L"Cloudflare Workers AI", L"consultation", modelId, L"START", 0, false, 0, L"");
-    result = GenerateWorkersAIChatCompletion(apiToken, accountId, modelId,
-        systemPrompt, maskedPrompt, 768, cancelState, progress, providerSettings);
+    result = GenerateWithProviderModelFallback(2, modelId, cancelState,
+        [&](const std::wstring& message) { if (progress) progress(message); },
+        [&](const std::wstring& candidate) {
+            return GenerateWorkersAIChatCompletion(apiToken, accountId, candidate,
+                systemPrompt, maskedPrompt, 768, cancelState, progress, providerSettings);
+        });
     LogProviderEvent(L"Cloudflare Workers AI", L"consultation", modelId, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success) result.text = masker.Restore(result.text);
-    result.modelUsed = modelId;
+    if (result.modelUsed.empty()) result.modelUsed = modelId;
     return result;
 }
