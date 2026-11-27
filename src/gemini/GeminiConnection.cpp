@@ -50,7 +50,7 @@ GeminiConnectionResult TestGeminiConnection(const std::wstring& apiKey)
         return result;
     }
 
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.87.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.90.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME,
         WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session)
