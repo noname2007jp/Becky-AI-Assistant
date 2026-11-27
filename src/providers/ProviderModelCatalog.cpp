@@ -1,5 +1,6 @@
 #include "ProviderModelCatalog.h"
 #include "WorkersAIModelId.h"
+#include "ProviderModelEligibility.h"
 
 #include <windows.h>
 #include <winhttp.h>
@@ -105,20 +106,14 @@ bool Download(const wchar_t* host,const std::wstring& path,const std::wstring& t
     }
     return true;
 }
-bool ExcludedGroq(const std::string& id) {
-    std::string s=id;std::transform(s.begin(),s.end(),s.begin(),[](unsigned char c){return (char)std::tolower(c);});
-    const char* bad[]={"whisper","guard","safeguard","embedding","speech","tts","transcribe","moderation"};
-    for(auto x:bad)if(s.find(x)!=std::string::npos)return true;
-    return false;
-}
-}
+
 bool FetchGroqModelCatalog(const std::wstring& apiKey,std::vector<std::wstring>& ids,std::wstring& error) {
     ids.clear();error.clear();if(apiKey.empty()){error=L"Groq APIキーを入力してから取得してください。";return false;}
     std::string json;
     if(!Download(L"api.groq.com",L"/openai/v1/models",apiKey,nullptr,json,error))return false;
     for(const auto& obj:Objects(json,"data")) {
         std::string id=Field(obj,"id");
-        if(id.empty()||ExcludedGroq(id))continue;
+        if(id.empty()||!provider_model_eligibility::IsGroqChatCompletionModelEligible(id))continue;
         if(obj.find("\"active\"")!=std::string::npos&&obj.find("\"active\": false")!=std::string::npos)continue;
         ids.push_back(Wide(id));
     }
@@ -138,7 +133,7 @@ bool FetchWorkersAIModelCatalog(const std::wstring& accountId,const std::wstring
         const std::string name = Field(obj,"name");
         const std::string recordId = Field(obj,"id");
         const std::string id = SelectWorkersAIModelIdentifier(name, recordId);
-        if(id.empty())continue;
+        if(id.empty()||!provider_model_eligibility::IsWorkersAIChatCompletionModelEligible(id))continue;
         std::string task=Field(obj,"task");
         std::string lower=task;std::transform(lower.begin(),lower.end(),lower.begin(),[](unsigned char c){return (char)std::tolower(c);});
         // The API's task query is authoritative; when task metadata is present, verify it.
