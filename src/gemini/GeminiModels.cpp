@@ -1,4 +1,5 @@
 #include "GeminiModels.h"
+#include "providers/ApiEndpoints.h"
 #include <windows.h>
 #include <winhttp.h>
 #include <shlobj.h>
@@ -180,9 +181,9 @@ bool DownloadPricingPage(std::string& response, std::wstring& error)
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { error = L"Google公式料金ページへの通信を開始できません。"; return false; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
-    HINTERNET connection = WinHttpConnect(session, L"ai.google.dev", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    HINTERNET connection = WinHttpConnect(session, api_endpoints::kGooglePricingHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"GET",
-        L"/gemini-api/docs/pricing", nullptr, WINHTTP_NO_REFERER,
+        api_endpoints::kGooglePricingPath, nullptr, WINHTTP_NO_REFERER,
         WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
     if (!request)
     {
@@ -228,7 +229,7 @@ bool DownloadModelPage(const std::wstring& apiKey, const std::wstring& path, std
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { error = L"モデル一覧の通信を開始できません。"; return false; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
-    HINTERNET connection = WinHttpConnect(session, L"generativelanguage.googleapis.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    HINTERNET connection = WinHttpConnect(session, api_endpoints::kGeminiHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"GET", path.c_str(),
         nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE) : nullptr;
     if (!request)
@@ -386,7 +387,7 @@ bool FetchGeminiModelCatalog(const std::wstring& apiKey, bool includePaid,
     if (apiKey.empty()) { error = L"Gemini APIキーが設定されていません。"; return false; }
     std::string response, pricingPage;
     if (!DownloadPricingPage(pricingPage, error)) return false;
-    if (!DownloadModelPage(apiKey, L"/v1beta/models?pageSize=1000", response, error)) return false;
+    if (!DownloadModelPage(apiKey, api_endpoints::kGeminiModelsCatalogPath, response, error)) return false;
     ParseModels(response, pricingPage, models, includePaid);
     std::sort(models.begin(), models.end(), [](const auto& a, const auto& b) {
         if (a.freeTier != b.freeTier) return a.freeTier > b.freeTier;
