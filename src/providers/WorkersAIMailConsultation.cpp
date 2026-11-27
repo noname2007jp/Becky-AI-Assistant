@@ -77,7 +77,7 @@ GeminiGenerateResult GenerateWorkersAIMailConsultation(
             return GenerateWorkersAIChatCompletion(apiToken, accountId, candidate,
                 systemPrompt, maskedPrompt, 768, cancelState, progress, providerSettings);
         });
-    LogProviderEvent(L"Cloudflare Workers AI", L"consultation", modelId, L"END", result.httpStatus,
+    LogProviderEvent(L"Cloudflare Workers AI", L"consultation", result.modelUsed, L"END", result.httpStatus,
         result.success, GetTickCount64() - started, result.error);
     if (result.success) result.text = masker.Restore(result.text);
     if (result.modelUsed.empty()) result.modelUsed = modelId;
