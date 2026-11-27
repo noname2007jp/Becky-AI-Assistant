@@ -287,10 +287,10 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
     const std::wstring gatewayPath = useGateway
         ? std::wstring(api_endpoints::kCloudflareGatewayGroqPathPrefix) + providerSettings->cloudflareAccountId +
-            api_endpoints::kCloudflareGatewayGroqPathMiddle + providerSettings->cloudflareGatewayId + api_endpoints::kCloudflareGatewayGroqPathSuffix"
+            api_endpoints::kCloudflareGatewayGroqPathMiddle + providerSettings->cloudflareGatewayId + api_endpoints::kCloudflareGatewayGroqPathSuffix
         : L"";
     HINTERNET connection = WinHttpConnect(session,
-        useGateway ? api_endpoints::kCloudflareGatewayHost : api_endpoints::kGroqHost",
+        useGateway ? api_endpoints::kCloudflareGatewayHost : api_endpoints::kGroqHost,
         INTERNET_DEFAULT_HTTPS_PORT, 0);
     const std::wstring requestPath = useGateway ? gatewayPath : std::wstring(api_endpoints::kGroqChatCompletionsPath)";
     HINTERNET request = connection ? WinHttpOpenRequest(connection, L"POST",
