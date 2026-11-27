@@ -280,7 +280,7 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
         result.error = L"Cloudflare AI Gateway認証用APIトークンが設定されていません。";
         return result;
     }
-    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.88.0",
+    HINTERNET session = WinHttpOpen(L"Becky-AI-Assistant/0.89.0",
         WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
     if (!session) { result.error = L"Groq APIへの通信セッションを開始できません。"; return result; }
     WinHttpSetTimeouts(session, 10000, 10000, 15000, 30000);
@@ -391,8 +391,8 @@ static GeminiGenerateResult GenerateGroqChatCompletionOnce(
                 if (ExtractStringProperty(response, "message", providerMessage) && !providerMessage.empty())
                 {
                     if (status == 429 &&
-                        (providerMessage.find(L"output tokens per minute") != std::wstring::npos ||
-                         providerMessage.find(L"OTPM") != std::wstring::npos))
+                        (providerMessage.find(L"tokens per minute") != std::wstring::npos ||
+                         providerMessage.find(L"TPM") != std::wstring::npos))
                     {
                         result.error =
                             L"Groqのトークン処理量制限（TPM／OTPM）に達しました。"
