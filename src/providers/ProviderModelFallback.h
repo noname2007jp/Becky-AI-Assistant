@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
+#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
